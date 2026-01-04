@@ -72,6 +72,12 @@ Giriş sonrası açılan menü sayfasıdır. Aşağıdaki butonları içerir:
 Depoya ürün girişi yapılan alt menüdür.
 
 1.  **Satınalma Giriş Fişi** (Yeni Sayfa: Barkod okutma ve miktar girme ekranı)
+Burada 'Nakliye Numarası' istenir. Nakliye numarasına göre Doğtaş Apisinden yani 
+https://connectapi.doganlarmobilyagrubu.com/swagger/index.html apinden veri
+getirilir bu getirilen veriler bir sevkiyatta firmandan gelen ürünlerin stok kodu, miktaı, barkod
+vb. bilgilerini içeriyordur. bunları aldıktan sonra her stok kodunun paket bilgileri almak için yine doğtaş api 'sine isket gönderilmesi gerekir. 
+bu nakliye numarasına göre gelen ürünleri ve paket bilgilerini her seferinde apiye istek atmamak için en mantıklı yöntem hangisidir. 
+
 2.  **İade Fişi** (Yeni Sayfa)
 3.  **Diğer Girişler** (Yeni Sayfa)
 
