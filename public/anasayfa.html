@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ana Sayfa - Güneşler Elektronik</title>
+    <link rel="stylesheet" href="/css/stil.css">
+</head>
+<body>
+    <div class="kapsayici">
+        <div class="kullanici-bilgi">
+            <span id="kullaniciBilgi"></span>
+            <a href="#" id="cikisBtn" style="margin-left: 10px; color: #e74c3c;">Çıkış</a>
+        </div>
+
+        <h1 class="baslik">Ana Menü</h1>
+
+        <div class="menu-listesi">
+            <a href="/giris-islemleri.html" class="buton">Giriş İşlemleri</a>
+            <a href="/cikis-islemleri.html" class="buton">Çıkış İşlemleri</a>
+            <a href="/sevk.html" class="buton">Depolar Arası Sevk</a>
+            <a href="/sayim.html" class="buton">Sayım</a>
+            <a href="/stok.html" class="buton">Stok</a>
+        </div>
+    </div>
+
+    <script src="/js/ortak.js"></script>
+    <script>
+        document.getElementById('cikisBtn').addEventListener('click', async function(e) {
+            e.preventDefault();
+            await cikisYap();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "barkod-stok-takip",
+  "version": "1.0.0",
+  "description": "Mobil Barkod Stok Takip Uygulaması",
+  "main": "src/sunucu.js",
+  "scripts": {
+    "start": "node src/sunucu.js",
+    "dev": "node --watch src/sunucu.js"
+  },
+  "keywords": ["stok", "barkod", "depo", "yonetim"],
+  "author": "İsmail Güneş",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "googleapis": "^129.0.0",
+    "express-session": "^1.17.3",
+    "dotenv": "^16.3.1"
+  }
+}

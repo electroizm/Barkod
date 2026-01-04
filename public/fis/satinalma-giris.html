@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Satınalma Giriş Fişi - Güneşler Elektronik</title>
+    <link rel="stylesheet" href="/css/stil.css">
+    <style>
+        .barkod-alani {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .urun-listesi {
+            margin-top: 20px;
+        }
+        .urun-satir {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        .urun-bilgi {
+            flex: 1;
+        }
+        .urun-ad {
+            font-weight: 500;
+        }
+        .urun-barkod {
+            font-size: 12px;
+            color: #666;
+        }
+        .urun-miktar {
+            font-weight: 600;
+            color: #27ae60;
+        }
+        .bos-liste {
+            text-align: center;
+            color: #999;
+            padding: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="kapsayici">
+        <a href="/giris-islemleri.html" class="geri-buton">Geri</a>
+
+        <h1 class="baslik">Satınalma Giriş Fişi</h1>
+
+        <div class="barkod-alani">
+            <div class="form-grup">
+                <label for="barkodGirisi">Barkod</label>
+                <input type="text" id="barkodGirisi" placeholder="Barkodu okutun veya girin" autofocus>
+            </div>
+
+            <div class="form-grup">
+                <label for="miktarGirisi">Miktar</label>
+                <input type="number" id="miktarGirisi" value="1" min="1">
+            </div>
+
+            <button id="ekleBtn" class="buton">Ürün Ekle</button>
+        </div>
+
+        <div class="urun-listesi">
+            <h3 style="margin-bottom: 10px;">Eklenen Ürünler</h3>
+            <div id="urunListesi">
+                <div class="bos-liste">Henüz ürün eklenmedi</div>
+            </div>
+        </div>
+
+        <button id="kaydetBtn" class="buton" style="margin-top: 20px;" disabled>
+            Fişi Kaydet
+        </button>
+    </div>
+
+    <script src="/js/ortak.js"></script>
+    <script>
+        // Eklenen ürünler listesi
+        let eklenenUrunler = [];
+
+        const barkodGirisi = document.getElementById('barkodGirisi');
+        const miktarGirisi = document.getElementById('miktarGirisi');
+        const ekleBtn = document.getElementById('ekleBtn');
+        const kaydetBtn = document.getElementById('kaydetBtn');
+        const urunListesiElement = document.getElementById('urunListesi');
+
+        // Ürün ekle
+        ekleBtn.addEventListener('click', function() {
+            const barkod = barkodGirisi.value.trim();
+            const miktar = parseInt(miktarGirisi.value) || 1;
+
+            if (!barkod) {
+                alert('Lütfen barkod girin');
+                return;
+            }
+
+            // Ürünü listeye ekle (gerçek uygulamada veritabanından ürün bilgisi alınacak)
+            eklenenUrunler.push({
+                barkod: barkod,
+                ad: 'Ürün ' + barkod, // Geçici - veritabanından gelecek
+                miktar: miktar
+            });
+
+            listeGuncelle();
+
+            // Alanları temizle
+            barkodGirisi.value = '';
+            miktarGirisi.value = '1';
+            barkodGirisi.focus();
+        });
+
+        // Enter tuşu ile ekleme
+        barkodGirisi.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                ekleBtn.click();
+            }
+        });
+
+        // Liste güncelle
+        function listeGuncelle() {
+            if (eklenenUrunler.length === 0) {
+                urunListesiElement.innerHTML = '<div class="bos-liste">Henüz ürün eklenmedi</div>';
+                kaydetBtn.disabled = true;
+                return;
+            }
+
+            kaydetBtn.disabled = false;
+
+            let html = '';
+            eklenenUrunler.forEach((urun, index) => {
+                html += `
+                    <div class="urun-satir">
+                        <div class="urun-bilgi">
+                            <div class="urun-ad">${urun.ad}</div>
+                            <div class="urun-barkod">${urun.barkod}</div>
+                        </div>
+                        <div class="urun-miktar">x${urun.miktar}</div>
+                    </div>
+                `;
+            });
+
+            urunListesiElement.innerHTML = html;
+        }
+
+        // Fişi kaydet
+        kaydetBtn.addEventListener('click', function() {
+            if (eklenenUrunler.length === 0) {
+                alert('Lütfen en az bir ürün ekleyin');
+                return;
+            }
+
+            // Gerçek uygulamada API'ye gönderilecek
+            alert('Fiş kaydedildi! (Demo)');
+            eklenenUrunler = [];
+            listeGuncelle();
+        });
+    </script>
+</body>
+</html>

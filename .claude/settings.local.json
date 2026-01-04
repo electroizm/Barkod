@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir \"c:\\\\Users\\\\GUNES\\\\git\\\\Barkod\")",
+      "Bash(npm install:*)"
+    ]
+  }
+}

@@ -10,7 +10,7 @@ Bu proje, depo ve stok yönetim süreçlerini (Giriş, Çıkış, Sevk, Sayım) 
 
 - **Arayüz (Frontend):** HTML5, CSS3 (Vanilla), JavaScript (Vanilla). Harici ağır kütüphaneler (React, Vue vb.) kullanılmayacak, saf ve performanslı kod yazılacak.
 - **Sunucu (Backend):** Node.js ve Express.js.
-- **Veritabanı:** PostgreSQL (Render.com üzerinde barındırılacak).
+- **Veritabanı:** Google Sheets (Google Sheets API v4 ile entegre).
 - **Dağıtım (Deployment):** Render.com.
 
 ### 2.2. Kodlama Standartları
@@ -18,38 +18,25 @@ Bu proje, depo ve stok yönetim süreçlerini (Giriş, Çıkış, Sevk, Sayım) 
 - Tüm değişkenler, fonksiyon isimleri, veritabanı tabloları ve sütun isimleri kesinlikle **Türkçe** olacaktır.
 - Kod yapısı modüler ve okunabilir olacaktır.
 
-## 3. Veritabanı Tasarımı (PostgreSQL)
+## 3. Veritabanı Tasarımı (Google Sheets)
 
-Veritabanı tabloları ve ilişkileri aşağıdaki gibidir:
+Veriler Google Sheets üzerinde saklanacaktır. Her tablo ayrı bir sayfa (sheet) olarak oluşturulacaktır.
 
-### 3.1. Tablo: `kullanicilar`
+### 3.1. Sayfa: `kullanicilar`
 
-Kullanıcı giriş yetkilendirmesi için kullanılacaktır.
+Kullanıcı giriş yetkilendirmesi için kullanılacaktır. İlk satır başlık satırıdır.
 
-- `id` (Serial, Primary Key): Benzersiz kayıt no.
-- `kullanici_adi` (Varchar, Unique): Giriş kullanıcı adı.
-- `sifre` (Varchar): Güvenli şifre.
-- `rol` (Varchar): Kullanıcı yetkisi (örn: admin, personel).
+| Sütun A | Sütun B | Sütun C |
+|---------|---------|---------|
+| kullanici_adi | sifre | rol |
+| admin | 1234 | admin |
+| personel1 | 5678 | personel |
 
-### 3.2. Tablo: `urunler`
+- **kullanici_adi:** Giriş kullanıcı adı (benzersiz olmalı).
+- **sifre:** Kullanıcı şifresi (düz metin).
+- **rol:** Kullanıcı yetkisi (admin, personel).
 
-Stoktaki ürünlerin tanımları.
-
-- `id` (Serial, Primary Key)
-- `barkod` (Varchar, Unique): Ürün barkod numarası.
-- `urun_adi` (Varchar): Ürün ismi.
-- `stok_miktari` (Integer): Güncel stok adedi.
-
-### 3.3. Tablo: `stok_hareketleri`
-
-Giriş ve çıkış işlemlerinin loglandığı tablo.
-
-- `id` (Serial, Primary Key)
-- `islem_turu` (Varchar): 'Satınalma Giriş', 'Teslimat Çıkış' vb.
-- `urun_id` (Integer, Foreign Key): İşlem gören ürün.
-- `miktar` (Integer): Hareket adedi.
-- `tarih` (Timestamp): İşlem zamanı.
-- `kullanici_id` (Integer): İşlemi yapan personel.
+_(Not: `urunler` ve `stok_hareketleri` sayfaları daha sonra eklenecektir.)_
 
 ## 4. Arayüz ve Tasarım Kuralları (UI/UX)
 
