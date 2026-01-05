@@ -5,6 +5,76 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sayım - Güneşler Elektronik</title>
     <link rel="stylesheet" href="/css/stil.css">
+    <style>
+        .barkod-alani {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .urun-listesi {
+            margin-top: 20px;
+        }
+        .urun-satir {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        .urun-bilgi {
+            flex: 1;
+        }
+        .urun-ad {
+            font-weight: 500;
+        }
+        .urun-barkod {
+            font-size: 12px;
+            color: #666;
+        }
+        .urun-adet {
+            font-weight: 600;
+            color: #9b59b6;
+            min-width: 40px;
+            text-align: right;
+        }
+        .bos-liste {
+            text-align: center;
+            color: #999;
+            padding: 30px;
+        }
+        .son-okunan {
+            background-color: #d4edda;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 14px;
+            color: #155724;
+            display: none;
+        }
+        .son-okunan.goster {
+            display: block;
+        }
+        .sayim-bilgi {
+            background-color: #fff3cd;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            color: #856404;
+        }
+        .toplam-sayim {
+            background-color: #e8f4fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: center;
+        }
+        .toplam-sayim strong {
+            font-size: 24px;
+            color: #2980b9;
+        }
+    </style>
 </head>
 <body>
     <div class="kapsayici">
@@ -12,13 +82,122 @@
 
         <h1 class="baslik">Sayım</h1>
 
-        <p style="text-align: center; color: #666; padding: 40px;">
-            Bu sayfa stok sayımı yapmak ve mevcut stokla karşılaştırmak için kullanılacaktır.
-            <br><br>
-            <em>(Yakında eklenecek)</em>
-        </p>
+        <div class="sayim-bilgi">
+            Barkod okutarak veya kamera ile tarayarak ürün sayımı yapın. Aynı ürün tekrar okunduğunda adet otomatik artar.
+        </div>
+
+        <div class="barkod-alani">
+            <div id="barkodOkuyucu"></div>
+            <div id="sonOkunan" class="son-okunan"></div>
+        </div>
+
+        <div class="toplam-sayim">
+            Toplam Sayılan: <strong id="toplamSayim">0</strong> adet
+        </div>
+
+        <div class="urun-listesi">
+            <h3 style="margin-bottom: 10px;">Sayılan Ürünler</h3>
+            <div id="urunListesi">
+                <div class="bos-liste">Henüz ürün sayılmadı</div>
+            </div>
+        </div>
+
+        <button id="kaydetBtn" class="buton" style="margin-top: 20px;" disabled>
+            Sayımı Kaydet
+        </button>
+
+        <button id="temizleBtn" class="buton" style="margin-top: 10px; background-color: #95a5a6;">
+            Sayımı Temizle
+        </button>
     </div>
 
     <script src="/js/ortak.js"></script>
+    <script src="/js/barkod-okuyucu.js"></script>
+    <script>
+        let sayilanUrunler = [];
+
+        const kaydetBtn = document.getElementById('kaydetBtn');
+        const temizleBtn = document.getElementById('temizleBtn');
+        const urunListesiElement = document.getElementById('urunListesi');
+        const sonOkunanElement = document.getElementById('sonOkunan');
+        const toplamSayimElement = document.getElementById('toplamSayim');
+
+        const barkodOkuyucu = new BarkodOkuyucu('#barkodOkuyucu', {
+            okumaSonrasi: function(barkod) {
+                urunSay(barkod);
+            }
+        });
+
+        function urunSay(barkod) {
+            if (!barkod) return;
+
+            const mevcutUrun = sayilanUrunler.find(u => u.barkod === barkod);
+
+            if (mevcutUrun) {
+                mevcutUrun.adet++;
+            } else {
+                sayilanUrunler.push({
+                    barkod: barkod,
+                    ad: 'Ürün ' + barkod,
+                    adet: 1
+                });
+            }
+
+            sonOkunanElement.textContent = 'Son okunan: ' + barkod;
+            sonOkunanElement.classList.add('goster');
+
+            listeGuncelle();
+        }
+
+        function listeGuncelle() {
+            const toplam = sayilanUrunler.reduce((acc, urun) => acc + urun.adet, 0);
+            toplamSayimElement.textContent = toplam;
+
+            if (sayilanUrunler.length === 0) {
+                urunListesiElement.innerHTML = '<div class="bos-liste">Henüz ürün sayılmadı</div>';
+                kaydetBtn.disabled = true;
+                return;
+            }
+
+            kaydetBtn.disabled = false;
+
+            let html = '';
+            sayilanUrunler.forEach((urun) => {
+                html += `
+                    <div class="urun-satir">
+                        <div class="urun-bilgi">
+                            <div class="urun-ad">${urun.ad}</div>
+                            <div class="urun-barkod">${urun.barkod}</div>
+                        </div>
+                        <div class="urun-adet">x${urun.adet}</div>
+                    </div>
+                `;
+            });
+
+            urunListesiElement.innerHTML = html;
+        }
+
+        kaydetBtn.addEventListener('click', function() {
+            if (sayilanUrunler.length === 0) {
+                alert('Lütfen en az bir ürün sayın');
+                return;
+            }
+
+            alert('Sayım kaydedildi! (Demo)');
+            sayilanUrunler = [];
+            listeGuncelle();
+            sonOkunanElement.classList.remove('goster');
+        });
+
+        temizleBtn.addEventListener('click', function() {
+            if (sayilanUrunler.length === 0) return;
+
+            if (confirm('Sayım verilerini silmek istediğinize emin misiniz?')) {
+                sayilanUrunler = [];
+                listeGuncelle();
+                sonOkunanElement.classList.remove('goster');
+            }
+        });
+    </script>
 </body>
 </html>

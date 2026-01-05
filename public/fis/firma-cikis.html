@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Satınalma Giriş Fişi - Güneşler Elektronik</title>
+    <title>Firma Çıkış Fişi - Güneşler Elektronik</title>
     <link rel="stylesheet" href="/css/stil.css">
     <style>
         .barkod-alani {
@@ -34,7 +34,7 @@
         }
         .urun-adet {
             font-weight: 600;
-            color: #3498db;
+            color: #e74c3c;
             min-width: 40px;
             text-align: right;
         }
@@ -59,9 +59,9 @@
 </head>
 <body>
     <div class="kapsayici">
-        <a href="/giris-islemleri.html" class="geri-buton">Geri</a>
+        <a href="/cikis-islemleri.html" class="geri-buton">Geri</a>
 
-        <h1 class="baslik">Satınalma Giriş Fişi</h1>
+        <h1 class="baslik">Firma Çıkış Fişi</h1>
 
         <div class="barkod-alani">
             <div id="barkodOkuyucu"></div>
@@ -69,7 +69,7 @@
         </div>
 
         <div class="urun-listesi">
-            <h3 style="margin-bottom: 10px;">Eklenen Ürünler</h3>
+            <h3 style="margin-bottom: 10px;">Çıkış Yapılan Ürünler</h3>
             <div id="urunListesi">
                 <div class="bos-liste">Henüz ürün eklenmedi</div>
             </div>
@@ -83,48 +83,39 @@
     <script src="/js/ortak.js"></script>
     <script src="/js/barkod-okuyucu.js"></script>
     <script>
-        // Eklenen ürünler listesi
         let eklenenUrunler = [];
 
         const kaydetBtn = document.getElementById('kaydetBtn');
         const urunListesiElement = document.getElementById('urunListesi');
         const sonOkunanElement = document.getElementById('sonOkunan');
 
-        // Barkod okuyucu bileşenini başlat
         const barkodOkuyucu = new BarkodOkuyucu('#barkodOkuyucu', {
             okumaSonrasi: function(barkod) {
                 urunEkle(barkod);
             }
         });
 
-        // Ürün ekle
         function urunEkle(barkod) {
-            if (!barkod) {
-                return;
-            }
+            if (!barkod) return;
 
-            // Aynı barkod varsa adet artır
             const mevcutUrun = eklenenUrunler.find(u => u.barkod === barkod);
 
             if (mevcutUrun) {
                 mevcutUrun.adet++;
             } else {
-                // Yeni ürün ekle (gerçek uygulamada veritabanından ürün bilgisi alınacak)
                 eklenenUrunler.push({
                     barkod: barkod,
-                    ad: 'Ürün ' + barkod, // Geçici - veritabanından gelecek
+                    ad: 'Ürün ' + barkod,
                     adet: 1
                 });
             }
 
-            // Son okunan bilgisini göster
             sonOkunanElement.textContent = 'Son okunan: ' + barkod;
             sonOkunanElement.classList.add('goster');
 
             listeGuncelle();
         }
 
-        // Liste güncelle
         function listeGuncelle() {
             if (eklenenUrunler.length === 0) {
                 urunListesiElement.innerHTML = '<div class="bos-liste">Henüz ürün eklenmedi</div>';
@@ -135,14 +126,14 @@
             kaydetBtn.disabled = false;
 
             let html = '';
-            eklenenUrunler.forEach((urun, index) => {
+            eklenenUrunler.forEach((urun) => {
                 html += `
                     <div class="urun-satir">
                         <div class="urun-bilgi">
                             <div class="urun-ad">${urun.ad}</div>
                             <div class="urun-barkod">${urun.barkod}</div>
                         </div>
-                        <div class="urun-adet">x${urun.adet}</div>
+                        <div class="urun-adet">-${urun.adet}</div>
                     </div>
                 `;
             });
@@ -150,15 +141,13 @@
             urunListesiElement.innerHTML = html;
         }
 
-        // Fişi kaydet
         kaydetBtn.addEventListener('click', function() {
             if (eklenenUrunler.length === 0) {
                 alert('Lütfen en az bir ürün ekleyin');
                 return;
             }
 
-            // Gerçek uygulamada API'ye gönderilecek
-            alert('Fiş kaydedildi! (Demo)');
+            alert('Firma çıkış fişi kaydedildi! (Demo)');
             eklenenUrunler = [];
             listeGuncelle();
             sonOkunanElement.classList.remove('goster');
