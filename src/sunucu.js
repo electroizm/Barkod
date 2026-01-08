@@ -7,8 +7,9 @@ const uygulama = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-uygulama.use(express.json());
-uygulama.use(express.urlencoded({ extended: true }));
+// Büyük nakliye verileri için limit artırıldı (varsayılan 100KB -> 10MB)
+uygulama.use(express.json({ limit: '10mb' }));
+uygulama.use(express.urlencoded({ extended: true, limit: '10mb' }));
 uygulama.use(express.static(path.join(__dirname, '../public')));
 
 // Oturum yapılandırması

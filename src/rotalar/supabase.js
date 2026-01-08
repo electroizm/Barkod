@@ -11,6 +11,167 @@ const { qrKodParsele, qrKodHash, qrKodValidasyon } = require('../utils/qr-parser
 // Supabase client - dinamik import için
 let supabase = null;
 
+// ============================================
+// CACHE SİSTEMİ
+// ============================================
+// Oturum bazlı cache - bellekte tutulan veriler
+const oturumCache = new Map();
+
+// Cache yapısı:
+// oturumCache.get('20260108-001') = {
+//     kalemler: [...],           // nakliye_yuklemeleri verileri
+//     okunanQrler: Set([...]),   // okunan QR kodların hash'leri
+//     paketOkumaSayilari: Map,   // malzeme_no:paket_sira -> okuma sayısı
+//     sonGuncelleme: Date,       // son güncelleme zamanı
+//     toplamPaket: 194,
+//     okunanPaket: 5
+// }
+
+const CACHE_SURESI_MS = 30 * 60 * 1000; // 30 dakika
+
+/**
+ * Oturum cache'ini yükle veya güncelle
+ */
+async function oturumCacheYukle(oturumId, client, zorlaYenile = false) {
+    const mevcutCache = oturumCache.get(oturumId);
+    const simdi = Date.now();
+
+    // Cache varsa ve süresi dolmamışsa kullan
+    if (mevcutCache && !zorlaYenile && (simdi - mevcutCache.sonGuncelleme < CACHE_SURESI_MS)) {
+        return mevcutCache;
+    }
+
+    // Veritabanından yükle
+    const { data: kalemler, error: kalemHata } = await client
+        .from('nakliye_yuklemeleri')
+        .select('*')
+        .eq('oturum_id', oturumId);
+
+    if (kalemHata) {
+        console.error('Cache yükleme hatası:', kalemHata);
+        return null;
+    }
+
+    // Okunan QR'ları ve paket okuma sayılarını yükle
+    const { data: okumalar, error: okumaHata } = await client
+        .from('paket_okumalari')
+        .select('qr_kod, malzeme_no_qr, paket_sira')
+        .eq('oturum_id', oturumId);
+
+    const okunanQrler = new Set();
+    const paketOkumaSayilari = new Map(); // "malzeme_no:paket_sira" -> sayı
+
+    if (!okumaHata && okumalar) {
+        okumalar.forEach(o => {
+            okunanQrler.add(o.qr_kod);
+
+            // Paket okuma sayısını hesapla
+            if (o.malzeme_no_qr && o.paket_sira) {
+                const key = `${o.malzeme_no_qr}:${o.paket_sira}`;
+                paketOkumaSayilari.set(key, (paketOkumaSayilari.get(key) || 0) + 1);
+            }
+        });
+    }
+
+    // Toplam paket sayısını hesapla
+    let toplamPaket = 0;
+    if (kalemler) {
+        kalemler.forEach(k => {
+            const miktar = parseFloat((k.miktar || '0').replace(',', '.')) || 1;
+            const paketSayisi = parseInt(k.paket_sayisi) || 0;
+            toplamPaket += miktar * paketSayisi;
+        });
+    }
+
+    const cacheData = {
+        kalemler: kalemler || [],
+        okunanQrler,
+        paketOkumaSayilari,
+        sonGuncelleme: simdi,
+        toplamPaket,
+        okunanPaket: okunanQrler.size
+    };
+
+    oturumCache.set(oturumId, cacheData);
+    console.log(`Cache yüklendi: ${oturumId} - ${kalemler?.length || 0} kalem, ${okunanQrler.size} okuma`);
+
+    return cacheData;
+}
+
+/**
+ * Cache'e yeni okuma ekle
+ */
+function cacheyeOkumaEkle(oturumId, qrKod, malzemeNo, paketSira) {
+    const cache = oturumCache.get(oturumId);
+    if (cache) {
+        cache.okunanQrler.add(qrKod);
+        cache.okunanPaket = cache.okunanQrler.size;
+        cache.sonGuncelleme = Date.now();
+
+        // Paket okuma sayısını artır
+        if (malzemeNo && paketSira) {
+            const key = `${malzemeNo}:${paketSira}`;
+            cache.paketOkumaSayilari.set(key, (cache.paketOkumaSayilari.get(key) || 0) + 1);
+        }
+    }
+}
+
+/**
+ * Bu malzeme_no ve paket_sira için daha fazla okuma yapılabilir mi?
+ * miktar kadar okuma yapılabilir
+ */
+function paketOkumasiYapilabilirMi(oturumId, malzemeNo, paketSira, maxMiktar) {
+    const cache = oturumCache.get(oturumId);
+    if (!cache) return true; // Cache yoksa kontrolü atla
+
+    const key = `${malzemeNo}:${paketSira}`;
+    const mevcutOkuma = cache.paketOkumaSayilari.get(key) || 0;
+
+    return mevcutOkuma < maxMiktar;
+}
+
+/**
+ * Bu malzeme_no ve paket_sira için kaç okuma yapılmış?
+ */
+function paketOkumaSayisi(oturumId, malzemeNo, paketSira) {
+    const cache = oturumCache.get(oturumId);
+    if (!cache) return 0;
+
+    const key = `${malzemeNo}:${paketSira}`;
+    return cache.paketOkumaSayilari.get(key) || 0;
+}
+
+/**
+ * Cache'den QR okunmuş mu kontrol et
+ */
+function cachedeQrVarMi(oturumId, qrKod) {
+    const cache = oturumCache.get(oturumId);
+    if (cache) {
+        return cache.okunanQrler.has(qrKod);
+    }
+    return false;
+}
+
+/**
+ * Cache'den kalem bul (malzeme_no ile)
+ */
+function cachedeMalzemeNoBul(oturumId, malzemeNo) {
+    const cache = oturumCache.get(oturumId);
+    if (!cache) return null;
+
+    return cache.kalemler.find(k => k.malzeme_no === malzemeNo);
+}
+
+/**
+ * Cache'den kalem bul (satinalma_kalem_id ile)
+ */
+function cachedeSatinalmaKalemIdBul(oturumId, satinalmaKalemId) {
+    const cache = oturumCache.get(oturumId);
+    if (!cache) return null;
+
+    return cache.kalemler.find(k => k.satinalma_kalem_id === satinalmaKalemId);
+}
+
 async function getSupabaseClient() {
     if (supabase) return supabase;
 
@@ -385,7 +546,7 @@ async function kisiyeOzelEslestir(oturumId, satinalmaKalemId, client) {
 }
 
 /**
- * QR Kod Okut
+ * QR Kod Okut - CACHE KULLANAN HIZLI VERSİYON
  * POST /api/supabase/qr-okut
  *
  * Body: { oturum_id: "20260107-001", qr_kod: "...", kullanici: "..." }
@@ -430,27 +591,32 @@ router.post('/qr-okut', async (req, res) => {
             });
         }
 
-        // 2. Bu QR daha önce okunmuş mu kontrol et
-        const { data: mevcutOkuma } = await client
-            .from('paket_okumalari')
-            .select('id')
-            .eq('qr_kod', qr_kod)
-            .single();
-
-        if (mevcutOkuma) {
+        // 2. Cache'i yükle (yoksa veritabanından çeker)
+        const cache = await oturumCacheYukle(oturum_id, client);
+        if (!cache) {
             return res.json({
                 success: false,
-                message: 'Bu paket zaten okundu!',
-                hata_tipi: 'DUPLICATE_QR'
+                message: 'Oturum bilgileri yüklenemedi',
+                hata_tipi: 'CACHE_ERROR'
             });
         }
 
-        // 3. Eşleşen kalemi bul
+        // 3. HIZLI KONTROL: Bu QR daha önce okunmuş mu? (Cache'den)
+        if (cachedeQrVarMi(oturum_id, qr_kod)) {
+            return res.json({
+                success: false,
+                message: 'Bu paket zaten okundu!',
+                hata_tipi: 'DUPLICATE_QR',
+                from_cache: true
+            });
+        }
+
+        // 4. Eşleşen kalemi bul (Cache'den)
         let eslesenKalem = null;
 
         if (qrBilgi.kisiyeOzel) {
             // Kişiye özel ürün: satinalma_kalem_id ile eşleştir
-            eslesenKalem = await kisiyeOzelEslestir(oturum_id, qrBilgi.satinalmaKalemId, client);
+            eslesenKalem = cachedeSatinalmaKalemIdBul(oturum_id, qrBilgi.satinalmaKalemId);
 
             if (!eslesenKalem) {
                 return res.json({
@@ -464,12 +630,12 @@ router.post('/qr-okut', async (req, res) => {
             }
         } else {
             // Standart ürün: malzeme_no ile eşleştir
-            eslesenKalem = await standartUrunEslestir(oturum_id, qrBilgi.malzemeNo, client);
+            eslesenKalem = cachedeMalzemeNoBul(oturum_id, qrBilgi.malzemeNo);
 
             if (!eslesenKalem) {
                 return res.json({
                     success: false,
-                    message: 'Bu ürün bu nakliyede yok veya tüm paketler okunmuş!',
+                    message: 'Bu ürün bu nakliyede bulunamadı!',
                     hata_tipi: 'NOT_FOUND_STANDARD',
                     detay: {
                         malzeme_no: qrBilgi.malzemeNo
@@ -478,14 +644,35 @@ router.post('/qr-okut', async (req, res) => {
             }
         }
 
-        // 4. Paket toplam kontrolü (QR'daki 91 değeri ile DB'deki paket_sayisi karşılaştır)
+        // 5. Paket toplam kontrolü
         const dbBirimPaket = parseInt(eslesenKalem.paket_sayisi) || 0;
         if (dbBirimPaket > 0 && qrBilgi.paketToplam !== dbBirimPaket) {
-            // Uyarı ver ama devam et (loglama için)
             console.warn(`Paket sayısı uyumsuzluğu: QR=${qrBilgi.paketToplam}, DB=${dbBirimPaket}`);
         }
 
-        // 5. Okumayı kaydet
+        // 6. PAKET OKUMA LİMİT KONTROLÜ
+        // Bu malzeme_no + paket_sira için miktar kadar okuma yapılabilir
+        const miktar = parseFloat((eslesenKalem.miktar || '1').replace(',', '.')) || 1;
+        const malzemeNo = qrBilgi.malzemeNo;
+        const paketSira = qrBilgi.paketSira;
+
+        if (!paketOkumasiYapilabilirMi(oturum_id, malzemeNo, paketSira, miktar)) {
+            const mevcutOkuma = paketOkumaSayisi(oturum_id, malzemeNo, paketSira);
+            return res.json({
+                success: false,
+                message: `Bu paket (${paketSira}/${qrBilgi.paketToplam}) için tüm okumalar tamamlandı! (${mevcutOkuma}/${miktar} adet)`,
+                hata_tipi: 'PAKET_LIMIT_ASILDI',
+                detay: {
+                    malzeme_no: malzemeNo,
+                    paket_sira: paketSira,
+                    paket_toplam: qrBilgi.paketToplam,
+                    miktar: miktar,
+                    okunan: mevcutOkuma
+                }
+            });
+        }
+
+        // 7. Okumayı veritabanına kaydet
         const okumaKaydi = {
             oturum_id: oturum_id,
             nakliye_kalem_id: eslesenKalem.id,
@@ -506,13 +693,38 @@ router.post('/qr-okut', async (req, res) => {
             .single();
 
         if (okumaHatasi) {
-            // Unique constraint hatası (eşzamanlı okuma durumu)
+            // Unique constraint hatası
             if (okumaHatasi.code === '23505') {
-                return res.json({
-                    success: false,
-                    message: 'Bu paket zaten okundu!',
-                    hata_tipi: 'DUPLICATE_QR'
-                });
+                // Bu QR başka oturumda mı yoksa aynı oturumda mı okunmuş kontrol et
+                const { data: mevcutOkuma } = await client
+                    .from('paket_okumalari')
+                    .select('oturum_id')
+                    .eq('qr_kod', qr_kod)
+                    .single();
+
+                if (mevcutOkuma && mevcutOkuma.oturum_id === oturum_id) {
+                    // Aynı oturumda okunmuş - gerçek duplicate
+                    cacheyeOkumaEkle(oturum_id, qr_kod, malzemeNo, paketSira);
+                    return res.json({
+                        success: false,
+                        message: 'Bu paket zaten okundu!',
+                        hata_tipi: 'DUPLICATE_QR'
+                    });
+                } else {
+                    // Farklı oturumda okunmuş - bu oturum için yeni kayıt yapılmalı
+                    // NOT: Veritabanında unique constraint (oturum_id, qr_kod) olmalı
+                    // Şimdilik bu durumu loglayıp devam ediyoruz
+                    console.warn(`QR kod başka oturumda okunmuş: ${mevcutOkuma?.oturum_id}, mevcut: ${oturum_id}`);
+                    return res.json({
+                        success: false,
+                        message: 'Veritabanı constraint hatası. Lütfen yöneticiye bildirin.',
+                        hata_tipi: 'DB_CONSTRAINT_ERROR',
+                        detay: {
+                            onceki_oturum: mevcutOkuma?.oturum_id,
+                            mevcut_oturum: oturum_id
+                        }
+                    });
+                }
             }
 
             return res.json({
@@ -522,39 +734,12 @@ router.post('/qr-okut', async (req, res) => {
             });
         }
 
-        // 6. Bu kalem için kalan paket sayısını hesapla
-        const miktar = parseFloat((eslesenKalem.miktar || '0').replace(',', '.')) || 1;
-        const birimPaket = parseInt(eslesenKalem.paket_sayisi) || 1;
-        const beklenenOkuma = miktar * birimPaket;
+        // 8. Başarılı! Cache'i güncelle
+        cacheyeOkumaEkle(oturum_id, qr_kod, malzemeNo, paketSira);
 
-        const { count: yapilmisOkuma } = await client
-            .from('paket_okumalari')
-            .select('*', { count: 'exact', head: true })
-            .eq('nakliye_kalem_id', eslesenKalem.id);
-
-        const kalanPaket = beklenenOkuma - (yapilmisOkuma || 0);
-
-        // 7. Oturum geneli kalan paket
-        const { data: oturumOzet } = await client
-            .from('nakliye_yuklemeleri')
-            .select('id, paket_sayisi, miktar')
-            .eq('oturum_id', oturum_id);
-
-        let toplamBeklenen = 0;
-        if (oturumOzet) {
-            for (const k of oturumOzet) {
-                const m = parseFloat((k.miktar || '0').replace(',', '.')) || 1;
-                const p = parseInt(k.paket_sayisi) || 1;
-                toplamBeklenen += m * p;
-            }
-        }
-
-        const { count: toplamOkunan } = await client
-            .from('paket_okumalari')
-            .select('*', { count: 'exact', head: true })
-            .eq('oturum_id', oturum_id);
-
-        const oturumKalanPaket = toplamBeklenen - (toplamOkunan || 0);
+        // 8. Güncel cache'den istatistik al
+        const guncelCache = oturumCache.get(oturum_id);
+        const oturumKalanPaket = guncelCache ? (guncelCache.toplamPaket - guncelCache.okunanPaket) : 0;
 
         return res.json({
             success: true,
@@ -569,8 +754,8 @@ router.post('/qr-okut', async (req, res) => {
                 toplam: qrBilgi.paketToplam,
                 sira: qrBilgi.paketSira
             },
-            kalem_kalan_paket: kalanPaket,
             oturum_kalan_paket: oturumKalanPaket,
+            oturum_okunan_paket: guncelCache?.okunanPaket || 0,
             okuma_id: yeniOkuma.id
         });
 
@@ -766,6 +951,60 @@ router.get('/son-okumalar/:oturumId', async (req, res) => {
 
     } catch (error) {
         console.error('Son okumalar hatası:', error);
+        return res.json({
+            success: false,
+            message: 'Sunucu hatası: ' + error.message
+        });
+    }
+});
+
+/**
+ * Okunan QR Listesi
+ * GET /api/supabase/okunan-qrler/:oturumId
+ * Frontend cache senkronizasyonu için
+ */
+router.get('/okunan-qrler/:oturumId', async (req, res) => {
+    try {
+        const { oturumId } = req.params;
+
+        if (!oturumId) {
+            return res.json({
+                success: false,
+                message: 'Oturum ID gerekli'
+            });
+        }
+
+        const client = await getSupabaseClient();
+        if (!client) {
+            return res.json({
+                success: false,
+                message: 'Veritabanı bağlantısı kurulamadı'
+            });
+        }
+
+        // Bu oturuma ait tüm okunan QR kodları getir
+        const { data, error } = await client
+            .from('paket_okumalari')
+            .select('qr_kod')
+            .eq('oturum_id', oturumId);
+
+        if (error) {
+            return res.json({
+                success: false,
+                message: 'Okumalar alınamadı: ' + error.message
+            });
+        }
+
+        const qrListesi = (data || []).map(d => d.qr_kod);
+
+        return res.json({
+            success: true,
+            okunan_qrler: qrListesi,
+            toplam: qrListesi.length
+        });
+
+    } catch (error) {
+        console.error('Okunan QR listesi hatası:', error);
         return res.json({
             success: false,
             message: 'Sunucu hatası: ' + error.message

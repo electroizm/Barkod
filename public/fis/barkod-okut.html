@@ -334,6 +334,64 @@
         let okumalar = []; // Son okumalar listesi
         let barkodOkuyucu = null;
 
+        // ============================================
+        // FRONTEND CACHE SİSTEMİ
+        // ============================================
+        // Okunan QR kodları localStorage'da tut
+        const CACHE_KEY_PREFIX = 'qr_cache_';
+
+        function getCacheKey() {
+            return CACHE_KEY_PREFIX + oturumId;
+        }
+
+        function frontendCacheYukle() {
+            try {
+                const data = localStorage.getItem(getCacheKey());
+                return data ? new Set(JSON.parse(data)) : new Set();
+            } catch (e) {
+                return new Set();
+            }
+        }
+
+        function frontendCacheKaydet(okunanSet) {
+            try {
+                localStorage.setItem(getCacheKey(), JSON.stringify([...okunanSet]));
+            } catch (e) {
+                console.warn('Cache kaydetme hatası:', e);
+            }
+        }
+
+        function frontendCacheyeEkle(qrKod) {
+            const cache = frontendCacheYukle();
+            cache.add(qrKod);
+            frontendCacheKaydet(cache);
+        }
+
+        function frontendCachedeVarMi(qrKod) {
+            const cache = frontendCacheYukle();
+            return cache.has(qrKod);
+        }
+
+        // Sunucudan okunan QR listesini çekip cache'i senkronize et
+        async function frontendCacheSenkronize() {
+            try {
+                const response = await fetch(`/api/supabase/okunan-qrler/${encodeURIComponent(oturumId)}`);
+                const data = await response.json();
+
+                if (data.success && data.okunan_qrler) {
+                    // localStorage'ı sunucu verisiyle güncelle
+                    const cache = new Set(data.okunan_qrler);
+                    frontendCacheKaydet(cache);
+                    console.log(`Cache senkronize edildi: ${cache.size} QR kod`);
+                    return cache.size;
+                }
+                return 0;
+            } catch (e) {
+                console.warn('Cache senkronizasyon hatası:', e);
+                return 0;
+            }
+        }
+
         // URL'den oturum ID'yi al
         const urlParams = new URLSearchParams(window.location.search);
         oturumId = urlParams.get('oturum');
@@ -345,12 +403,16 @@
             // Geri butonuna oturum ID ekle
             geriBtn.href = `/fis/nakliye-okutma.html?oturum=${oturumId}`;
 
-            // Sayfa yüklendiğinde durumu getir
-            durumGuncelle();
+            // Sayfa yüklendiğinde:
+            // 1. Önce cache'i sunucuyla senkronize et
+            // 2. Sonra durumu güncelle ve barkod okuyucuyu başlat
+            frontendCacheSenkronize().then(() => {
+                durumGuncelle();
 
-            // Barkod okuyucu başlat
-            barkodOkuyucu = new BarkodOkuyucu('#barkodOkuyucuAlani', {
-                okumaSonrasi: qrOkut
+                // Barkod okuyucu başlat
+                barkodOkuyucu = new BarkodOkuyucu('#barkodOkuyucuAlani', {
+                    okumaSonrasi: qrOkut
+                });
             });
         }
 
@@ -379,6 +441,14 @@
 
             if (!qrKod) return;
 
+            // HIZLI KONTROL: Frontend cache'de var mı?
+            if (frontendCachedeVarMi(qrKod)) {
+                console.log('Frontend cache: Bu QR zaten okunmuş');
+                okumaHatali('Bu paket zaten okundu!', 'DUPLICATE_QR');
+                sesliGeriBildirim('tekrar'); // Özel tekrar okuma sesi
+                return;
+            }
+
             yukleniyorGoster();
             okumaAlaniTemizle();
 
@@ -400,13 +470,23 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    // Başarılı okuma
+                    // Başarılı okuma - cache'e ekle
+                    frontendCacheyeEkle(qrKod);
                     okumaBasarili(data);
                     sesliGeriBildirim('basarili');
                 } else {
                     // Hatalı okuma
+                    if (data.hata_tipi === 'DUPLICATE_QR') {
+                        // Aynı QR tekrar okundu
+                        frontendCacheyeEkle(qrKod);
+                        sesliGeriBildirim('tekrar');
+                    } else if (data.hata_tipi === 'PAKET_LIMIT_ASILDI') {
+                        // Bu paket sırası için limit aşıldı (farklı QR ama aynı malzeme/paket)
+                        sesliGeriBildirim('tekrar');
+                    } else {
+                        sesliGeriBildirim('hata');
+                    }
                     okumaHatali(data.message, data.hata_tipi);
-                    sesliGeriBildirim('hata');
                 }
 
             } catch (error) {
@@ -536,8 +616,8 @@
             if ('vibrate' in navigator) {
                 if (tip === 'basarili') {
                     navigator.vibrate(100);
-                } else if (tip === 'hata') {
-                    navigator.vibrate([100, 50, 100]);
+                } else if (tip === 'hata' || tip === 'tekrar') {
+                    navigator.vibrate([100, 50, 100, 50, 100]); // Üç kısa titreşim
                 } else if (tip === 'tamamlandi') {
                     navigator.vibrate([100, 50, 100, 50, 200]);
                 }
@@ -558,6 +638,30 @@
                     gainNode.gain.value = 0.3;
                     oscillator.start();
                     oscillator.stop(audioContext.currentTime + 0.1);
+                } else if (tip === 'tekrar') {
+                    // TEKRAR OKUMA - Çift kısa bip (farklı ton)
+                    // İlk bip
+                    oscillator.frequency.value = 440; // A4
+                    oscillator.type = 'sawtooth';
+                    gainNode.gain.value = 0.4;
+                    oscillator.start();
+                    oscillator.stop(audioContext.currentTime + 0.1);
+
+                    // İkinci bip
+                    setTimeout(() => {
+                        try {
+                            const ctx2 = new (window.AudioContext || window.webkitAudioContext)();
+                            const osc2 = ctx2.createOscillator();
+                            const gain2 = ctx2.createGain();
+                            osc2.connect(gain2);
+                            gain2.connect(ctx2.destination);
+                            osc2.frequency.value = 440;
+                            osc2.type = 'sawtooth';
+                            gain2.gain.value = 0.4;
+                            osc2.start();
+                            osc2.stop(ctx2.currentTime + 0.1);
+                        } catch(e) {}
+                    }, 150);
                 } else if (tip === 'hata') {
                     oscillator.frequency.value = 220; // A3
                     oscillator.type = 'square';
