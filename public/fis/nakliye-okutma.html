@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nakliye Okutma - Güneşler Elektronik</title>
+    <link rel="stylesheet" href="/css/stil.css">
+    <style>
+        .oturum-bilgi {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .oturum-baslik {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .oturum-id {
+            background-color: #3498db;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .bilgi-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .bilgi-satir {
+            display: flex;
+            flex-direction: column;
+        }
+        .bilgi-etiket {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 2px;
+        }
+        .bilgi-deger {
+            font-size: 15px;
+            font-weight: 500;
+            color: #2c3e50;
+        }
+        .istatistik-kutu {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        .istatistik {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            background-color: #e8f4fd;
+            border-radius: 6px;
+        }
+        .istatistik-sayi {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2980b9;
+        }
+        .istatistik-etiket {
+            font-size: 12px;
+            color: #666;
+        }
+        .okutma-btn {
+            width: 100%;
+            padding: 18px;
+            font-size: 18px;
+            font-weight: 600;
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .okutma-btn:hover {
+            background-color: #219a52;
+        }
+        .okutma-btn:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .yukleniyor-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .yukleniyor-overlay.gizle {
+            display: none;
+        }
+        .yukleniyor-icerik {
+            text-align: center;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .hata-kutu {
+            background-color: #fdecea;
+            color: #c0392b;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .oturum-secim {
+            margin-bottom: 20px;
+        }
+        .oturum-secim label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #555;
+        }
+        .oturum-secim input {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            outline: none;
+            box-sizing: border-box;
+        }
+        .oturum-secim input:focus {
+            border-color: #3498db;
+        }
+        .ara-btn {
+            margin-top: 10px;
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .ara-btn:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="kapsayici">
+        <a href="/giris-islemleri.html" class="geri-buton">Geri</a>
+
+        <h1 class="baslik">Nakliye Okutma</h1>
+        <span id="kullaniciBilgi" style="display:none;"></span>
+
+        <!-- Oturum ID yoksa manuel giriş alanı -->
+        <div id="oturumSecimAlani" class="oturum-secim" style="display: none;">
+            <label for="oturumIdInput">Oturum Numarası</label>
+            <input type="text" id="oturumIdInput" placeholder="Örn: 20260107-001">
+            <button type="button" class="ara-btn" id="oturumAraBtn">Oturum Ara</button>
+        </div>
+
+        <!-- Oturum bilgileri -->
+        <div id="oturumBilgiAlani" style="display: none;">
+            <div class="oturum-bilgi">
+                <div class="oturum-baslik">
+                    <span>Oturum:</span>
+                    <span class="oturum-id" id="oturumIdGoster"></span>
+                </div>
+
+                <div class="bilgi-grid">
+                    <div class="bilgi-satir">
+                        <span class="bilgi-etiket">Depo Yeri</span>
+                        <span class="bilgi-deger" id="depoYeriGoster">-</span>
+                    </div>
+                    <div class="bilgi-satir">
+                        <span class="bilgi-etiket">Şoför</span>
+                        <span class="bilgi-deger" id="soforGoster">-</span>
+                    </div>
+                    <div class="bilgi-satir">
+                        <span class="bilgi-etiket">Plaka</span>
+                        <span class="bilgi-deger" id="plakaGoster">-</span>
+                    </div>
+                    <div class="bilgi-satir">
+                        <span class="bilgi-etiket">Kullanıcı</span>
+                        <span class="bilgi-deger" id="kullaniciGoster">-</span>
+                    </div>
+                </div>
+
+                <div class="istatistik-kutu">
+                    <div class="istatistik">
+                        <div class="istatistik-sayi" id="toplamKalemGoster">0</div>
+                        <div class="istatistik-etiket">Kalem</div>
+                    </div>
+                    <div class="istatistik">
+                        <div class="istatistik-sayi" id="toplamPaketGoster">0</div>
+                        <div class="istatistik-etiket">Paket</div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" class="okutma-btn" id="okumayaBaslaBtn">
+                Okumaya Başla
+            </button>
+        </div>
+
+        <!-- Hata mesajı -->
+        <div id="hataKutusu" class="hata-kutu" style="display: none;"></div>
+    </div>
+
+    <div id="yukleniyor" class="yukleniyor-overlay gizle">
+        <div class="yukleniyor-icerik">
+            <div class="spinner"></div>
+            <div>Yükleniyor...</div>
+        </div>
+    </div>
+
+    <script src="/js/ortak.js"></script>
+    <script>
+        // Elementler
+        const oturumSecimAlani = document.getElementById('oturumSecimAlani');
+        const oturumBilgiAlani = document.getElementById('oturumBilgiAlani');
+        const oturumIdInput = document.getElementById('oturumIdInput');
+        const oturumAraBtn = document.getElementById('oturumAraBtn');
+        const oturumIdGoster = document.getElementById('oturumIdGoster');
+        const depoYeriGoster = document.getElementById('depoYeriGoster');
+        const soforGoster = document.getElementById('soforGoster');
+        const plakaGoster = document.getElementById('plakaGoster');
+        const kullaniciGoster = document.getElementById('kullaniciGoster');
+        const toplamKalemGoster = document.getElementById('toplamKalemGoster');
+        const toplamPaketGoster = document.getElementById('toplamPaketGoster');
+        const okumayaBaslaBtn = document.getElementById('okumayaBaslaBtn');
+        const hataKutusu = document.getElementById('hataKutusu');
+        const yukleniyorOverlay = document.getElementById('yukleniyor');
+
+        let mevcutOturum = null;
+        let oturumKalemleri = [];
+
+        // URL'den oturum parametresini al
+        const urlParams = new URLSearchParams(window.location.search);
+        const oturumParam = urlParams.get('oturum');
+
+        // Sayfa yüklendiğinde
+        if (oturumParam) {
+            // URL'de oturum varsa direkt yükle
+            oturumYukle(oturumParam);
+        } else {
+            // Yoksa manuel giriş alanını göster
+            oturumSecimAlani.style.display = 'block';
+        }
+
+        // Oturum ara butonu
+        oturumAraBtn.addEventListener('click', function() {
+            const oturumId = oturumIdInput.value.trim();
+            if (oturumId) {
+                oturumYukle(oturumId);
+            } else {
+                hataGoster('Lütfen oturum numarası girin');
+            }
+        });
+
+        // Enter ile arama
+        oturumIdInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                oturumAraBtn.click();
+            }
+        });
+
+        // Oturum bilgilerini yükle
+        async function oturumYukle(oturumId) {
+            yukleniyorGoster();
+            hataGizle();
+
+            try {
+                const response = await fetch(`/api/supabase/oturum/${encodeURIComponent(oturumId)}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    mevcutOturum = data.oturum;
+                    oturumKalemleri = data.kalemler;
+
+                    // Bilgileri göster
+                    oturumIdGoster.textContent = mevcutOturum.oturum_id;
+                    depoYeriGoster.textContent = mevcutOturum.depo_yeri;
+                    soforGoster.textContent = mevcutOturum.sofor_adi || '-';
+                    plakaGoster.textContent = mevcutOturum.plaka || '-';
+                    kullaniciGoster.textContent = mevcutOturum.kullanici || '-';
+                    toplamKalemGoster.textContent = mevcutOturum.toplam_kalem;
+                    toplamPaketGoster.textContent = mevcutOturum.toplam_paket;
+
+                    // Alanları güncelle
+                    oturumSecimAlani.style.display = 'none';
+                    oturumBilgiAlani.style.display = 'block';
+
+                    // URL'i güncelle (history'ye ekle)
+                    if (!oturumParam) {
+                        history.replaceState(null, '', `?oturum=${oturumId}`);
+                    }
+                } else {
+                    hataGoster(data.message || 'Oturum bulunamadı');
+                    oturumSecimAlani.style.display = 'block';
+                    oturumBilgiAlani.style.display = 'none';
+                }
+            } catch (error) {
+                hataGoster('Bağlantı hatası: ' + error.message);
+                oturumSecimAlani.style.display = 'block';
+                oturumBilgiAlani.style.display = 'none';
+            } finally {
+                yukleniyorGizle();
+            }
+        }
+
+        // Okumaya başla butonu
+        okumayaBaslaBtn.addEventListener('click', function() {
+            if (!mevcutOturum) {
+                alert('Önce bir oturum seçin');
+                return;
+            }
+
+            // Barkod okutma sayfasına git
+            window.location.href = `/fis/barkod-okut.html?oturum=${mevcutOturum.oturum_id}`;
+        });
+
+        function hataGoster(mesaj) {
+            hataKutusu.textContent = mesaj;
+            hataKutusu.style.display = 'block';
+        }
+
+        function hataGizle() {
+            hataKutusu.style.display = 'none';
+        }
+
+        function yukleniyorGoster() {
+            yukleniyorOverlay.classList.remove('gizle');
+        }
+
+        function yukleniyorGizle() {
+            yukleniyorOverlay.classList.add('gizle');
+        }
+    </script>
+</body>
+</html>

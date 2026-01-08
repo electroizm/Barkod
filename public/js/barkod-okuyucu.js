@@ -141,27 +141,34 @@ class BarkodOkuyucu {
 
     tarayiciGirisTespit(e) {
         // Barkod tarayıcıları çok hızlı giriş yapar
-        // 50ms içinde birden fazla karakter gelirse tarayıcı olarak algıla
+        // Her input'ta zamanlayıcı sıfırla ve bekle
+        // QR kodlar uzun olabilir (149+ karakter), bu yüzden daha uzun bekle
 
         clearTimeout(this.girisZamanlayici);
 
-        const mevcutDeger = this.input.value;
-
         this.girisZamanlayici = setTimeout(() => {
-            // Eğer değer 3 karakterden uzunsa ve hızlı girildiyse
-            // tarayıcı olarak kabul et
-            if (mevcutDeger.length >= 3) {
+            const mevcutDeger = this.input.value.trim();
+
+            // Eğer değer 50 karakterden uzunsa (QR kod gibi)
+            // otomatik olarak oku
+            if (mevcutDeger.length >= 50) {
                 this.barkodOku();
             }
-        }, 100); // 100ms bekle - tarayıcı bu sürede tamamlar
+        }, 300); // 300ms bekle - uzun QR kodlar için yeterli süre
     }
 
     barkodOku() {
-        const barkod = this.input.value.trim();
+        // Barkoddan görünmez karakterleri temizle (GS1 separator vb.)
+        let barkod = this.input.value.replace(/[\x00-\x1F\x7F]/g, '').trim();
 
         if (!barkod) {
             return;
         }
+
+        // Debug log
+        console.log('Barkod okuyucu - ham değer:', this.input.value);
+        console.log('Barkod okuyucu - temizlenmiş:', barkod);
+        console.log('Barkod okuyucu - uzunluk:', barkod.length);
 
         // Callback fonksiyonu çağır
         if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
@@ -175,6 +182,16 @@ class BarkodOkuyucu {
 
     async kameraAc() {
         try {
+            // HTTPS kontrolü - mobil cihazlarda kamera için HTTPS gerekli
+            const guvenliKontrol = window.location.protocol === 'https:' ||
+                                   window.location.hostname === 'localhost' ||
+                                   window.location.hostname === '127.0.0.1';
+
+            if (!guvenliKontrol) {
+                alert('Kamera erişimi için güvenli bağlantı (HTTPS) gereklidir.\n\nAlternatif olarak:\n- Fotoğraf butonunu kullanarak galeriden barkod okuyabilirsiniz\n- Barkodu manuel olarak girebilirsiniz');
+                return;
+            }
+
             // Kamera alanını göster
             this.kameraAlani.classList.remove('gizle');
 
@@ -196,7 +213,20 @@ class BarkodOkuyucu {
 
         } catch (hata) {
             console.error('Kamera erişim hatası:', hata);
-            alert('Kamera erişimi sağlanamadı. Lütfen kamera izni verin.');
+
+            let hataMesaji = 'Kamera erişimi sağlanamadı.';
+
+            if (hata.name === 'NotAllowedError') {
+                hataMesaji += '\n\nKamera izni reddedildi. Tarayıcı ayarlarından izin verin.';
+            } else if (hata.name === 'NotFoundError') {
+                hataMesaji += '\n\nKamera bulunamadı.';
+            } else if (hata.name === 'NotReadableError') {
+                hataMesaji += '\n\nKamera başka bir uygulama tarafından kullanılıyor olabilir.';
+            } else {
+                hataMesaji += '\n\nFotoğraf butonunu kullanarak galeriden barkod okuyabilirsiniz.';
+            }
+
+            alert(hataMesaji);
             this.kameraKapat_();
         }
     }

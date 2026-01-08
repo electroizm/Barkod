@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nakliye Arama - Güneşler Elektronik</title>
+    <link rel="stylesheet" href="/css/stil.css">
+    <style>
+        .arama-form {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .form-satir {
+            margin-bottom: 15px;
+        }
+        .form-satir label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #555;
+        }
+        .form-satir input,
+        .form-satir select {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            outline: none;
+            box-sizing: border-box;
+        }
+        .form-satir input:focus,
+        .form-satir select:focus {
+            border-color: #3498db;
+        }
+        .tarih-grup {
+            display: flex;
+            gap: 10px;
+        }
+        .tarih-grup .form-satir {
+            flex: 1;
+        }
+        .nakliye-arama-satir {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+        }
+        .nakliye-arama-satir .form-satir {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        .arama-btn {
+            width: 54px;
+            height: 48px;
+            min-width: 54px;
+            background-color: #3498db;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            transition: background-color 0.2s;
+        }
+        .arama-btn:hover {
+            background-color: #2980b9;
+        }
+        .arama-btn:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .arama-btn svg {
+            width: 24px;
+            height: 24px;
+        }
+        .sonuc-alani {
+            margin-top: 20px;
+        }
+        .sonuc-baslik {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sonuc-istatistik {
+            font-size: 13px;
+            color: #666;
+            font-weight: normal;
+        }
+        .sonuc-liste {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            overflow: hidden;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .sonuc-satir {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            transition: background-color 0.2s;
+        }
+        .sonuc-satir:last-child {
+            border-bottom: none;
+        }
+        .sonuc-satir:hover {
+            background-color: #f8f9fa;
+        }
+        .sonuc-satir.secili {
+            background-color: #e8f4fd;
+        }
+        .sonuc-checkbox {
+            width: 20px;
+            height: 20px;
+            margin-top: 2px;
+            cursor: pointer;
+            accent-color: #3498db;
+        }
+        .sonuc-icerik {
+            flex: 1;
+            cursor: pointer;
+        }
+        .sonuc-ust {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+        .sonuc-belge-no {
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+        .sonuc-tarih {
+            font-size: 12px;
+            color: #888;
+        }
+        .sonuc-detay {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.4;
+        }
+        .sonuc-detay-satir {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .sonuc-badge {
+            display: inline-block;
+            background-color: #e8f4fd;
+            color: #2980b9;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .sonuc-bos {
+            text-align: center;
+            padding: 30px;
+            color: #999;
+        }
+        .secim-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #eee;
+        }
+        .secim-toolbar label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #555;
+        }
+        .secim-sayisi {
+            font-size: 13px;
+            color: #3498db;
+            font-weight: 500;
+        }
+        .yukleniyor-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .yukleniyor-overlay.gizle {
+            display: none;
+        }
+        .yukleniyor-icerik {
+            text-align: center;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .hata-mesaj {
+            background-color: #fdecea;
+            color: #c0392b;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 15px;
+            display: none;
+        }
+        .hata-mesaj.goster {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="kapsayici">
+        <a href="/giris-islemleri.html" class="geri-buton">Geri</a>
+
+        <h1 class="baslik">Nakliye Arama</h1>
+        <span id="kullaniciBilgi" style="display:none;"></span>
+
+        <div class="arama-form">
+            <div class="form-satir">
+                <label for="depoYeri">Depo Yeri</label>
+                <select id="depoYeri">
+                    <option value="">Tümü</option>
+                    <option value="0002">Biga</option>
+                    <option value="0200">İnegöl</option>
+                </select>
+            </div>
+
+            <div class="tarih-grup">
+                <div class="form-satir">
+                    <label for="baslangicTarihi">Başlangıç Tarihi</label>
+                    <input type="date" id="baslangicTarihi">
+                </div>
+                <div class="form-satir">
+                    <label for="bitisTarihi">Bitiş Tarihi</label>
+                    <input type="date" id="bitisTarihi">
+                </div>
+            </div>
+
+            <div class="nakliye-arama-satir">
+                <div class="form-satir">
+                    <label for="nakliyeNo">Nakliye Numarası</label>
+                    <input type="text" id="nakliyeNo" placeholder="Opsiyonel...">
+                </div>
+                <button type="button" class="arama-btn" id="aramaBtn" title="Ara">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div id="hataMesaj" class="hata-mesaj"></div>
+        </div>
+
+        <div class="sonuc-alani">
+            <div class="sonuc-baslik">
+                <span>Nakliye Listesi</span>
+                <span class="sonuc-istatistik" id="sonucIstatistik"></span>
+            </div>
+            <div class="sonuc-liste" id="sonucListe">
+                <div class="sonuc-bos">Aramak için yukarıdaki formu doldurun</div>
+            </div>
+        </div>
+
+        <button id="devamBtn" class="buton" style="margin-top: 20px;" disabled>
+            Nakliyeyi Yükle (<span id="seciliSayisi">0</span>)
+        </button>
+
+        <a href="/fis/nakliye-okutma.html" id="nakliyeOkutmaBtn" class="buton" style="margin-top: 10px; display: block; text-align: center;">
+            Nakliye Okutma
+        </a>
+    </div>
+
+    <div id="yukleniyor" class="yukleniyor-overlay gizle">
+        <div class="yukleniyor-icerik">
+            <div class="spinner"></div>
+            <div>Yükleniyor...</div>
+        </div>
+    </div>
+
+    <script src="/js/ortak.js"></script>
+    <script>
+        // Elementler
+        const depoYeriSelect = document.getElementById('depoYeri');
+        const baslangicTarihiInput = document.getElementById('baslangicTarihi');
+        const bitisTarihiInput = document.getElementById('bitisTarihi');
+        const nakliyeNoInput = document.getElementById('nakliyeNo');
+        const aramaBtn = document.getElementById('aramaBtn');
+        const sonucListe = document.getElementById('sonucListe');
+        const sonucIstatistik = document.getElementById('sonucIstatistik');
+        const devamBtn = document.getElementById('devamBtn');
+        const seciliSayisiSpan = document.getElementById('seciliSayisi');
+        const yukleniyorOverlay = document.getElementById('yukleniyor');
+        const hataMesaj = document.getElementById('hataMesaj');
+
+        let aramaSonuclari = [];
+        let seciliNakliyeler = new Set();
+
+        // Varsayılan tarihler
+        function tarihleriAyarla() {
+            const bugun = new Date();
+            const birHaftaOnce = new Date();
+            birHaftaOnce.setDate(bugun.getDate() - 7);
+
+            bitisTarihiInput.value = formatTarih(bugun);
+            baslangicTarihiInput.value = formatTarih(birHaftaOnce);
+        }
+
+        function formatTarih(tarih) {
+            const yil = tarih.getFullYear();
+            const ay = String(tarih.getMonth() + 1).padStart(2, '0');
+            const gun = String(tarih.getDate()).padStart(2, '0');
+            return `${yil}-${ay}-${gun}`;
+        }
+
+        // YYYYMMDD -> DD.MM.YYYY formatı
+        function formatTarihGosterim(tarihStr) {
+            if (!tarihStr || tarihStr.length !== 8) return tarihStr || '-';
+            const yil = tarihStr.substring(0, 4);
+            const ay = tarihStr.substring(4, 6);
+            const gun = tarihStr.substring(6, 8);
+            return `${gun}.${ay}.${yil}`;
+        }
+
+        // Arama işlemi
+        async function aramaYap() {
+            const depoYeri = depoYeriSelect.value;
+            const baslangicTarihi = baslangicTarihiInput.value;
+            const bitisTarihi = bitisTarihiInput.value;
+            const nakliyeNo = nakliyeNoInput.value.trim();
+
+            // Validasyon
+            if (!baslangicTarihi || !bitisTarihi) {
+                hataGoster('Lütfen tarih aralığını seçin');
+                return;
+            }
+
+            hataGizle();
+            yukleniyorGoster();
+            seciliNakliyeler.clear();
+            seciliSayisiniGuncelle();
+
+            try {
+                const response = await fetch('/api/dogtas/nakliye-ara', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        depoYeri,
+                        baslangicTarihi,
+                        bitisTarihi,
+                        nakliyeNo
+                    })
+                });
+
+                const data = await response.json();
+                console.log('API Yanıtı:', data);
+
+                if (data.success) {
+                    aramaSonuclari = data.data || [];
+                    sonuclariGoster(aramaSonuclari);
+                    sonucIstatistik.textContent = `${data.toplam} nakliye, ${data.toplamKalem} kalem`;
+                } else {
+                    hataGoster(data.message || 'Arama sırasında bir hata oluştu');
+                    sonucListe.innerHTML = '<div class="sonuc-bos">Sonuç bulunamadı</div>';
+                    sonucIstatistik.textContent = '';
+                }
+            } catch (error) {
+                console.error('Arama hatası:', error);
+                hataGoster('Sunucuya bağlanılamadı. Lütfen tekrar deneyin.');
+                sonucListe.innerHTML = '<div class="sonuc-bos">Bağlantı hatası</div>';
+                sonucIstatistik.textContent = '';
+            } finally {
+                yukleniyorGizle();
+            }
+        }
+
+        function sonuclariGoster(sonuclar) {
+            if (!sonuclar || sonuclar.length === 0) {
+                sonucListe.innerHTML = '<div class="sonuc-bos">Sonuç bulunamadı</div>';
+                devamBtn.disabled = true;
+                return;
+            }
+
+            let html = `
+                <div class="secim-toolbar">
+                    <label>
+                        <input type="checkbox" id="tumunuSec" class="sonuc-checkbox">
+                        Tümünü Seç
+                    </label>
+                    <span class="secim-sayisi" id="secimDurumu"></span>
+                </div>
+            `;
+
+            sonuclar.forEach((sonuc, index) => {
+                const depoAdi = sonuc.storageLocation === '0002' ? 'Biga' :
+                               sonuc.storageLocation === '0200' ? 'İnegöl' : sonuc.storageLocation;
+
+                html += `
+                    <div class="sonuc-satir" data-index="${index}">
+                        <input type="checkbox" class="sonuc-checkbox nakliye-checkbox" data-index="${index}">
+                        <div class="sonuc-icerik">
+                            <div class="sonuc-ust">
+                                <span class="sonuc-belge-no">Nakliye No: ${sonuc.distributionDocumentNumber || '-'}</span>
+                                <span class="sonuc-tarih">${formatTarihGosterim(sonuc.documanetDate)}</span>
+                            </div>
+                            <div class="sonuc-detay">
+                                <div class="sonuc-detay-satir">
+                                    <span>Plaka: <strong>${sonuc.shipmentVehicleLicensePlate || '-'}</strong></span>
+                                    <span>Şoför: <strong>${sonuc.shipmentVehicleDriverName || '-'}</strong></span>
+                                </div>
+                                <div class="sonuc-detay-satir" style="margin-top: 4px;">
+                                    <span class="sonuc-badge">${sonuc.toplamKalem} Kalem</span>
+                                    <span class="sonuc-badge">${sonuc.toplamPaket} Paket</span>
+                                    <span class="sonuc-badge">${depoAdi}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            sonucListe.innerHTML = html;
+
+            // Tümünü seç checkbox
+            const tumunuSecCheckbox = document.getElementById('tumunuSec');
+            tumunuSecCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    // Tümünü seç - aynı plakalı olanları seç
+                    const plakalar = [...new Set(aramaSonuclari.map(s => s.shipmentVehicleLicensePlate))];
+                    if (plakalar.length > 1) {
+                        alert('Farklı plakalı araçlar var. Tümünü seçemezsiniz.\nLütfen tek tek seçim yapın.');
+                        this.checked = false;
+                        return;
+                    }
+                }
+
+                const checkboxlar = document.querySelectorAll('.nakliye-checkbox');
+                checkboxlar.forEach((cb, idx) => {
+                    cb.checked = this.checked;
+                    if (this.checked) {
+                        seciliNakliyeler.add(idx);
+                    } else {
+                        seciliNakliyeler.delete(idx);
+                    }
+                    cb.closest('.sonuc-satir').classList.toggle('secili', this.checked);
+                });
+                seciliSayisiniGuncelle();
+            });
+
+            // Tek tek checkbox'lar
+            document.querySelectorAll('.nakliye-checkbox').forEach(cb => {
+                cb.addEventListener('change', function() {
+                    const index = parseInt(this.dataset.index);
+                    const seciliNakliye = aramaSonuclari[index];
+
+                    if (this.checked) {
+                        // Plaka kontrolü - farklı plakalı araçları birleştirme
+                        if (seciliNakliyeler.size > 0) {
+                            const mevcutSeciliIndex = Array.from(seciliNakliyeler)[0];
+                            const mevcutPlaka = aramaSonuclari[mevcutSeciliIndex].shipmentVehicleLicensePlate;
+                            const yeniPlaka = seciliNakliye.shipmentVehicleLicensePlate;
+
+                            if (mevcutPlaka !== yeniPlaka) {
+                                alert(`Farklı plakalı araçlar birleştirilemez!\n\nMevcut seçim: ${mevcutPlaka}\nSeçmeye çalıştığınız: ${yeniPlaka}`);
+                                this.checked = false;
+                                return;
+                            }
+                        }
+                        seciliNakliyeler.add(index);
+                    } else {
+                        seciliNakliyeler.delete(index);
+                    }
+                    this.closest('.sonuc-satir').classList.toggle('secili', this.checked);
+                    seciliSayisiniGuncelle();
+
+                    // Tümünü seç durumunu güncelle
+                    const tumCheckboxlar = document.querySelectorAll('.nakliye-checkbox');
+                    const secilenler = document.querySelectorAll('.nakliye-checkbox:checked');
+                    tumunuSecCheckbox.checked = tumCheckboxlar.length === secilenler.length;
+                });
+            });
+
+            // Satıra tıklayınca checkbox'ı değiştir
+            document.querySelectorAll('.sonuc-icerik').forEach(icerik => {
+                icerik.addEventListener('click', function() {
+                    const satir = this.closest('.sonuc-satir');
+                    const checkbox = satir.querySelector('.nakliye-checkbox');
+                    checkbox.checked = !checkbox.checked;
+                    checkbox.dispatchEvent(new Event('change'));
+                });
+            });
+        }
+
+        function seciliSayisiniGuncelle() {
+            const sayi = seciliNakliyeler.size;
+            seciliSayisiSpan.textContent = sayi;
+            devamBtn.disabled = sayi === 0;
+
+            const secimDurumu = document.getElementById('secimDurumu');
+            if (secimDurumu) {
+                secimDurumu.textContent = sayi > 0 ? `${sayi} seçili` : '';
+            }
+        }
+
+        function hataGoster(mesaj) {
+            hataMesaj.textContent = mesaj;
+            hataMesaj.classList.add('goster');
+        }
+
+        function hataGizle() {
+            hataMesaj.classList.remove('goster');
+        }
+
+        function yukleniyorGoster() {
+            yukleniyorOverlay.classList.remove('gizle');
+        }
+
+        function yukleniyorGizle() {
+            yukleniyorOverlay.classList.add('gizle');
+        }
+
+        // Devam butonu - Supabase'e kaydet
+        devamBtn.addEventListener('click', async function() {
+            if (seciliNakliyeler.size === 0) {
+                alert('Lütfen en az bir nakliye seçin');
+                return;
+            }
+
+            // Seçili nakliyeleri topla
+            const seciliVeriler = Array.from(seciliNakliyeler).map(idx => aramaSonuclari[idx]);
+
+            // Tüm kalemleri birleştir
+            const tumKalemler = [];
+            seciliVeriler.forEach(nakliye => {
+                if (nakliye.kalemler && Array.isArray(nakliye.kalemler)) {
+                    tumKalemler.push(...nakliye.kalemler);
+                }
+            });
+
+            console.log('Seçili Nakliyeler:', seciliVeriler);
+            console.log('Tüm Kalemler:', tumKalemler);
+
+            // Toplam paket sayısını hesapla
+            const toplamPaket = tumKalemler.reduce((toplam, kalem) => {
+                return toplam + (parseInt(kalem.productPackages) || 0);
+            }, 0);
+
+            // Onay iste
+            const plaka = seciliVeriler[0].shipmentVehicleLicensePlate;
+            const onay = confirm(`${toplamPaket} paket için çeki listesi kaydedilecektir.\n\nPlaka: ${plaka}\nNakliye Sayısı: ${seciliVeriler.length}\n\nDevam etmek istiyor musunuz?`);
+
+            if (!onay) return;
+
+            // Yükleniyor göster
+            yukleniyorGoster();
+
+            try {
+                // Kullanıcı bilgisini al (kullaniciBilgi elementinden)
+                const kullaniciBilgiEl = document.getElementById('kullaniciBilgi');
+                const kullanici = kullaniciBilgiEl?.textContent?.trim() || 'bilinmiyor';
+
+                // Supabase'e kaydet
+                const response = await fetch('/api/supabase/nakliye-yukle', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        nakliyeler: seciliVeriler,
+                        kalemler: tumKalemler,
+                        kullanici: kullanici
+                    })
+                });
+
+                const data = await response.json();
+                console.log('Kayıt yanıtı:', data);
+
+                if (data.success) {
+                    const devam = confirm(`Başarılı!\n\n${data.message}\n\nNakliye Okutma sayfasına gitmek ister misiniz?`);
+
+                    if (devam) {
+                        // Nakliye Okutma sayfasına git (oturum_id ile)
+                        window.location.href = `/fis/nakliye-okutma.html?oturum=${data.oturumId}`;
+                    } else {
+                        // Seçimleri temizle
+                        seciliNakliyeler.clear();
+                        document.querySelectorAll('.nakliye-checkbox').forEach(cb => {
+                            cb.checked = false;
+                            cb.closest('.sonuc-satir')?.classList.remove('secili');
+                        });
+                        const tumunuSecCb = document.getElementById('tumunuSec');
+                        if (tumunuSecCb) tumunuSecCb.checked = false;
+                        seciliSayisiniGuncelle();
+                    }
+                } else {
+                    alert('Hata!\n\n' + (data.message || 'Kayıt sırasında bir hata oluştu'));
+                }
+            } catch (error) {
+                console.error('Kayıt hatası:', error);
+                alert('Bağlantı hatası!\n\nSunucuya bağlanılamadı. Lütfen tekrar deneyin.');
+            } finally {
+                yukleniyorGizle();
+            }
+        });
+
+        // Arama butonu
+        aramaBtn.addEventListener('click', aramaYap);
+
+        // Enter tuşu ile arama
+        nakliyeNoInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                aramaYap();
+            }
+        });
+
+        // Sayfa yüklendiğinde
+        tarihleriAyarla();
+    </script>
+</body>
+</html>

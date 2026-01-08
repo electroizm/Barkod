@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(dir \"c:\\\\Users\\\\GUNES\\\\git\\\\Barkod\")",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(curl:*)",
+      "Bash(taskkill:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(timeout:*)",
+      "Bash(node src/sunucu.js:*)",
+      "Bash(ping:*)",
+      "Bash(node -e:*)"
     ]
   }
 }

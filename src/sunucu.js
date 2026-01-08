@@ -25,9 +25,11 @@ uygulama.use(session({
 // Rotalar
 const yetkilendirmeRotalari = require('./rotalar/yetkilendirme');
 const dogtasRotalari = require('./rotalar/dogtas');
+const supabaseRotalari = require('./rotalar/supabase');
 
 uygulama.use('/api/yetkilendirme', yetkilendirmeRotalari);
 uygulama.use('/api/dogtas', dogtasRotalari);
+uygulama.use('/api/supabase', supabaseRotalari);
 
 // Ana sayfa yönlendirmesi
 uygulama.get('/', (istek, yanit) => {

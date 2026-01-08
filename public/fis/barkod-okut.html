@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>QR Okutma - Güneşler Elektronik</title>
+    <link rel="stylesheet" href="/css/stil.css">
+    <style>
+        .oturum-ozet {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .oturum-baslik {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .oturum-baslik h2 {
+            font-size: 16px;
+            margin: 0;
+            color: #2c3e50;
+        }
+        .oturum-id-badge {
+            background-color: #3498db;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .oturum-detay {
+            display: flex;
+            gap: 15px;
+            font-size: 13px;
+            color: #666;
+        }
+        .progress-container {
+            margin: 20px 0;
+        }
+        .progress-bar {
+            height: 24px;
+            background-color: #e9ecef;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            transition: width 0.3s ease;
+            border-radius: 12px;
+        }
+        .progress-text {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+        }
+        .progress-stats {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 13px;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+        .stat-label {
+            font-size: 11px;
+            color: #888;
+        }
+        .okuma-alani {
+            background-color: white;
+            border: 2px dashed #ddd;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .okuma-alani.basarili {
+            border-color: #27ae60;
+            background-color: #f0fff4;
+            animation: flash-success 0.3s;
+        }
+        .okuma-alani.hata {
+            border-color: #e74c3c;
+            background-color: #fef2f2;
+            animation: flash-error 0.3s;
+        }
+        @keyframes flash-success {
+            0%, 100% { background-color: #f0fff4; }
+            50% { background-color: #d4edda; }
+        }
+        @keyframes flash-error {
+            0%, 100% { background-color: #fef2f2; }
+            50% { background-color: #f8d7da; }
+        }
+        .son-mesaj {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-weight: 500;
+        }
+        .son-mesaj.basarili {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .son-mesaj.hata {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .son-okumalar {
+            margin-top: 20px;
+        }
+        .son-okumalar h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .okuma-listesi {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .okuma-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        .okuma-item.basarili {
+            border-left: 3px solid #27ae60;
+        }
+        .okuma-item.hata {
+            border-left: 3px solid #e74c3c;
+        }
+        .okuma-ikon {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        .okuma-ikon.basarili {
+            color: #27ae60;
+        }
+        .okuma-ikon.hata {
+            color: #e74c3c;
+        }
+        .okuma-bilgi {
+            flex: 1;
+        }
+        .okuma-urun {
+            font-weight: 500;
+            color: #2c3e50;
+        }
+        .okuma-paket {
+            font-size: 12px;
+            color: #888;
+        }
+        .tamamlandi-kutu {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .tamamlandi-kutu h2 {
+            margin: 0 0 10px;
+            font-size: 24px;
+        }
+        .tamamlandi-kutu p {
+            margin: 0;
+            opacity: 0.9;
+        }
+        .geri-btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 24px;
+            background-color: rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+        }
+        .yukleniyor-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .yukleniyor-overlay.gizle {
+            display: none;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .manuel-input {
+            margin-top: 10px;
+        }
+        .manuel-input input {
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        .manuel-input input:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="kapsayici">
+        <a href="/fis/nakliye-okutma.html" class="geri-buton" id="geriBtn">Geri</a>
+
+        <h1 class="baslik">QR Okutma</h1>
+        <span id="kullaniciBilgi" style="display:none;"></span>
+
+        <!-- Oturum Özet -->
+        <div class="oturum-ozet" id="oturumOzet">
+            <div class="oturum-baslik">
+                <h2>Yükleme Oturumu</h2>
+                <span class="oturum-id-badge" id="oturumIdGoster">-</span>
+            </div>
+            <div class="oturum-detay">
+                <span id="plakaGoster">-</span>
+                <span id="soforGoster">-</span>
+            </div>
+        </div>
+
+        <!-- İlerleme -->
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                <span class="progress-text" id="progressText">0%</span>
+            </div>
+            <div class="progress-stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="okunanPaketGoster">0</div>
+                    <div class="stat-label">Okunan</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="kalanPaketGoster">0</div>
+                    <div class="stat-label">Kalan</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="toplamPaketGoster">0</div>
+                    <div class="stat-label">Toplam</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- QR Okuma Alanı -->
+        <div class="okuma-alani" id="okumaAlani">
+            <div id="barkodOkuyucuAlani"></div>
+            <div class="manuel-input">
+                <input type="text" id="manuelQrInput" placeholder="QR kodu manuel girin veya tarayıcı ile okutun...">
+            </div>
+        </div>
+
+        <!-- Son Mesaj -->
+        <div class="son-mesaj gizle" id="sonMesaj"></div>
+
+        <!-- Tamamlandı Kutusu -->
+        <div class="tamamlandi-kutu gizle" id="tamamlandiKutu">
+            <h2>Tebrikler!</h2>
+            <p>Tüm paketler başarıyla okundu.</p>
+            <a href="/fis/nakliye-okutma.html" class="geri-btn">Oturum Listesine Dön</a>
+        </div>
+
+        <!-- Son Okumalar -->
+        <div class="son-okumalar" id="sonOkumalarAlani">
+            <h3>Son Okumalar</h3>
+            <div class="okuma-listesi" id="okumaListesi"></div>
+        </div>
+    </div>
+
+    <div id="yukleniyor" class="yukleniyor-overlay gizle">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="/js/ortak.js"></script>
+    <script src="/js/barkod-okuyucu.js"></script>
+    <script>
+        // Elementler
+        const oturumOzet = document.getElementById('oturumOzet');
+        const oturumIdGoster = document.getElementById('oturumIdGoster');
+        const plakaGoster = document.getElementById('plakaGoster');
+        const soforGoster = document.getElementById('soforGoster');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const okunanPaketGoster = document.getElementById('okunanPaketGoster');
+        const kalanPaketGoster = document.getElementById('kalanPaketGoster');
+        const toplamPaketGoster = document.getElementById('toplamPaketGoster');
+        const okumaAlani = document.getElementById('okumaAlani');
+        const sonMesaj = document.getElementById('sonMesaj');
+        const tamamlandiKutu = document.getElementById('tamamlandiKutu');
+        const okumaListesi = document.getElementById('okumaListesi');
+        const manuelQrInput = document.getElementById('manuelQrInput');
+        const yukleniyorOverlay = document.getElementById('yukleniyor');
+        const geriBtn = document.getElementById('geriBtn');
+
+        let oturumId = null;
+        let okumalar = []; // Son okumalar listesi
+        let barkodOkuyucu = null;
+
+        // URL'den oturum ID'yi al
+        const urlParams = new URLSearchParams(window.location.search);
+        oturumId = urlParams.get('oturum');
+
+        if (!oturumId) {
+            alert('Oturum ID bulunamadı!');
+            window.location.href = '/fis/nakliye-okutma.html';
+        } else {
+            // Geri butonuna oturum ID ekle
+            geriBtn.href = `/fis/nakliye-okutma.html?oturum=${oturumId}`;
+
+            // Sayfa yüklendiğinde durumu getir
+            durumGuncelle();
+
+            // Barkod okuyucu başlat
+            barkodOkuyucu = new BarkodOkuyucu('#barkodOkuyucuAlani', {
+                okumaSonrasi: qrOkut
+            });
+        }
+
+        // Manuel QR girişi
+        manuelQrInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const qrKod = manuelQrInput.value.trim();
+                if (qrKod) {
+                    qrOkut(qrKod);
+                    manuelQrInput.value = '';
+                }
+            }
+        });
+
+        // QR Okutma
+        async function qrOkut(qrKod) {
+            if (!qrKod) return;
+
+            // QR koddan görünmez karakterleri temizle
+            // GS (Group Separator - ASCII 29), CR, LF, boşluk vb.
+            qrKod = qrKod.replace(/[\x00-\x1F\x7F]/g, '').trim();
+
+            // Debug log
+            console.log('QR Kod (temizlenmiş):', qrKod);
+            console.log('QR Kod uzunluk:', qrKod.length);
+
+            if (!qrKod) return;
+
+            yukleniyorGoster();
+            okumaAlaniTemizle();
+
+            try {
+                const kullanici = document.getElementById('kullaniciBilgi')?.textContent || 'bilinmiyor';
+
+                const response = await fetch('/api/supabase/qr-okut', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        oturum_id: oturumId,
+                        qr_kod: qrKod,
+                        kullanici: kullanici
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Başarılı okuma
+                    okumaBasarili(data);
+                    sesliGeriBildirim('basarili');
+                } else {
+                    // Hatalı okuma
+                    okumaHatali(data.message, data.hata_tipi);
+                    sesliGeriBildirim('hata');
+                }
+
+            } catch (error) {
+                okumaHatali('Bağlantı hatası: ' + error.message, 'CONNECTION_ERROR');
+                sesliGeriBildirim('hata');
+            } finally {
+                yukleniyorGizle();
+                // Input'a odaklan
+                if (barkodOkuyucu) {
+                    barkodOkuyucu.odaklan();
+                }
+            }
+        }
+
+        // Başarılı okuma
+        function okumaBasarili(data) {
+            okumaAlani.classList.add('basarili');
+            setTimeout(() => okumaAlani.classList.remove('basarili'), 300);
+
+            sonMesajGoster(data.message, 'basarili');
+
+            // Son okumalar listesine ekle
+            okumalar.unshift({
+                basarili: true,
+                mesaj: `${data.eslesen_kalem.malzeme_adi} (${data.paket_bilgi.sira}/${data.paket_bilgi.toplam})`,
+                zaman: new Date()
+            });
+            sonOkumalariGuncelle();
+
+            // İlerlemeyi güncelle
+            durumGuncelle();
+        }
+
+        // Hatalı okuma
+        function okumaHatali(mesaj, hataTipi) {
+            okumaAlani.classList.add('hata');
+            setTimeout(() => okumaAlani.classList.remove('hata'), 300);
+
+            sonMesajGoster(mesaj, 'hata');
+
+            // Son okumalar listesine ekle
+            okumalar.unshift({
+                basarili: false,
+                mesaj: mesaj,
+                zaman: new Date()
+            });
+            sonOkumalariGuncelle();
+        }
+
+        // Durum güncelle
+        async function durumGuncelle() {
+            try {
+                const response = await fetch(`/api/supabase/okuma-durumu/${encodeURIComponent(oturumId)}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    // Oturum bilgileri
+                    oturumIdGoster.textContent = data.oturum.oturum_id;
+                    plakaGoster.textContent = data.oturum.plaka || '-';
+                    soforGoster.textContent = data.oturum.sofor_adi || '-';
+
+                    // İlerleme
+                    const yuzde = data.tamamlanma_yuzdesi;
+                    progressFill.style.width = yuzde + '%';
+                    progressText.textContent = yuzde + '%';
+
+                    // İstatistikler
+                    okunanPaketGoster.textContent = data.okunan_paket;
+                    kalanPaketGoster.textContent = data.kalan_paket;
+                    toplamPaketGoster.textContent = data.toplam_paket;
+
+                    // Tamamlandı mı?
+                    if (data.kalan_paket === 0 && data.toplam_paket > 0) {
+                        tamamlandiGoster();
+                    }
+                }
+            } catch (error) {
+                console.error('Durum güncelleme hatası:', error);
+            }
+        }
+
+        // Son mesaj göster
+        function sonMesajGoster(mesaj, tip) {
+            sonMesaj.textContent = mesaj;
+            sonMesaj.className = 'son-mesaj ' + tip;
+            sonMesaj.classList.remove('gizle');
+        }
+
+        // Son okumaları güncelle
+        function sonOkumalariGuncelle() {
+            // Son 10 okumayı göster
+            const sonOnOkuma = okumalar.slice(0, 10);
+
+            okumaListesi.innerHTML = sonOnOkuma.map(okuma => `
+                <div class="okuma-item ${okuma.basarili ? 'basarili' : 'hata'}">
+                    <svg class="okuma-ikon ${okuma.basarili ? 'basarili' : 'hata'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        ${okuma.basarili
+                            ? '<polyline points="20 6 9 17 4 12"/>'
+                            : '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'
+                        }
+                    </svg>
+                    <div class="okuma-bilgi">
+                        <div class="okuma-urun">${okuma.mesaj}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Tamamlandı göster
+        function tamamlandiGoster() {
+            tamamlandiKutu.classList.remove('gizle');
+            okumaAlani.style.display = 'none';
+            sonMesaj.classList.add('gizle');
+
+            // Konfeti veya kutlama efekti eklenebilir
+            sesliGeriBildirim('tamamlandi');
+        }
+
+        // Okuma alanı temizle
+        function okumaAlaniTemizle() {
+            okumaAlani.classList.remove('basarili', 'hata');
+        }
+
+        // Sesli geri bildirim
+        function sesliGeriBildirim(tip) {
+            // Titreşim (mobil)
+            if ('vibrate' in navigator) {
+                if (tip === 'basarili') {
+                    navigator.vibrate(100);
+                } else if (tip === 'hata') {
+                    navigator.vibrate([100, 50, 100]);
+                } else if (tip === 'tamamlandi') {
+                    navigator.vibrate([100, 50, 100, 50, 200]);
+                }
+            }
+
+            // Ses (AudioContext API ile basit bip sesi)
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                if (tip === 'basarili') {
+                    oscillator.frequency.value = 880; // A5
+                    oscillator.type = 'sine';
+                    gainNode.gain.value = 0.3;
+                    oscillator.start();
+                    oscillator.stop(audioContext.currentTime + 0.1);
+                } else if (tip === 'hata') {
+                    oscillator.frequency.value = 220; // A3
+                    oscillator.type = 'square';
+                    gainNode.gain.value = 0.3;
+                    oscillator.start();
+                    oscillator.stop(audioContext.currentTime + 0.3);
+                } else if (tip === 'tamamlandi') {
+                    // Melodi
+                    const notes = [523, 659, 784, 1047]; // C5, E5, G5, C6
+                    let startTime = audioContext.currentTime;
+                    notes.forEach((freq, i) => {
+                        const osc = audioContext.createOscillator();
+                        const gain = audioContext.createGain();
+                        osc.connect(gain);
+                        gain.connect(audioContext.destination);
+                        osc.frequency.value = freq;
+                        osc.type = 'sine';
+                        gain.gain.value = 0.2;
+                        osc.start(startTime + i * 0.15);
+                        osc.stop(startTime + i * 0.15 + 0.15);
+                    });
+                }
+            } catch (e) {
+                // Ses çalınamazsa sessizce devam et
+            }
+        }
+
+        // Yardımcı fonksiyonlar
+        function yukleniyorGoster() {
+            yukleniyorOverlay.classList.remove('gizle');
+        }
+
+        function yukleniyorGizle() {
+            yukleniyorOverlay.classList.add('gizle');
+        }
+    </script>
+</body>
+</html>
