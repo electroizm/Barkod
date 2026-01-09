@@ -18,7 +18,7 @@ let supabase = null;
 const oturumCache = new Map();
 
 // Cache yapısı:
-// oturumCache.get('20260108-001') = {
+// oturumCache.get('260108-01') = {
 //     kalemler: [...],           // nakliye_yuklemeleri verileri
 //     okunanQrler: Set([...]),   // okunan QR kodların hash'leri
 //     paketOkumaSayilari: Map,   // malzeme_no:paket_sira -> okuma sayısı
@@ -192,14 +192,14 @@ async function getSupabaseClient() {
 
 /**
  * Bugünün tarihine göre yeni oturum_id oluştur
- * Format: YYYYMMDD-XXX (örn: 20260107-001)
+ * Format: YYMMDD-XX (örn: 260107-01)
  */
 async function yeniOturumIdOlustur(client) {
     const bugun = new Date();
-    const yil = bugun.getFullYear();
+    const yilKisa = String(bugun.getFullYear()).slice(-2); // Son 2 hane: 26
     const ay = String(bugun.getMonth() + 1).padStart(2, '0');
     const gun = String(bugun.getDate()).padStart(2, '0');
-    const tarihOneki = `${yil}${ay}${gun}`;
+    const tarihOneki = `${yilKisa}${ay}${gun}`; // 260107
 
     // Bugünkü en son oturum_id'yi bul
     const { data, error } = await client
@@ -217,7 +217,7 @@ async function yeniOturumIdOlustur(client) {
         siraNo = sonSira + 1;
     }
 
-    return `${tarihOneki}-${String(siraNo).padStart(3, '0')}`;
+    return `${tarihOneki}-${String(siraNo).padStart(2, '0')}`; // 260107-01
 }
 
 /**
@@ -1005,6 +1005,87 @@ router.get('/okunan-qrler/:oturumId', async (req, res) => {
 
     } catch (error) {
         console.error('Okunan QR listesi hatası:', error);
+        return res.json({
+            success: false,
+            message: 'Sunucu hatası: ' + error.message
+        });
+    }
+});
+
+/**
+ * GET /api/supabase/acik-oturumlar
+ * Kapanmamış (tüm paketleri okutulmamış) oturumları listele
+ */
+router.get('/acik-oturumlar', async (req, res) => {
+    try {
+        const client = await getSupabaseClient();
+
+        if (!client) {
+            return res.status(500).json({
+                success: false,
+                message: 'Veritabanı bağlantısı kurulamadı'
+            });
+        }
+
+        // Tüm oturumları ve okuma sayılarını getir
+        const { data: oturumlar, error: oturumHata } = await client
+            .from('nakliye_yuklemeleri')
+            .select('oturum_id, plaka, created_at, miktar')
+            .order('created_at', { ascending: false });
+
+        if (oturumHata) {
+            return res.status(500).json({
+                success: false,
+                message: 'Oturumlar alınamadı: ' + oturumHata.message
+            });
+        }
+
+        // Oturumları grupla ve toplam paketi hesapla
+        const oturumGruplari = {};
+        for (const kayit of oturumlar || []) {
+            if (!oturumGruplari[kayit.oturum_id]) {
+                oturumGruplari[kayit.oturum_id] = {
+                    oturum_id: kayit.oturum_id,
+                    plaka: kayit.plaka,
+                    tarih: kayit.created_at,
+                    toplam_paket: 0
+                };
+            }
+            oturumGruplari[kayit.oturum_id].toplam_paket += parseInt(kayit.miktar) || 0;
+        }
+
+        // Her oturum için okunan paket sayısını al
+        const acikOturumlar = [];
+        for (const oturumId of Object.keys(oturumGruplari)) {
+            const { count, error: countError } = await client
+                .from('paket_okumalari')
+                .select('*', { count: 'exact', head: true })
+                .eq('oturum_id', oturumId);
+
+            const okunanPaket = countError ? 0 : (count || 0);
+            const oturum = oturumGruplari[oturumId];
+
+            // Açık oturum = okunan < toplam
+            if (okunanPaket < oturum.toplam_paket) {
+                acikOturumlar.push({
+                    ...oturum,
+                    okunan_paket: okunanPaket,
+                    kalan_paket: oturum.toplam_paket - okunanPaket
+                });
+            }
+        }
+
+        // Tarihe göre sırala (en yeni önce)
+        acikOturumlar.sort((a, b) => new Date(b.tarih) - new Date(a.tarih));
+
+        return res.json({
+            success: true,
+            oturumlar: acikOturumlar,
+            toplam: acikOturumlar.length
+        });
+
+    } catch (error) {
+        console.error('Açık oturumlar hatası:', error);
         return res.json({
             success: false,
             message: 'Sunucu hatası: ' + error.message

@@ -136,3 +136,92 @@ hata vermesinin sebebi Cache temizlenmediği için midir? 3. seçenek olan sayfa
 http://localhost:3000/fis/nakliye-arama.html sayfasında nakliyeyi seçip "Nakliye yükle" dediğim zaman "Bağlantı hatası! sunucuya bağlanılamadı! Lütfen tekrar deneyiniz" mesajı alıyorum.
 
 Bu paket zaten okundu! farkı bir oturum olmasına rağmen daha önce okuttuğum barkodu okumaya çalıştığımda hata vermemesi gerekiyordu. bu qr barkodu çıkış için okutmuş olabilir sorgulamayı sadece oturum_id filtrelemesiyle yapabilir miyiz? buda bize aynı oturumda okunan qr kodlarının kontrolünü sağlar. \*\*\*süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR! Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin.
+
+\*_\*\*süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR! Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin. http://192.168.1.70:3000/anasayfa.html sayfasında kullaniciBilgi ve cikisBtn arasına "Ayarlar" butonu eklenebilir mi? bu ayarlar butonuna tıklandığında /ayarlar.html sayfasına yönlendirilecek. bu sayfada
+PRGsheet ID: PRGsheet url, 14Et1NH_yBrwymluEkL0_Ic7BCWev-FrCO-SuDVzkRPA
+base_url, Api url, https://connectapi.doganlarmobilyagrubu.com/api
+nakliye,Fabrikadan çıkan nakliye bilgileri endpoint,/SapDealer/GetShipments
+CustomerNo, Müşteri numarası, 1600703
+userName, API kullanıcı adı, gunesler.bayi
+password, API şifresi, Dogtas2025&_
+clientId, OAuth client ID, External
+clientSecret, OAuth client secret, externaldMG2024@!
+applicationCode, Uygulama kodu, Connect
+Kullanıcı Adı & Soyadı: İsmail Güneş
+gibi bilgiler girebilecek, güncelleyebilecek, silebilecek. şekilde projemdeki kodlarımı günceller misin?
+
+değerlerin olduğu alanlar çok büyük. ayrıca kaydet dediğim zaman ayarlar tablosuna kaydetmesi gerekiyor. kaydedip kaydetmediğini anlamıyorum ayrıca sql tablosu ayarlar tablosuna baktım güncelleme olmamış. supabase sitesinde ayarlar tablosu hemen yanında "UNSRESCTED" olarak görünüyor ayrıca RLS disable dir. süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR! Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin.
+
+her farklı kullanıcı için farklı değerler kayıt edilebilir buna göre kullanıcı adı ve soyadı bilgilerini ayarlar tablosuna kaydetmesi gerekiyor. diğerleri de de aynı şekilde kayıt edilecek. göre kodumu günceller misin? varsayılan ayarlar tablosunun değerlerini alıp kaydet dediğim zaman kaydetmesi gerekiyor.
+
+\*Süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR! Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin.
+1.Sol üstte "Ayarlar" hemen önünde kullaniciBilgi verisi var bu bilgiyi kullanici_adi_soyadi olarak görünmesini istiyorum. 2. Kaydettiğim zaman sayfada kaydettiğimize dair bir bildirim mesajı almasını istiyorum. Kaydediliyor... altına ilerleme çubuğu olabilir.
+
+sayfa ilk yüklendiği zaman öncesinde hemen kullaniciBilgi verisi hemen sonrasında ise kullanici_adi_soyadi olarak yükleniyor. direkt kullanici_adi_soyadi olarak görünmesini istiyorum.
+
+**_süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR! Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin._**
+
+1. oturum_id "20250108-001" şeklinde kaydediliyordu. oturum_id "250108-01" şeklinde kaydedilsin. buna göre sql kodu, projeyi günceller misin?
+2. Örn: 20260107-001" oturum_id "250131-01" şeklinde gösterilsin.
+3. "Oturum Ara" butonuna tıklandığında açık olan yani oturumdaki bütün satırları okutulmayan oturmumları oturum_id - plaka bilgisi ve tarih bilgisine göre açık kalan, kapanmayan oturumları listele. buton halinde göster. butona bastığımızda oturum_id göre oturum açılsın.
+4. Nakliye API isteği: https://connectapi.doganlarmobilyagrubu.com/api/SapDealer/GetShipments api gönderidiğimde son 1 haftalık ham veriyi konsolda göstere bilir misin?
+
+**_süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR! Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin._**
+
+1. /fis/nakliye-okutma.html sayfasında "Açık Oturumları Göster" butonuna tıklandığında aşağıdaki gibi bir liste gösterilmesin. Buton listesi olarak görünsün.
+   "Açık Oturumlar
+   ×
+   260109-02
+   17AGJ980 | 09.01.2026
+   66 paket kaldı (0/66)
+   260109-01
+   16 PN 248 | 09.01.2026
+   87 paket kaldı (0/87)"
+2. Bu butonlarda yukarıdaki gibi bilgiler görünsün.
+3. Bu butonlardan biri tıklandığında oturum açılsın. örnek olarak /fis/nakliye-okutma.html?oturum=260109-02 yerine /fis/barkod-okut.html?oturum=260109-02 açılsın.
+4. /ayarlar.html sayfasında /ayarlar.html "Kullanıcı Bilgileri", "PRGsheet ID", "Ana API adresi", "Nakliye sorgulama endpoint" alanları gösterilmesin. gereksiz bilgi zaten üst bilgisi var. - bu hatalı olmuş. bunu geri aldım.
+5. /ayarlar.html sayfasında Depo bilgisi : "GÜNEŞLER BATMAN DEPO" olarak görünsün. varsayılan olarak ama bu değişebilir bir alan olsun. kullanıcı burayı değiştirebilecek. şekilde olsun. buna göre sql kodu, projeyi günceller misin?
+6.
+
+7. /fis/nakliye-arama.html sayfasında id="aramaBtn" bastığım zaman filtrelemeyi nee göre yapıyor. mantığını söyler misin?
+
+const payload = {
+deliveryDocument: '', // Boş
+orderer: DOGTAS_CONFIG.customerNo, // Müşteri No (1600703)
+transportationNumber: nakliyeNo || '', // Nakliye numarası (varsa)
+documentDateStart: formatTarihAPI(baslangic), // YYYYMMDD formatı
+documentDateEnd: formatTarihAPI(bitis) // YYYYMMDD formatı
+}; bunu gönderdikten sonra depoYeri yani "Biga (0002) / İnegöl (0200) / Tümü ("")" göre filtreleme yapmadan önce /ayarlar.html sayfasında bulunan ve supabase kayıt yapılan Depo bilgisi yani id="depo_bilgisi" göre filtreleme yapsın. örnek olarak id="depo_bilgisi" = "GÜNEŞLER BATMAN DEPO" olmayan ürünler filtrelenmesin.
+
+/fis/nakliye-arama.html sayfasında aslında "Nakliye Arama
+Depo Yeri
+
+Tümü
+Başlangıç Tarihi
+
+02.01.2026
+Bitiş Tarihi
+
+09.01.2026
+Nakliye Numarası
+Opsiyonel...
+"
+
+verileri güncellemek istiyorum. "Depo Yeri" text verisini "Gelen Depo Yeri" olarak değiştirmesini istiyorum. ayrıca hemen bundan sonra ise "Varış Depo Yeri" text verisini eklemek burada da depo\*bilgisi göstermek istiyorum. varsayılan olarak "GÜNEŞLER BATMAN DEPO" olarak gösterilsin. ondan sonra Başlangıç Tarihi , Bitiş Tarihi gösterilsin.
+
+\*\*\_süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR! Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin.\*\*\*
+
+"Depo Yeri" → "Gelen Depo Yeri" olarak değişti yerine "Fabrika Depo Yeri" olarak güncelle. ayrıca "Varış Depo Yeri" alanı eklendi (readonly, gri arka plan) - buda "Fabrika Depo Yeri" gibi seçilebilir olsun. /ayarlar.html sayfasındaki "Depo bilgisi" alanı yani depo_bilgisi verisi varsayılan olarak seçili olsun. diğer seçenek ise "Tümü" olacak şekilde güncelle. buna göre eğer "Tümü" seçildiyse API'den gelen veri: receiver: için filtreleme yapmasın. eğer depo_bilgisi verisi seçilmişse API'den gelen veri: receiver: depo_bilgisi olacak şekilde filtreleme yapsın.
+
+harikasın. şimdide /ayarlar.html sayfasında "Biga (0002) / İnegöl (0200) /" verilerini güncelleyebileceğim supabase ayarlar tablosuna kaydetme yapabileceğim bir güncelleme istiyorum. Depo Bilgileri
+Depo Adı
+GÜNEŞLER BATMAN DEPO
+Depo Kodu
+0002 - Biga
+Depo Kodu
+0200 - İnegöl
+şeklinde olabilir. burada şuanda 2 adet depo var bu depo sayısı artabilir veya azalabilir buna göre hem depo numarası yani (0002) hem de depo adı yani (Biga) bilgilerini kaydedebilecek şekilde olsun. kaç adet depo olacağını yine kullanıcıya sorabilirsin ve ona göre (0002 - Biga) şeklinde girebileceğim sql kaydedebileceğim bir güncelleme yapabileceğim bir yapı oluşturmasını istiyorum. "Depo Kodu" verisi "Depo Adı" verisi ile birlikte kaydetmesini istiyorum.
+
+\*\*\_süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR! Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin.\*\*\*
+
+"Fabrika Depo Yeri" verilerini ayarlar sayfasından alacak şekilde güncelleme yapmak istiyorum.

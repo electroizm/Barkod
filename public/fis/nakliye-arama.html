@@ -241,11 +241,17 @@
 
         <div class="arama-form">
             <div class="form-satir">
-                <label for="depoYeri">Depo Yeri</label>
+                <label for="depoYeri">Fabrika Depo Yeri</label>
                 <select id="depoYeri">
                     <option value="">Tümü</option>
-                    <option value="0002">Biga</option>
-                    <option value="0200">İnegöl</option>
+                    <!-- Dinamik olarak doldurulacak -->
+                </select>
+            </div>
+
+            <div class="form-satir">
+                <label for="varisDepoYeri">Varış Depo Yeri</label>
+                <select id="varisDepoYeri">
+                    <option value="">Tümü</option>
                 </select>
             </div>
 
@@ -319,6 +325,7 @@
 
         let aramaSonuclari = [];
         let seciliNakliyeler = new Set();
+        let fabrikaDepoMap = {}; // kod -> ad eşleştirmesi için
 
         // Varsayılan tarihler
         function tarihleriAyarla() {
@@ -349,6 +356,7 @@
         // Arama işlemi
         async function aramaYap() {
             const depoYeri = depoYeriSelect.value;
+            const varisDepoYeri = document.getElementById('varisDepoYeri').value;
             const baslangicTarihi = baslangicTarihiInput.value;
             const bitisTarihi = bitisTarihiInput.value;
             const nakliyeNo = nakliyeNoInput.value.trim();
@@ -372,6 +380,7 @@
                     },
                     body: JSON.stringify({
                         depoYeri,
+                        varisDepoYeri,
                         baslangicTarihi,
                         bitisTarihi,
                         nakliyeNo
@@ -418,8 +427,8 @@
             `;
 
             sonuclar.forEach((sonuc, index) => {
-                const depoAdi = sonuc.storageLocation === '0002' ? 'Biga' :
-                               sonuc.storageLocation === '0200' ? 'İnegöl' : sonuc.storageLocation;
+                // Depo adını ayarlardan al (fabrikaDepoMap), yoksa kodu göster
+                const depoAdi = fabrikaDepoMap[sonuc.storageLocation] || sonuc.storageLocation;
 
                 html += `
                     <div class="sonuc-satir" data-index="${index}">
@@ -639,8 +648,88 @@
             }
         });
 
+        // Varış Depo Yeri dropdown'ını ayarlardan yükle
+        async function varisDepoYukle() {
+            try {
+                const response = await fetch('/api/ayarlar/getir');
+                const data = await response.json();
+                const varisDepoSelect = document.getElementById('varisDepoYeri');
+
+                if (data.success) {
+                    const depoBilgisi = data.ayarlar.find(a => a.anahtar === 'depo_bilgisi');
+                    const depoAdi = depoBilgisi?.deger || 'GÜNEŞLER BATMAN DEPO';
+
+                    // Depo bilgisi seçeneğini ekle ve varsayılan olarak seç
+                    const option = document.createElement('option');
+                    option.value = depoAdi;
+                    option.textContent = depoAdi;
+                    option.selected = true;
+                    varisDepoSelect.appendChild(option);
+                } else {
+                    // Varsayılan değeri ekle
+                    const option = document.createElement('option');
+                    option.value = 'GÜNEŞLER BATMAN DEPO';
+                    option.textContent = 'GÜNEŞLER BATMAN DEPO';
+                    option.selected = true;
+                    varisDepoSelect.appendChild(option);
+                }
+            } catch (error) {
+                console.error('Varış depo yükleme hatası:', error);
+                const varisDepoSelect = document.getElementById('varisDepoYeri');
+                const option = document.createElement('option');
+                option.value = 'GÜNEŞLER BATMAN DEPO';
+                option.textContent = 'GÜNEŞLER BATMAN DEPO';
+                option.selected = true;
+                varisDepoSelect.appendChild(option);
+            }
+        }
+
+        // Fabrika Depo Yeri dropdown'ını ayarlardan yükle
+        async function fabrikaDepolariYukle() {
+            try {
+                const response = await fetch('/api/ayarlar/fabrika-depolar');
+                const data = await response.json();
+                const depoSelect = document.getElementById('depoYeri');
+
+                let depolar = [];
+                if (data.success && Array.isArray(data.depolar) && data.depolar.length > 0) {
+                    depolar = data.depolar;
+                } else {
+                    // Varsayılan depoları kullan
+                    depolar = [
+                        { kod: '0002', ad: 'Biga' },
+                        { kod: '0200', ad: 'İnegöl' }
+                    ];
+                }
+
+                // Dropdown'a ekle ve map'e kaydet
+                depolar.forEach(depo => {
+                    const option = document.createElement('option');
+                    option.value = depo.kod;
+                    option.textContent = depo.ad;
+                    depoSelect.appendChild(option);
+                    // Global map'e kaydet (sonuç gösteriminde kullanılacak)
+                    fabrikaDepoMap[depo.kod] = depo.ad;
+                });
+            } catch (error) {
+                console.error('Fabrika depoları yüklenemedi:', error);
+                // Varsayılan depoları ekle
+                const depoSelect = document.getElementById('depoYeri');
+                const varsayilanDepolar = [{ kod: '0002', ad: 'Biga' }, { kod: '0200', ad: 'İnegöl' }];
+                varsayilanDepolar.forEach(depo => {
+                    const option = document.createElement('option');
+                    option.value = depo.kod;
+                    option.textContent = depo.ad;
+                    depoSelect.appendChild(option);
+                    fabrikaDepoMap[depo.kod] = depo.ad;
+                });
+            }
+        }
+
         // Sayfa yüklendiğinde
         tarihleriAyarla();
+        varisDepoYukle();
+        fabrikaDepolariYukle();
     </script>
 </body>
 </html>

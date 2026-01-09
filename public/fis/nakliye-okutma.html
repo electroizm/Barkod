@@ -163,6 +163,101 @@
         .ara-btn:hover {
             background-color: #2980b9;
         }
+        .acik-oturum-btn {
+            margin-top: 10px;
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+            background-color: #f39c12;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .acik-oturum-btn:hover {
+            background-color: #e67e22;
+        }
+        /* Açık Oturumlar Modal */
+        .acik-oturum-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001;
+        }
+        .acik-oturum-overlay.goster {
+            display: flex;
+        }
+        .acik-oturum-modal {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-baslik {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .modal-baslik h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #2c3e50;
+        }
+        .modal-kapat {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        .oturum-liste {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .oturum-item {
+            padding: 12px;
+            background-color: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .oturum-item:hover {
+            background-color: #e8f4fd;
+            border-color: #3498db;
+        }
+        .oturum-item-baslik {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .oturum-item-detay {
+            font-size: 13px;
+            color: #666;
+        }
+        .oturum-item-kalan {
+            font-size: 12px;
+            color: #e74c3c;
+            margin-top: 5px;
+        }
+        .bos-liste {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+        }
     </style>
 </head>
 <body>
@@ -175,8 +270,22 @@
         <!-- Oturum ID yoksa manuel giriş alanı -->
         <div id="oturumSecimAlani" class="oturum-secim" style="display: none;">
             <label for="oturumIdInput">Oturum Numarası</label>
-            <input type="text" id="oturumIdInput" placeholder="Örn: 20260107-001">
+            <input type="text" id="oturumIdInput" placeholder="Örn: 260109-01">
             <button type="button" class="ara-btn" id="oturumAraBtn">Oturum Ara</button>
+            <button type="button" class="acik-oturum-btn" id="acikOturumlarBtn">Açık Oturumları Göster</button>
+        </div>
+
+        <!-- Açık Oturumlar Modal -->
+        <div id="acikOturumOverlay" class="acik-oturum-overlay">
+            <div class="acik-oturum-modal">
+                <div class="modal-baslik">
+                    <h3>Açık Oturumlar</h3>
+                    <button type="button" class="modal-kapat" id="modalKapat">&times;</button>
+                </div>
+                <div id="oturumListesi" class="oturum-liste">
+                    <!-- Oturumlar buraya yüklenecek -->
+                </div>
+            </div>
         </div>
 
         <!-- Oturum bilgileri -->
@@ -251,6 +360,10 @@
         const okumayaBaslaBtn = document.getElementById('okumayaBaslaBtn');
         const hataKutusu = document.getElementById('hataKutusu');
         const yukleniyorOverlay = document.getElementById('yukleniyor');
+        const acikOturumlarBtn = document.getElementById('acikOturumlarBtn');
+        const acikOturumOverlay = document.getElementById('acikOturumOverlay');
+        const oturumListesi = document.getElementById('oturumListesi');
+        const modalKapat = document.getElementById('modalKapat');
 
         let mevcutOturum = null;
         let oturumKalemleri = [];
@@ -282,6 +395,55 @@
         oturumIdInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 oturumAraBtn.click();
+            }
+        });
+
+        // Açık oturumlar butonu
+        acikOturumlarBtn.addEventListener('click', async function() {
+            oturumListesi.innerHTML = '<div class="bos-liste">Yükleniyor...</div>';
+            acikOturumOverlay.classList.add('goster');
+
+            try {
+                const response = await fetch('/api/supabase/acik-oturumlar');
+                const data = await response.json();
+
+                if (data.success && data.oturumlar.length > 0) {
+                    oturumListesi.innerHTML = data.oturumlar.map(oturum => {
+                        const tarih = new Date(oturum.tarih).toLocaleDateString('tr-TR');
+                        return `
+                            <div class="oturum-item" data-oturum="${oturum.oturum_id}">
+                                <div class="oturum-item-baslik">${oturum.oturum_id}</div>
+                                <div class="oturum-item-detay">${oturum.plaka || '-'} | ${tarih}</div>
+                                <div class="oturum-item-kalan">${oturum.kalan_paket} paket kaldı (${oturum.okunan_paket}/${oturum.toplam_paket})</div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    // Tıklama olayları - barkod-okut.html sayfasına yönlendir
+                    document.querySelectorAll('.oturum-item').forEach(item => {
+                        item.addEventListener('click', function() {
+                            const oturumId = this.dataset.oturum;
+                            acikOturumOverlay.classList.remove('goster');
+                            window.location.href = `/fis/barkod-okut.html?oturum=${oturumId}`;
+                        });
+                    });
+                } else {
+                    oturumListesi.innerHTML = '<div class="bos-liste">Açık oturum bulunamadı</div>';
+                }
+            } catch (error) {
+                oturumListesi.innerHTML = '<div class="bos-liste">Hata: ' + error.message + '</div>';
+            }
+        });
+
+        // Modal kapat
+        modalKapat.addEventListener('click', function() {
+            acikOturumOverlay.classList.remove('goster');
+        });
+
+        // Overlay'e tıklayınca kapat
+        acikOturumOverlay.addEventListener('click', function(e) {
+            if (e.target === acikOturumOverlay) {
+                acikOturumOverlay.classList.remove('goster');
             }
         });
 

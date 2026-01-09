@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ayarlar - Güneşler Elektronik</title>
+    <link rel="stylesheet" href="/css/stil.css">
+    <style>
+        .ayar-kategori {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .ayar-kategori h3 {
+            margin: 0 0 15px 0;
+            color: #2c3e50;
+            font-size: 16px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+        }
+        .ayar-satir {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 12px;
+        }
+        .ayar-satir label {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        .ayar-satir .aciklama {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+        .sifre-alani {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .sifre-alani input {
+            padding-right: 45px;
+        }
+        .sifre-toggle {
+            position: absolute;
+            right: 10px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #888;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+        .sifre-toggle:hover {
+            color: #3498db;
+        }
+        .sifre-toggle svg {
+            width: 20px;
+            height: 20px;
+        }
+        .sifre-toggle .goz-kapali {
+            display: none;
+        }
+        .sifre-toggle.aktif .goz-acik {
+            display: none;
+        }
+        .sifre-toggle.aktif .goz-kapali {
+            display: block;
+        }
+        .kaydet-alan {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        .kaydet-alan .buton {
+            flex: 1;
+        }
+        .mesaj {
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 15px;
+            display: none;
+        }
+        .mesaj.basari {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+        .mesaj.hata {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+        .yukleniyor {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        /* Kaydet Modal/Overlay */
+        .kaydet-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .kaydet-overlay.goster {
+            display: flex;
+        }
+        .kaydet-modal {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 12px;
+            text-align: center;
+            min-width: 280px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        .kaydet-modal.basari {
+            border-top: 4px solid #28a745;
+        }
+        .kaydet-modal.hata {
+            border-top: 4px solid #dc3545;
+        }
+        .kaydet-ikon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        .kaydet-mesaj {
+            font-size: 18px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        .ilerleme-cubugu {
+            height: 8px;
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+        .ilerleme-dolu {
+            height: 100%;
+            width: 0%;
+            background-color: #3498db;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        .kaydet-modal.basari .ilerleme-dolu {
+            background-color: #28a745;
+        }
+        .kaydet-modal.hata .ilerleme-dolu {
+            background-color: #dc3545;
+        }
+        /* Fabrika Depo Stilleri */
+        .depo-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+        .depo-item .depo-kod {
+            font-weight: 600;
+            color: #2980b9;
+            min-width: 50px;
+        }
+        .depo-item .depo-ad {
+            flex: 1;
+            color: #333;
+        }
+        .depo-item .depo-sil {
+            background: none;
+            border: none;
+            color: #e74c3c;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .depo-item .depo-sil:hover {
+            background-color: #fdecea;
+        }
+    </style>
+</head>
+<body>
+    <div class="kapsayici">
+        <div class="kullanici-bilgi">
+            <span id="kullaniciBilgi"></span>
+            <a href="/anasayfa.html" style="margin-left: 10px; color: #3498db;">Ana Sayfa</a>
+            <a href="#" id="cikisBtn" style="margin-left: 10px; color: #e74c3c;">Çıkış</a>
+        </div>
+
+        <h1 class="baslik">Ayarlar</h1>
+
+        <div id="yukleniyor" class="yukleniyor">Ayarlar yükleniyor...</div>
+
+        <form id="ayarlarForm" style="display: none;">
+            <!-- Depo Bilgileri -->
+            <div class="ayar-kategori">
+                <h3>Depo Bilgileri</h3>
+                <div class="ayar-satir">
+                    <label for="depo_bilgisi">Varış Depo Adı</label>
+                    <input type="text" id="depo_bilgisi" name="depo_bilgisi" class="ayar-input ayar-input-orta">
+                </div>
+            </div>
+
+            <!-- Fabrika Depo Kodları -->
+            <div class="ayar-kategori">
+                <h3>Fabrika Depo Kodları</h3>
+                <div id="fabrikaDepoListesi">
+                    <!-- Dinamik olarak doldurulacak -->
+                </div>
+                <div class="depo-ekle-satir" style="margin-top: 8px; display: flex; gap: 8px; align-items: center;">
+                    <input type="text" id="yeniDepoKodu" placeholder="Depo Kodu" class="ayar-input ayar-input-kucuk" style="width: 100px; height: 40px; box-sizing: border-box;">
+                    <input type="text" id="yeniDepoAdi" placeholder="Depo Adı" class="ayar-input ayar-input-kucuk" style="flex: 1; height: 40px; box-sizing: border-box;">
+                    <button type="button" id="depoEkleBtn" class="buton" style="height: 40px; padding: 0 20px; background-color: #27ae60; min-width: auto; width: auto; display: flex; align-items: center; justify-content: center; position: relative; top: 6px;">+ Ekle</button>
+                </div>
+            </div>
+
+            <!-- Kullanıcı Bilgileri -->
+            <div class="ayar-kategori">
+                <h3>Kullanıcı Bilgileri</h3>
+                <div class="ayar-satir">
+                    <label for="kullanici_adi_soyadi">Kullanıcı Adı & Soyadı</label>
+                    <input type="text" id="kullanici_adi_soyadi" name="kullanici_adi_soyadi" class="ayar-input ayar-input-orta">
+                </div>
+            </div>
+
+            <!-- Google Sheets Ayarları -->
+            <div class="ayar-kategori">
+                <h3>Google Sheets Ayarları</h3>
+                <div class="ayar-satir">
+                    <label for="PRGsheet_ID">PRGsheet ID</label>
+                    <span class="aciklama">Google Sheets döküman ID'si</span>
+                    <input type="text" id="PRGsheet_ID" name="PRGsheet_ID" class="ayar-input ayar-input-orta">
+                </div>
+            </div>
+
+            <!-- API Ayarları -->
+            <div class="ayar-kategori">
+                <h3>API Ayarları</h3>
+
+                <div class="ayar-satir">
+                    <label for="base_url">API Base URL</label>
+                    <span class="aciklama">Ana API adresi</span>
+                    <input type="text" id="base_url" name="base_url" class="ayar-input ayar-input-orta">
+                </div>
+
+                <div class="ayar-satir">
+                    <label for="nakliye_endpoint">Nakliye Endpoint</label>
+                    <span class="aciklama">Nakliye sorgulama endpoint'i</span>
+                    <input type="text" id="nakliye_endpoint" name="nakliye_endpoint" class="ayar-input ayar-input-orta">
+                </div>
+
+                <div class="ayar-satir">
+                    <label for="CustomerNo">Müşteri Numarası</label>
+                    <input type="text" id="CustomerNo" name="CustomerNo" class="ayar-input ayar-input-kucuk">
+                </div>
+
+                <div class="ayar-satir">
+                    <label for="userName">API Kullanıcı Adı</label>
+                    <input type="text" id="userName" name="userName" class="ayar-input ayar-input-orta">
+                </div>
+
+                <div class="ayar-satir">
+                    <label for="password">API Şifresi</label>
+                    <div class="sifre-alani">
+                        <input type="password" id="password" name="password" class="ayar-input ayar-input-orta">
+                        <button type="button" class="sifre-toggle" data-target="password" title="Göster/Gizle">
+                            <svg class="goz-acik" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <svg class="goz-kapali" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="ayar-satir">
+                    <label for="clientId">OAuth Client ID</label>
+                    <input type="text" id="clientId" name="clientId" class="ayar-input ayar-input-kucuk">
+                </div>
+
+                <div class="ayar-satir">
+                    <label for="clientSecret">OAuth Client Secret</label>
+                    <div class="sifre-alani">
+                        <input type="password" id="clientSecret" name="clientSecret" class="ayar-input ayar-input-orta">
+                        <button type="button" class="sifre-toggle" data-target="clientSecret" title="Göster/Gizle">
+                            <svg class="goz-acik" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                            <svg class="goz-kapali" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="ayar-satir">
+                    <label for="applicationCode">Uygulama Kodu</label>
+                    <input type="text" id="applicationCode" name="applicationCode" class="ayar-input ayar-input-kucuk">
+                </div>
+            </div>
+
+            <div class="kaydet-alan">
+                <button type="submit" class="buton buton-birincil">Kaydet</button>
+                <a href="/anasayfa.html" class="buton">Geri</a>
+            </div>
+
+        </form>
+    </div>
+
+    <!-- Kaydet Modal/Overlay -->
+    <div id="kaydetOverlay" class="kaydet-overlay">
+        <div id="kaydetModal" class="kaydet-modal">
+            <div id="kaydetIkon" class="kaydet-ikon">⏳</div>
+            <div id="kaydetMesaj" class="kaydet-mesaj">Kaydediliyor...</div>
+            <div class="ilerleme-cubugu">
+                <div class="ilerleme-dolu" id="ilerlemeDolu"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/ortak.js"></script>
+    <script>
+        const ayarlarForm = document.getElementById('ayarlarForm');
+        const yukleniyorDiv = document.getElementById('yukleniyor');
+        const kaydetOverlay = document.getElementById('kaydetOverlay');
+        const kaydetModal = document.getElementById('kaydetModal');
+        const kaydetIkon = document.getElementById('kaydetIkon');
+        const kaydetMesaj = document.getElementById('kaydetMesaj');
+        const ilerlemeDolu = document.getElementById('ilerlemeDolu');
+        const kullaniciBilgiSpan = document.getElementById('kullaniciBilgi');
+
+        // Şifre göster/gizle (SVG ikonlu)
+        document.querySelectorAll('.sifre-toggle').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const targetId = this.dataset.target;
+                const input = document.getElementById(targetId);
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    this.classList.add('aktif');
+                } else {
+                    input.type = 'password';
+                    this.classList.remove('aktif');
+                }
+            });
+        });
+
+        // Çıkış butonu
+        document.getElementById('cikisBtn').addEventListener('click', async function(e) {
+            e.preventDefault();
+            await cikisYap();
+        });
+
+        // Ayarları yükle ve arayüzü güncelle
+        async function ayarlariYukle() {
+            try {
+                const response = await fetch('/api/ayarlar/getir');
+                const data = await response.json();
+
+                if (data.success) {
+                    let adSoyad = '';
+
+                    // Form alanlarını doldur ve Ad Soyad'ı bul
+                    data.ayarlar.forEach(ayar => {
+                        const input = document.getElementById(ayar.anahtar);
+                        if (input) {
+                            input.value = ayar.deger || '';
+                        }
+                        // Ad soyad bilgisini al
+                        if (ayar.anahtar === 'kullanici_adi_soyadi') {
+                            adSoyad = ayar.deger;
+                        }
+                    });
+
+                    // Başlıktaki kullanıcı bilgisini güncelle (varsayılanı ez)
+                    if (adSoyad) {
+                        kullaniciBilgiSpan.textContent = adSoyad;
+                    }
+
+                    yukleniyorDiv.style.display = 'none';
+                    ayarlarForm.style.display = 'block';
+                } else {
+                    yukleniyorDiv.textContent = 'Ayarlar yüklenemedi: ' + data.message;
+                }
+            } catch (error) {
+                yukleniyorDiv.textContent = 'Bağlantı hatası: ' + error.message;
+            }
+        }
+
+        // Ayarları kaydet
+        ayarlarForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const ayarlar = {};
+
+            formData.forEach((value, key) => {
+                ayarlar[key] = value;
+            });
+
+            // Modal'ı göster
+            kaydetOverlay.classList.add('goster');
+            kaydetModal.className = 'kaydet-modal';
+            kaydetIkon.textContent = '⏳';
+            kaydetMesaj.textContent = 'Kaydediliyor...';
+            ilerlemeDolu.style.width = '30%';
+
+            try {
+                ilerlemeDolu.style.width = '60%';
+
+                const response = await fetch('/api/ayarlar/kaydet', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ ayarlar })
+                });
+
+                ilerlemeDolu.style.width = '90%';
+                const data = await response.json();
+
+                if (data.success) {
+                    ilerlemeDolu.style.width = '100%';
+                    kaydetIkon.textContent = '✅';
+                    kaydetMesaj.textContent = 'Ayarlar kaydedildi!';
+                    kaydetModal.classList.add('basari');
+                    
+                    // Başlıktaki ismi hemen güncelle
+                    if (ayarlar.kullanici_adi_soyadi) {
+                        kullaniciBilgiSpan.textContent = ayarlar.kullanici_adi_soyadi;
+                    }
+                } else {
+                    ilerlemeDolu.style.width = '100%';
+                    kaydetIkon.textContent = '❌';
+                    kaydetMesaj.textContent = 'Hata: ' + data.message;
+                    kaydetModal.classList.add('hata');
+                }
+
+                // 2 saniye sonra modal'ı kapat
+                setTimeout(() => {
+                    kaydetOverlay.classList.remove('goster');
+                    ilerlemeDolu.style.width = '0%';
+                }, 2000);
+
+            } catch (error) {
+                ilerlemeDolu.style.width = '100%';
+                kaydetIkon.textContent = '❌';
+                kaydetMesaj.textContent = 'Bağlantı hatası!';
+                kaydetModal.classList.add('hata');
+
+                setTimeout(() => {
+                    kaydetOverlay.classList.remove('goster');
+                    ilerlemeDolu.style.width = '0%';
+                }, 2000);
+            }
+        });
+
+        // Fabrika Depoları Yönetimi
+        let fabrikaDepolar = [];
+
+        function fabrikaDepolariGoster() {
+            const liste = document.getElementById('fabrikaDepoListesi');
+            if (fabrikaDepolar.length === 0) {
+                liste.innerHTML = '<div style="color: #999; font-size: 13px; padding: 10px;">Henüz fabrika deposu eklenmedi.</div>';
+                return;
+            }
+            liste.innerHTML = fabrikaDepolar.map((depo, index) => `
+                <div class="depo-item" data-index="${index}">
+                    <span class="depo-kod">${depo.kod}</span>
+                    <span class="depo-ad">${depo.ad}</span>
+                    <button type="button" class="depo-sil" onclick="fabrikaDepoSil(${index})">×</button>
+                </div>
+            `).join('');
+        }
+
+        function fabrikaDepoEkle() {
+            const kodInput = document.getElementById('yeniDepoKodu');
+            const adInput = document.getElementById('yeniDepoAdi');
+            const kod = kodInput.value.trim();
+            const ad = adInput.value.trim();
+
+            if (!kod || !ad) {
+                alert('Depo kodu ve adı giriniz');
+                return;
+            }
+
+            // Aynı kod varsa ekleme
+            if (fabrikaDepolar.some(d => d.kod === kod)) {
+                alert('Bu depo kodu zaten mevcut');
+                return;
+            }
+
+            fabrikaDepolar.push({ kod, ad });
+            fabrikaDepolariGoster();
+            kodInput.value = '';
+            adInput.value = '';
+        }
+
+        function fabrikaDepoSil(index) {
+            if (confirm('Bu depoyu silmek istediğinize emin misiniz?')) {
+                fabrikaDepolar.splice(index, 1);
+                fabrikaDepolariGoster();
+            }
+        }
+
+        // Depo Ekle butonu
+        document.getElementById('depoEkleBtn').addEventListener('click', fabrikaDepoEkle);
+
+        // Enter tuşu ile depo ekle
+        document.getElementById('yeniDepoAdi').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                fabrikaDepoEkle();
+            }
+        });
+
+        // Ayarları yüklerken fabrika depolarını da yükle
+        async function fabrikaDepolariYukle() {
+            try {
+                const response = await fetch('/api/ayarlar/fabrika-depolar');
+                const data = await response.json();
+                if (data.success && Array.isArray(data.depolar)) {
+                    fabrikaDepolar = data.depolar;
+                    fabrikaDepolariGoster();
+                }
+            } catch (error) {
+                console.error('Fabrika depoları yüklenemedi:', error);
+            }
+        }
+
+        // Form submit'te fabrika depolarını da kaydet
+        const originalSubmit = ayarlarForm.onsubmit;
+        ayarlarForm.addEventListener('submit', async function(e) {
+            // Fabrika depolarını ayrıca kaydet
+            try {
+                await fetch('/api/ayarlar/fabrika-depolar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ depolar: fabrikaDepolar })
+                });
+            } catch (error) {
+                console.error('Fabrika depoları kaydedilemedi:', error);
+            }
+        });
+
+        // Sayfa yüklendiğinde ayarları getir
+        ayarlariYukle();
+        fabrikaDepolariYukle();
+    </script>
+</body>
+</html>

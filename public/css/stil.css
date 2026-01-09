@@ -396,3 +396,26 @@ body {
     width: 24px;
     height: 24px;
 }
+
+/* Ayarlar Sayfası Stilleri */
+.ayar-input {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.ayar-input:focus {
+    border-color: #3498db;
+}
+
+.ayar-input-kucuk {
+    max-width: 200px;
+}
+
+.ayar-input-orta {
+    max-width: 350px;
+}

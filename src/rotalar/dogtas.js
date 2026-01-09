@@ -34,6 +34,56 @@ let tokenCache = {
     expiresAt: null
 };
 
+// Supabase client - ayarlar için
+let supabaseClient = null;
+
+async function getSupabaseClient() {
+    if (!supabaseClient) {
+        const { createClient } = await import('@supabase/supabase-js');
+        supabaseClient = createClient(
+            process.env.SUPABASE_URL,
+            process.env.SUPABASE_ANON_KEY
+        );
+    }
+    return supabaseClient;
+}
+
+/**
+ * Kullanıcının depo_bilgisi ayarını getir
+ */
+async function getDepoBilgisi(kullaniciAdi) {
+    try {
+        const client = await getSupabaseClient();
+
+        // Önce kullanıcıya özel ayarı kontrol et
+        if (kullaniciAdi) {
+            const { data: kullaniciAyari } = await client
+                .from('ayarlar')
+                .select('deger')
+                .eq('anahtar', 'depo_bilgisi')
+                .eq('kullanici_id', kullaniciAdi)
+                .single();
+
+            if (kullaniciAyari?.deger) {
+                return kullaniciAyari.deger;
+            }
+        }
+
+        // Varsayılan ayarı getir
+        const { data: varsayilanAyar } = await client
+            .from('ayarlar')
+            .select('deger')
+            .eq('anahtar', 'depo_bilgisi')
+            .eq('kullanici_id', 'default')
+            .single();
+
+        return varsayilanAyar?.deger || null;
+    } catch (error) {
+        console.error('Depo bilgisi getirme hatası:', error);
+        return null;
+    }
+}
+
 /**
  * PRGsheet Ayar sayfasından API konfigürasyonlarını yükler
  * Önce Drive API ile spreadsheet ID'sini bulur, sonra Sheets API ile okur
@@ -237,6 +287,13 @@ router.post('/nakliye-ara', async (req, res) => {
 
         const data = await response.json();
 
+        // HAM VERİYİ KONSOLA YAZDIR
+        console.log('\n=== NAKLİYE API HAM VERİSİ ===');
+        console.log('Tarih:', new Date().toISOString());
+        console.log('Toplam kayıt:', data.data?.length || 0);
+        console.log(JSON.stringify(data.data, null, 2));
+        console.log('=== HAM VERİ SONU ===\n');
+
         if (data.isSuccess && Array.isArray(data.data)) {
             let sonuclar = data.data;
 
@@ -249,8 +306,18 @@ router.post('/nakliye-ara', async (req, res) => {
                 return ean.trim() !== '';
             });
 
+            // Varış Depo Yeri filtrelemesi (receiver alanı)
+            // Frontend'den gelen varisDepoYeri değerine göre filtrele
+            // Boş ("Tümü") ise filtreleme yapma, değer varsa receiver === varisDepoYeri
+            const { depoYeri, varisDepoYeri } = req.body;
+
+            if (varisDepoYeri) {
+                const filtreOncesiAdet = sonuclar.length;
+                sonuclar = sonuclar.filter(item => item.receiver === varisDepoYeri);
+                console.log(`Varış depo filtresi: "${varisDepoYeri}" - ${filtreOncesiAdet} -> ${sonuclar.length} kayıt`);
+            }
+
             // storageLocation'a göre filtrele (Biga=0002, İnegöl=0200)
-            const { depoYeri } = req.body;
             if (depoYeri) {
                 sonuclar = sonuclar.filter(item => item.storageLocation === depoYeri);
             }

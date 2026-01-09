@@ -3,8 +3,13 @@
 // Oturum kontrolü - korumalı sayfalar için
 async function oturumKontrolEt() {
     try {
-        const yanit = await fetch('/api/oturum-kontrol');
-        const veri = await yanit.json();
+        // Oturum ve ayarları paralel olarak al
+        const [oturumYanit, ayarYanit] = await Promise.all([
+            fetch('/api/oturum-kontrol'),
+            fetch('/api/ayarlar/getir').catch(() => null)
+        ]);
+
+        const veri = await oturumYanit.json();
 
         if (!veri.girisYapildi) {
             window.location.href = '/giris.html';
@@ -14,7 +19,24 @@ async function oturumKontrolEt() {
         // Kullanıcı bilgisini göster
         const kullaniciBilgiElement = document.getElementById('kullaniciBilgi');
         if (kullaniciBilgiElement) {
-            kullaniciBilgiElement.textContent = veri.kullanici.kullaniciAdi;
+            let gorunecekAd = veri.kullanici.kullaniciAdi; // fallback
+
+            // Ayarlardan ad soyad bilgisini al
+            if (ayarYanit) {
+                try {
+                    const ayarVeri = await ayarYanit.json();
+                    if (ayarVeri.success && ayarVeri.ayarlar) {
+                        const adSoyad = ayarVeri.ayarlar.find(a => a.anahtar === 'kullanici_adi_soyadi');
+                        if (adSoyad && adSoyad.deger) {
+                            gorunecekAd = adSoyad.deger;
+                        }
+                    }
+                } catch (e) {
+                    // Ayarlar parse edilemezse fallback kullan
+                }
+            }
+
+            kullaniciBilgiElement.textContent = gorunecekAd;
         }
 
         return veri.kullanici;
