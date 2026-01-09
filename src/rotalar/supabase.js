@@ -660,7 +660,7 @@ router.post('/qr-okut', async (req, res) => {
             const mevcutOkuma = paketOkumaSayisi(oturum_id, malzemeNo, paketSira);
             return res.json({
                 success: false,
-                message: `Bu paket (${paketSira}/${qrBilgi.paketToplam}) için tüm okumalar tamamlandı! (${mevcutOkuma}/${miktar} adet)`,
+                message: `(${paketSira}/${qrBilgi.paketToplam}) için tüm okumalar tamamlandı!`,
                 hata_tipi: 'PAKET_LIMIT_ASILDI',
                 detay: {
                     malzeme_no: malzemeNo,
@@ -881,6 +881,82 @@ router.get('/okuma-durumu/:oturumId', async (req, res) => {
             success: false,
             message: 'Sunucu hatası: ' + error.message
         });
+    }
+});
+
+/**
+ * Malzeme Paket Detayları Getir
+ * GET /api/supabase/malzeme-paketler/:oturumId/:kalemId
+ * Her paket için okuma durumunu döndürür
+ */
+router.get('/malzeme-paketler/:oturumId/:kalemId', async (req, res) => {
+    try {
+        const { oturumId, kalemId } = req.params;
+
+        const client = await getSupabaseClient();
+        if (!client) {
+            return res.json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
+        }
+
+        // Kalem bilgisini getir
+        const { data: kalem, error: kalemHata } = await client
+            .from('nakliye_yuklemeleri')
+            .select('*')
+            .eq('id', kalemId)
+            .eq('oturum_id', oturumId)
+            .single();
+
+        if (kalemHata || !kalem) {
+            return res.json({ success: false, message: 'Kalem bulunamadı' });
+        }
+
+        const miktar = parseFloat((kalem.miktar || '1').replace(',', '.')) || 1;
+        const birimPaket = parseInt(kalem.paket_sayisi) || 1;
+
+        // Bu kaleme ait okumaları paket_sira'ya göre grupla
+        const { data: okumalar, error: okumaHata } = await client
+            .from('paket_okumalari')
+            .select('paket_sira, malzeme_no_qr')
+            .eq('nakliye_kalem_id', kalemId);
+
+        // Paket bazında okuma sayılarını hesapla
+        const paketOkumalari = {};
+        if (!okumaHata && okumalar) {
+            okumalar.forEach(o => {
+                const sira = o.paket_sira || 1;
+                paketOkumalari[sira] = (paketOkumalari[sira] || 0) + 1;
+            });
+        }
+
+        // Her paket için durum oluştur
+        const paketler = [];
+        for (let i = 1; i <= birimPaket; i++) {
+            const okunan = paketOkumalari[i] || 0;
+            let durum = 'bekliyor'; // gri
+            if (okunan >= miktar) {
+                durum = 'tamamlandi'; // yeşil
+            } else if (okunan > 0) {
+                durum = 'devam_ediyor'; // sarı
+            }
+            paketler.push({
+                paket_sira: i,
+                beklenen: miktar,
+                okunan: okunan,
+                durum: durum
+            });
+        }
+
+        return res.json({
+            success: true,
+            malzeme_adi: kalem.malzeme_adi,
+            miktar: miktar,
+            birim_paket: birimPaket,
+            paketler: paketler
+        });
+
+    } catch (error) {
+        console.error('Malzeme paket detayları hatası:', error);
+        return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
     }
 });
 
