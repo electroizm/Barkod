@@ -1106,7 +1106,7 @@ router.get('/acik-oturumlar', async (req, res) => {
         // Tüm oturumları ve okuma sayılarını getir
         const { data: oturumlar, error: oturumHata } = await client
             .from('nakliye_yuklemeleri')
-            .select('oturum_id, plaka, created_at, miktar')
+            .select('oturum_id, plaka, created_at, paket_sayisi')
             .order('created_at', { ascending: false });
 
         if (oturumHata) {
@@ -1127,7 +1127,7 @@ router.get('/acik-oturumlar', async (req, res) => {
                     toplam_paket: 0
                 };
             }
-            oturumGruplari[kayit.oturum_id].toplam_paket += parseInt(kayit.miktar) || 0;
+            oturumGruplari[kayit.oturum_id].toplam_paket += parseInt(kayit.paket_sayisi) || 0;
         }
 
         // Her oturum için okunan paket sayısını al
@@ -1162,6 +1162,86 @@ router.get('/acik-oturumlar', async (req, res) => {
 
     } catch (error) {
         console.error('Açık oturumlar hatası:', error);
+        return res.json({
+            success: false,
+            message: 'Sunucu hatası: ' + error.message
+        });
+    }
+});
+
+/**
+ * GET /api/supabase/kapatilan-oturumlar
+ * Tamamlanmış (tüm paketleri okutulmuş) oturumları listele
+ */
+router.get('/kapatilan-oturumlar', async (req, res) => {
+    try {
+        const client = await getSupabaseClient();
+
+        if (!client) {
+            return res.status(500).json({
+                success: false,
+                message: 'Veritabanı bağlantısı kurulamadı'
+            });
+        }
+
+        // Tüm oturumları ve paket sayılarını getir
+        const { data: oturumlar, error: oturumHata } = await client
+            .from('nakliye_yuklemeleri')
+            .select('oturum_id, plaka, created_at, paket_sayisi')
+            .order('created_at', { ascending: false });
+
+        if (oturumHata) {
+            return res.status(500).json({
+                success: false,
+                message: 'Oturumlar alınamadı: ' + oturumHata.message
+            });
+        }
+
+        // Oturumları grupla ve toplam paketi hesapla
+        const oturumGruplari = {};
+        for (const kayit of oturumlar || []) {
+            if (!oturumGruplari[kayit.oturum_id]) {
+                oturumGruplari[kayit.oturum_id] = {
+                    oturum_id: kayit.oturum_id,
+                    plaka: kayit.plaka,
+                    tarih: kayit.created_at,
+                    toplam_paket: 0
+                };
+            }
+            oturumGruplari[kayit.oturum_id].toplam_paket += parseInt(kayit.paket_sayisi) || 0;
+        }
+
+        // Her oturum için okunan paket sayısını al
+        const kapatilanOturumlar = [];
+        for (const oturumId of Object.keys(oturumGruplari)) {
+            const { count, error: countError } = await client
+                .from('paket_okumalari')
+                .select('*', { count: 'exact', head: true })
+                .eq('oturum_id', oturumId);
+
+            const okunanPaket = countError ? 0 : (count || 0);
+            const oturum = oturumGruplari[oturumId];
+
+            // Kapatılan oturum = okunan >= toplam
+            if (okunanPaket >= oturum.toplam_paket) {
+                kapatilanOturumlar.push({
+                    ...oturum,
+                    okunan_paket: okunanPaket
+                });
+            }
+        }
+
+        // Tarihe göre sırala (en yeni önce)
+        kapatilanOturumlar.sort((a, b) => new Date(b.tarih) - new Date(a.tarih));
+
+        return res.json({
+            success: true,
+            oturumlar: kapatilanOturumlar,
+            toplam: kapatilanOturumlar.length
+        });
+
+    } catch (error) {
+        console.error('Kapatılan oturumlar hatası:', error);
         return res.json({
             success: false,
             message: 'Sunucu hatası: ' + error.message

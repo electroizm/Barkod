@@ -141,7 +141,7 @@
         }
         .tamamlandi-kutu {
             background: linear-gradient(135deg, #27ae60, #2ecc71);
-            color: white;
+            color: #1e293b;
             padding: 30px;
             border-radius: 12px;
             text-align: center;
@@ -159,8 +159,8 @@
             display: inline-block;
             margin-top: 20px;
             padding: 12px 24px;
-            background-color: rgba(255,255,255,0.2);
-            color: white;
+            background-color: rgba(0,0,0,0.15);
+            color: #1e293b;
             border-radius: 6px;
             text-decoration: none;
         }
@@ -378,6 +378,34 @@
             font-size: 13px;
             grid-column: 1 / -1;
         }
+
+        /* Aksiyon Butonları */
+        .aksiyon-butonlari {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .aksiyon-butonlari .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            font-size: 14px;
+        }
+        .btn-kaydet {
+            background-color: #27ae60;
+            color: white;
+        }
+        .btn-devam {
+            background-color: #3498db;
+            color: white;
+        }
+        .btn-iptal {
+            background-color: #e74c3c;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -389,6 +417,9 @@
         <span id="oturumIdGoster" style="display:none;">-</span>
         <span id="plakaGoster" style="display:none;">-</span>
         <span id="soforGoster" style="display:none;">-</span>
+
+        <!-- Son Mesaj - EN ÜSTTE -->
+        <div class="son-mesaj gizle" id="sonMesaj"></div>
 
         <!-- İlerleme (barkod-etiket yerine taşınacak) -->
         <div class="progress-container gizle" id="progressContainer">
@@ -413,12 +444,16 @@
             </div>
         </div>
 
-        <!-- Son Mesaj -->
-        <div class="son-mesaj gizle" id="sonMesaj"></div>
+        <!-- Aksiyon Butonları -->
+        <div class="aksiyon-butonlari gizle" id="aksiyonButonlari">
+            <button type="button" class="btn btn-kaydet" onclick="kaydet()">Kaydet</button>
+            <button type="button" class="btn btn-devam" onclick="devamEt()">Devam Et</button>
+            <button type="button" class="btn btn-iptal" onclick="iptalEt()">İptal</button>
+        </div>
 
         <!-- Tamamlandı Kutusu -->
         <div class="tamamlandi-kutu gizle" id="tamamlandiKutu">
-            <h2>Tebrikler!</h2>
+            <h2>Tamamlandı!</h2>
             <p>Tüm paketler başarıyla okundu.</p>
             <a href="/fis/nakliye-okutma.html" class="geri-btn">Oturum Listesine Dön</a>
         </div>
@@ -888,11 +923,31 @@
             }
         }
 
+        // Aksiyon butonları - Kaydet
+        function kaydet() {
+            // TODO: Sonra belirlenecek
+            console.log('Kaydet tıklandı');
+        }
+
+        // Aksiyon butonları - Devam Et
+        function devamEt() {
+            // TODO: Sonra belirlenecek
+            console.log('Devam Et tıklandı');
+        }
+
+        // Aksiyon butonları - İptal
+        function iptalEt() {
+            // TODO: Sonra belirlenecek
+            console.log('İptal tıklandı');
+        }
+
         // Son mesaj göster
         function sonMesajGoster(mesaj, tip) {
             sonMesaj.textContent = mesaj;
             sonMesaj.className = 'son-mesaj ' + tip;
             sonMesaj.classList.remove('gizle');
+            // Aksiyon butonlarını göster
+            document.getElementById('aksiyonButonlari').classList.remove('gizle');
         }
 
         // Son okumaları güncelle

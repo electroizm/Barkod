@@ -177,6 +177,20 @@
         .acik-oturum-btn:hover {
             background-color: #e67e22;
         }
+        .kapatilan-oturum-btn {
+            margin-top: 10px;
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+            background-color: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .kapatilan-oturum-btn:hover {
+            background-color: #7f8c8d;
+        }
         /* Açık Oturumlar Modal */
         .acik-oturum-overlay {
             position: fixed;
@@ -273,6 +287,7 @@
             <input type="text" id="oturumIdInput" placeholder="Örn: 260109-01">
             <button type="button" class="ara-btn" id="oturumAraBtn">Oturum Ara</button>
             <button type="button" class="acik-oturum-btn" id="acikOturumlarBtn">Açık Oturumları Göster</button>
+            <button type="button" class="kapatilan-oturum-btn" id="kapatilanOturumlarBtn">Kapatılan Oturumları Göster</button>
         </div>
 
         <!-- Açık Oturumlar Modal -->
@@ -284,6 +299,19 @@
                 </div>
                 <div id="oturumListesi" class="oturum-liste">
                     <!-- Oturumlar buraya yüklenecek -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Kapatılan Oturumlar Modal -->
+        <div id="kapatilanOturumOverlay" class="acik-oturum-overlay">
+            <div class="acik-oturum-modal">
+                <div class="modal-baslik">
+                    <h3>Kapatılan Oturumlar</h3>
+                    <button type="button" class="modal-kapat" id="kapatilanModalKapat">&times;</button>
+                </div>
+                <div id="kapatilanOturumListesi" class="oturum-liste">
+                    <!-- Kapatılan oturumlar buraya yüklenecek -->
                 </div>
             </div>
         </div>
@@ -364,6 +392,10 @@
         const acikOturumOverlay = document.getElementById('acikOturumOverlay');
         const oturumListesi = document.getElementById('oturumListesi');
         const modalKapat = document.getElementById('modalKapat');
+        const kapatilanOturumlarBtn = document.getElementById('kapatilanOturumlarBtn');
+        const kapatilanOturumOverlay = document.getElementById('kapatilanOturumOverlay');
+        const kapatilanOturumListesi = document.getElementById('kapatilanOturumListesi');
+        const kapatilanModalKapat = document.getElementById('kapatilanModalKapat');
 
         let mevcutOturum = null;
         let oturumKalemleri = [];
@@ -444,6 +476,55 @@
         acikOturumOverlay.addEventListener('click', function(e) {
             if (e.target === acikOturumOverlay) {
                 acikOturumOverlay.classList.remove('goster');
+            }
+        });
+
+        // Kapatılan oturumlar butonu
+        kapatilanOturumlarBtn.addEventListener('click', async function() {
+            kapatilanOturumListesi.innerHTML = '<div class="bos-liste">Yükleniyor...</div>';
+            kapatilanOturumOverlay.classList.add('goster');
+
+            try {
+                const response = await fetch('/api/supabase/kapatilan-oturumlar');
+                const data = await response.json();
+
+                if (data.success && data.oturumlar.length > 0) {
+                    kapatilanOturumListesi.innerHTML = data.oturumlar.map(oturum => {
+                        const tarih = new Date(oturum.tarih).toLocaleDateString('tr-TR');
+                        return `
+                            <div class="oturum-item kapatilan" data-oturum="${oturum.oturum_id}">
+                                <div class="oturum-item-baslik">${oturum.oturum_id}</div>
+                                <div class="oturum-item-detay">${oturum.plaka || '-'} | ${tarih}</div>
+                                <div class="oturum-item-kalan" style="color: #27ae60;">Tamamlandı (${oturum.okunan_paket}/${oturum.toplam_paket})</div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    // Tıklama olayları - barkod-okut.html sayfasına yönlendir
+                    kapatilanOturumListesi.querySelectorAll('.oturum-item').forEach(item => {
+                        item.addEventListener('click', function() {
+                            const oturumId = this.dataset.oturum;
+                            kapatilanOturumOverlay.classList.remove('goster');
+                            window.location.href = `/fis/barkod-okut.html?oturum=${oturumId}`;
+                        });
+                    });
+                } else {
+                    kapatilanOturumListesi.innerHTML = '<div class="bos-liste">Kapatılan oturum bulunamadı</div>';
+                }
+            } catch (error) {
+                kapatilanOturumListesi.innerHTML = '<div class="bos-liste">Hata: ' + error.message + '</div>';
+            }
+        });
+
+        // Kapatılan modal kapat
+        kapatilanModalKapat.addEventListener('click', function() {
+            kapatilanOturumOverlay.classList.remove('goster');
+        });
+
+        // Kapatılan overlay'e tıklayınca kapat
+        kapatilanOturumOverlay.addEventListener('click', function(e) {
+            if (e.target === kapatilanOturumOverlay) {
+                kapatilanOturumOverlay.classList.remove('goster');
             }
         });
 
