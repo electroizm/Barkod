@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fatura QR Okutma - Güneşler Elektronik</title>
+    <link rel="stylesheet" href="/css/stil.css">
+    <style>
+        .progress-container {
+            margin: 0;
+        }
+        .progress-bar {
+            height: 18px;
+            background-color: #e9ecef;
+            border-radius: 9px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #8e44ad, #9b59b6);
+            transition: width 0.3s ease;
+            border-radius: 9px;
+        }
+        .progress-text {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 11px;
+            font-weight: 600;
+            color: #333;
+        }
+        .progress-stats {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+            margin-top: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .stat-separator {
+            color: #999;
+        }
+        .barkod-alt-satir .progress-container {
+            flex: 1;
+            margin-right: 10px;
+        }
+        .okuma-alani {
+            background-color: white;
+            border: 2px dashed #ddd;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .okuma-alani.basarili {
+            border-color: #9b59b6;
+            background-color: #f3e5f5;
+            animation: flash-success 0.3s;
+        }
+        .okuma-alani.hata {
+            border-color: #e74c3c;
+            background-color: #fef2f2;
+            animation: flash-error 0.3s;
+        }
+        @keyframes flash-success {
+            0%, 100% { background-color: #f3e5f5; }
+            50% { background-color: #e1bee7; }
+        }
+        @keyframes flash-error {
+            0%, 100% { background-color: #fef2f2; }
+            50% { background-color: #f8d7da; }
+        }
+        .son-mesaj {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-weight: 500;
+        }
+        .son-mesaj.basarili {
+            background-color: #e1bee7;
+            color: #4a148c;
+        }
+        .son-mesaj.hata {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .son-okumalar {
+            margin-top: 20px;
+        }
+        .son-okumalar h3 {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .okuma-listesi {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .okuma-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        .okuma-item.basarili {
+            border-left: 3px solid #9b59b6;
+        }
+        .okuma-item.hata {
+            border-left: 3px solid #e74c3c;
+        }
+        .okuma-ikon {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        .okuma-ikon.basarili {
+            color: #9b59b6;
+        }
+        .okuma-ikon.hata {
+            color: #e74c3c;
+        }
+        .okuma-bilgi {
+            flex: 1;
+        }
+        .okuma-urun {
+            font-weight: 500;
+            color: #2c3e50;
+        }
+        .okuma-paket {
+            font-size: 12px;
+            color: #888;
+        }
+        .tamamlandi-kutu {
+            background: linear-gradient(135deg, #8e44ad, #9b59b6);
+            color: #1e293b;
+            padding: 30px;
+            border-radius: 12px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .tamamlandi-kutu h2 {
+            margin: 0 0 10px;
+            font-size: 24px;
+            color: white;
+        }
+        .tamamlandi-kutu p {
+            margin: 0;
+            opacity: 0.9;
+            color: white;
+        }
+        .geri-btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 24px;
+            background-color: rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+        }
+        .yukleniyor-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .yukleniyor-overlay.gizle {
+            display: none;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #9b59b6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .manuel-input {
+            margin-top: 10px;
+        }
+        .manuel-input input {
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        .manuel-input input:focus {
+            border-color: #9b59b6;
+            outline: none;
+        }
+
+        /* Malzeme Listesi Stilleri */
+        .malzeme-listesi {
+            margin: 20px 0;
+        }
+        .malzeme-listesi h3 {
+            font-size: 14px;
+            color: #666;
+            margin: 0;
+        }
+        .malzeme-baslik-satir {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .malzeme-butonlar {
+            display: flex;
+            gap: 8px;
+        }
+        .btn-daralt, .btn-genislet {
+            padding: 4px 10px;
+            font-size: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background-color: #f8f9fa;
+            cursor: pointer;
+        }
+        .btn-daralt:hover, .btn-genislet:hover {
+            background-color: #e9ecef;
+        }
+        .malzeme-item {
+            border-radius: 12px;
+            margin-bottom: 10px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            position: relative;
+        }
+        .malzeme-baslik {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .malzeme-ok {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+            transition: transform 0.3s ease;
+            flex-shrink: 0;
+        }
+        .malzeme-ok.acik {
+            transform: rotate(90deg);
+        }
+        .malzeme-bilgi {
+            flex: 1;
+        }
+        .malzeme-miktar {
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .malzeme-ad {
+            font-size: 13px;
+            opacity: 0.8;
+            margin-top: 2px;
+        }
+        .malzeme-durum {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 12px;
+            margin-left: 10px;
+        }
+
+        /* BEYAZ: Hiç okunmamış */
+        .malzeme-item.status-gray {
+            background-color: #ffffff;
+            color: #1e293b;
+            border-color: #e2e8f0;
+        }
+
+        /* SARI: Kısmen okunmuş */
+        .malzeme-item.status-yellow {
+            background-color: #fef08a;
+            color: #1e293b;
+            border-color: #eab308;
+            transform: scale(1.01);
+            box-shadow: 0 4px 12px rgba(234, 179, 8, 0.2);
+        }
+
+        /* MOR: Tamamlanmış */
+        .malzeme-item.status-green {
+            background-color: #e1bee7;
+            color: #1e293b;
+            border-color: #9b59b6;
+            transform: scale(1.01);
+            box-shadow: 0 4px 12px rgba(155, 89, 182, 0.2);
+        }
+        .malzeme-item.status-green::after {
+            content: '✔';
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 1rem;
+            color: #9b59b6;
+        }
+
+        /* Paket detayları */
+        .paket-detay {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background-color: rgba(255,255,255,0.3);
+        }
+        .paket-detay.acik {
+            max-height: 500px;
+        }
+        .paket-detay-icerik {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            padding: 8px 12px 12px 12px;
+        }
+        @media (max-width: 400px) {
+            .paket-detay-icerik {
+                grid-template-columns: repeat(5, 1fr);
+            }
+        }
+        .paket-kutu {
+            background-color: #e2e8f0;
+            border-radius: 8px;
+            padding: 6px 4px;
+            text-align: center;
+            border: 2px solid #cbd5e1;
+        }
+        .paket-kutu.paket-gray {
+            background-color: #e2e8f0;
+            border-color: #cbd5e1;
+        }
+        .paket-kutu.paket-yellow {
+            background-color: #fef9c3;
+            border-color: #eab308;
+        }
+        .paket-kutu.paket-green {
+            background-color: #e1bee7;
+            border-color: #9b59b6;
+        }
+        .paket-etiket {
+            font-size: 10px;
+            font-weight: 600;
+            color: #64748b;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+        }
+        .paket-sayi {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        .paket-yukleniyor {
+            text-align: center;
+            padding: 15px;
+            color: #888;
+            font-size: 13px;
+            grid-column: 1 / -1;
+        }
+
+        /* Aksiyon Butonları */
+        .aksiyon-butonlari {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .aksiyon-butonlari .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            font-size: 14px;
+        }
+        .btn-kaydet {
+            background-color: #9b59b6;
+            color: white;
+        }
+        .btn-devam {
+            background-color: #3498db;
+            color: white;
+        }
+        .btn-iptal {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        /* Fatura Bilgi Özeti */
+        .fatura-ozet {
+            background-color: #f3e5f5;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+        .fatura-ozet-baslik {
+            font-weight: 600;
+            color: #8e44ad;
+        }
+        .fatura-ozet-detay {
+            color: #666;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="kapsayici">
+        <a href="/fis/teslimat.html" class="geri-buton" id="geriBtn">Geri</a>
+
+        <!-- Gizli alanlar -->
+        <span id="kullaniciBilgi" style="display:none;"></span>
+        <span id="faturaNoGoster" style="display:none;">-</span>
+
+        <!-- Fatura Özet Bilgisi -->
+        <div class="fatura-ozet" id="faturaOzet">
+            <div class="fatura-ozet-baslik" id="faturaOzetBaslik">Fatura: -</div>
+            <div class="fatura-ozet-detay" id="faturaOzetDetay">Cari: -</div>
+        </div>
+
+        <!-- Son Mesaj - EN ÜSTTE -->
+        <div class="son-mesaj gizle" id="sonMesaj"></div>
+
+        <!-- İlerleme -->
+        <div class="progress-container gizle" id="progressContainer">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                <span class="progress-text" id="progressText">0%</span>
+            </div>
+            <div class="progress-stats">
+                <span id="okunanPaketGoster">0</span>
+                <span class="stat-separator">/</span>
+                <span id="kalanPaketGoster">0</span>
+                <span class="stat-separator">/</span>
+                <span id="toplamPaketGoster">0</span>
+            </div>
+        </div>
+
+        <!-- QR Okuma Alanı -->
+        <div class="okuma-alani" id="okumaAlani">
+            <div id="barkodOkuyucuAlani"></div>
+            <div class="manuel-input">
+                <input type="text" id="manuelQrInput" placeholder="QR kodu manuel girin veya tarayıcı ile okutun...">
+            </div>
+        </div>
+
+        <!-- Aksiyon Butonları -->
+        <div class="aksiyon-butonlari gizle" id="aksiyonButonlari">
+            <button type="button" class="btn btn-kaydet" onclick="kaydet()">Kaydet</button>
+            <button type="button" class="btn btn-devam" onclick="devamEt()">Devam Et</button>
+            <button type="button" class="btn btn-iptal" onclick="iptalEt()">İptal</button>
+        </div>
+
+        <!-- Tamamlandı Kutusu -->
+        <div class="tamamlandi-kutu gizle" id="tamamlandiKutu">
+            <h2>Tamamlandı!</h2>
+            <p>Tüm paketler başarıyla okundu.</p>
+            <a href="/fis/teslimat.html" class="geri-btn">Fatura Listesine Dön</a>
+        </div>
+
+        <!-- Son Okumalar -->
+        <div class="son-okumalar" id="sonOkumalarAlani">
+            <h3>Son Okumalar</h3>
+            <div class="okuma-listesi" id="okumaListesi"></div>
+        </div>
+
+        <!-- Malzeme Listesi -->
+        <div class="malzeme-listesi" id="malzemeListesiAlani">
+            <div class="malzeme-baslik-satir">
+                <h3>Malzeme Durumu</h3>
+                <div class="malzeme-butonlar">
+                    <button type="button" onclick="tumunuDaralt()" class="btn-daralt">Daralt</button>
+                    <button type="button" onclick="tumunuGenislet()" class="btn-genislet">Genişlet</button>
+                </div>
+            </div>
+            <div id="malzemeListesi"></div>
+        </div>
+    </div>
+
+    <div id="yukleniyor" class="yukleniyor-overlay gizle">
+        <div class="spinner"></div>
+    </div>
+
+    <script src="/js/ortak.js"></script>
+    <script src="/js/barkod-okuyucu.js"></script>
+    <script>
+        // Elementler
+        const malzemeListesi = document.getElementById('malzemeListesi');
+        const faturaNoGoster = document.getElementById('faturaNoGoster');
+        const faturaOzetBaslik = document.getElementById('faturaOzetBaslik');
+        const faturaOzetDetay = document.getElementById('faturaOzetDetay');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const okunanPaketGoster = document.getElementById('okunanPaketGoster');
+        const kalanPaketGoster = document.getElementById('kalanPaketGoster');
+        const toplamPaketGoster = document.getElementById('toplamPaketGoster');
+        const okumaAlani = document.getElementById('okumaAlani');
+        const sonMesaj = document.getElementById('sonMesaj');
+        const tamamlandiKutu = document.getElementById('tamamlandiKutu');
+        const okumaListesi = document.getElementById('okumaListesi');
+        const manuelQrInput = document.getElementById('manuelQrInput');
+        const yukleniyorOverlay = document.getElementById('yukleniyor');
+        const geriBtn = document.getElementById('geriBtn');
+
+        let faturaNo = null;
+        let okumalar = [];
+        let barkodOkuyucu = null;
+
+        // Frontend Cache Sistemi
+        const CACHE_KEY_PREFIX = 'fatura_qr_cache_';
+
+        function getCacheKey() {
+            return CACHE_KEY_PREFIX + faturaNo;
+        }
+
+        function frontendCacheYukle() {
+            try {
+                const data = localStorage.getItem(getCacheKey());
+                return data ? new Set(JSON.parse(data)) : new Set();
+            } catch (e) {
+                return new Set();
+            }
+        }
+
+        function frontendCacheKaydet(okunanSet) {
+            try {
+                localStorage.setItem(getCacheKey(), JSON.stringify([...okunanSet]));
+            } catch (e) {
+                console.warn('Cache kaydetme hatası:', e);
+            }
+        }
+
+        function frontendCacheyeEkle(qrKod) {
+            const cache = frontendCacheYukle();
+            cache.add(qrKod);
+            frontendCacheKaydet(cache);
+        }
+
+        function frontendCachedeVarMi(qrKod) {
+            const cache = frontendCacheYukle();
+            return cache.has(qrKod);
+        }
+
+        // Sunucudan okunan QR listesini çekip cache'i senkronize et
+        async function frontendCacheSenkronize() {
+            try {
+                const response = await fetch(`/api/mikro/okunan-qrler/${encodeURIComponent(faturaNo)}`);
+                const data = await response.json();
+
+                if (data.success && data.okunan_qrler) {
+                    const cache = new Set(data.okunan_qrler);
+                    frontendCacheKaydet(cache);
+                    console.log(`Cache senkronize edildi: ${cache.size} QR kod`);
+                    return cache.size;
+                }
+                return 0;
+            } catch (e) {
+                console.warn('Cache senkronizasyon hatası:', e);
+                return 0;
+            }
+        }
+
+        // URL'den fatura numarasını al
+        const urlParams = new URLSearchParams(window.location.search);
+        faturaNo = urlParams.get('fatura');
+
+        if (!faturaNo) {
+            alert('Fatura numarası bulunamadı!');
+            window.location.href = '/fis/teslimat.html';
+        } else {
+            // Geri butonuna fatura no ekle
+            geriBtn.href = `/fis/teslimat.html?fatura=${faturaNo}`;
+
+            // Sayfa yüklendiğinde
+            frontendCacheSenkronize().then(() => {
+                durumGuncelle();
+
+                // Barkod okuyucu başlat
+                barkodOkuyucu = new BarkodOkuyucu('#barkodOkuyucuAlani', {
+                    okumaSonrasi: qrOkut
+                });
+
+                // İlerleme çubuğunu göster
+                setTimeout(() => {
+                    const barkodEtiket = document.querySelector('.barkod-etiket');
+                    const progressContainer = document.getElementById('progressContainer');
+                    if (barkodEtiket && progressContainer) {
+                        barkodEtiket.parentNode.insertBefore(progressContainer, barkodEtiket);
+                        barkodEtiket.remove();
+                        progressContainer.classList.remove('gizle');
+                        progressContainer.style.flex = '1';
+                        progressContainer.style.margin = '0';
+                    }
+                }, 100);
+            });
+        }
+
+        // Manuel QR girişi
+        manuelQrInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const qrKod = manuelQrInput.value.trim();
+                if (qrKod) {
+                    qrOkut(qrKod);
+                    manuelQrInput.value = '';
+                }
+            }
+        });
+
+        // QR Okutma
+        async function qrOkut(qrKod) {
+            if (!qrKod) return;
+
+            // QR koddan görünmez karakterleri temizle
+            qrKod = qrKod.replace(/[\x00-\x1F\x7F]/g, '').trim();
+
+            console.log('QR Kod (temizlenmiş):', qrKod);
+            console.log('QR Kod uzunluk:', qrKod.length);
+
+            if (!qrKod) return;
+
+            // Frontend cache kontrolü
+            if (frontendCachedeVarMi(qrKod)) {
+                console.log('Frontend cache: Bu QR zaten okunmuş');
+                okumaHatali('Bu paket zaten okundu!', 'DUPLICATE_QR');
+                sesliGeriBildirim('tekrar');
+                return;
+            }
+
+            yukleniyorGoster();
+            okumaAlaniTemizle();
+
+            try {
+                const kullanici = document.getElementById('kullaniciBilgi')?.textContent || 'bilinmiyor';
+
+                const response = await fetch('/api/mikro/qr-okut', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        fatura_no: faturaNo,
+                        qr_kod: qrKod,
+                        kullanici: kullanici
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    frontendCacheyeEkle(qrKod);
+                    okumaBasarili(data);
+                    sesliGeriBildirim('basarili');
+                } else {
+                    if (data.hata_tipi === 'DUPLICATE_QR') {
+                        frontendCacheyeEkle(qrKod);
+                        sesliGeriBildirim('tekrar');
+                    } else if (data.hata_tipi === 'PAKET_LIMIT_ASILDI') {
+                        sesliGeriBildirim('tekrar');
+                    } else {
+                        sesliGeriBildirim('hata');
+                    }
+                    okumaHatali(data.message, data.hata_tipi);
+                }
+
+            } catch (error) {
+                okumaHatali('Bağlantı hatası: ' + error.message, 'CONNECTION_ERROR');
+                sesliGeriBildirim('hata');
+            } finally {
+                yukleniyorGizle();
+                if (barkodOkuyucu) {
+                    barkodOkuyucu.odaklan();
+                }
+            }
+        }
+
+        // Başarılı okuma
+        function okumaBasarili(data) {
+            okumaAlani.classList.add('basarili');
+            setTimeout(() => okumaAlani.classList.remove('basarili'), 300);
+
+            sonMesajGoster(data.message, 'basarili');
+
+            okumalar.unshift({
+                basarili: true,
+                mesaj: `${data.eslesen_kalem.malzeme_adi} (${data.paket_bilgi.sira}/${data.paket_bilgi.toplam})`,
+                zaman: new Date()
+            });
+            sonOkumalariGuncelle();
+
+            durumGuncelle();
+        }
+
+        // Hatalı okuma
+        function okumaHatali(mesaj, hataTipi) {
+            okumaAlani.classList.add('hata');
+            setTimeout(() => okumaAlani.classList.remove('hata'), 300);
+
+            sonMesajGoster(mesaj, 'hata');
+
+            okumalar.unshift({
+                basarili: false,
+                mesaj: mesaj,
+                zaman: new Date()
+            });
+            sonOkumalariGuncelle();
+        }
+
+        // Durum güncelle
+        async function durumGuncelle() {
+            try {
+                const response = await fetch(`/api/mikro/fatura-durumu/${encodeURIComponent(faturaNo)}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    // Fatura özet bilgileri
+                    faturaOzetBaslik.textContent = `Fatura: ${data.fatura.evrakno_seri}-${data.fatura.evrakno_sira}`;
+                    faturaOzetDetay.textContent = `Cari: ${data.fatura.cari_adi || '-'}`;
+
+                    // İlerleme
+                    const yuzde = data.tamamlanma_yuzdesi;
+                    progressFill.style.width = yuzde + '%';
+                    progressText.textContent = yuzde + '%';
+
+                    // İstatistikler
+                    okunanPaketGoster.textContent = data.okunan_paket;
+                    kalanPaketGoster.textContent = data.kalan_paket;
+                    toplamPaketGoster.textContent = data.toplam_paket;
+
+                    // Malzeme listesini güncelle
+                    malzemeListesiGuncelle(data.kalemler);
+
+                    // Tamamlandı mı?
+                    if (data.kalan_paket === 0 && data.toplam_paket > 0) {
+                        tamamlandiGoster();
+                    }
+                }
+            } catch (error) {
+                console.error('Durum güncelleme hatası:', error);
+            }
+        }
+
+        // Malzeme durumuna göre renk sınıfı
+        function malzemeDurumSinifi(okunan, toplam) {
+            if (okunan === 0) return 'status-gray';
+            if (okunan >= toplam) return 'status-green';
+            return 'status-yellow';
+        }
+
+        // Malzeme durum metni
+        function malzemeDurumMetni(okunan, toplam) {
+            if (okunan === 0) return 'Bekliyor';
+            if (okunan >= toplam) return 'Tamamlandı';
+            return `${okunan}/${toplam}`;
+        }
+
+        // Malzeme listesini oluştur
+        function malzemeListesiGuncelle(kalemler) {
+            if (!kalemler || kalemler.length === 0) {
+                malzemeListesi.innerHTML = '<p style="text-align:center;color:#888;font-size:13px;">Henüz malzeme bilgisi yok</p>';
+                return;
+            }
+
+            // Sıralama: sarı → beyaz → mor (yeşil yerine)
+            const siraliKalemler = [...kalemler].sort((a, b) => {
+                const durumA = malzemeDurumSinifi(a.okunan_paket, a.beklenen_paket);
+                const durumB = malzemeDurumSinifi(b.okunan_paket, b.beklenen_paket);
+                const sira = { 'status-yellow': 0, 'status-gray': 1, 'status-green': 2 };
+
+                const durumFark = sira[durumA] - sira[durumB];
+                if (durumFark !== 0) return durumFark;
+
+                return (a.malzeme_adi || '').localeCompare(b.malzeme_adi || '', 'tr');
+            });
+
+            malzemeListesi.innerHTML = siraliKalemler.map((kalem, index) => {
+                const durumSinifi = malzemeDurumSinifi(kalem.okunan_paket, kalem.beklenen_paket);
+                let miktarInt = 1;
+                if (kalem.miktar) {
+                    const miktarStr = String(kalem.miktar).replace(',', '.');
+                    miktarInt = Math.floor(parseFloat(miktarStr)) || 1;
+                }
+
+                return `
+                    <div class="malzeme-item ${durumSinifi}" data-kalem-id="${kalem.id}" data-index="${index}">
+                        <div class="malzeme-baslik" onclick="malzemeToggle(${index}, ${kalem.id})">
+                            <div class="malzeme-bilgi">
+                                <div class="malzeme-miktar">${miktarInt} - ${kalem.malzeme_adi}</div>
+                            </div>
+                        </div>
+                        <div class="paket-detay" id="paketDetay${index}">
+                            <div class="paket-detay-icerik" id="paketIcerik${index}">
+                                <div class="paket-yukleniyor">Yükleniyor...</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Malzeme açılır/kapanır
+        async function malzemeToggle(index, kalemId) {
+            const detay = document.getElementById(`paketDetay${index}`);
+            const icerik = document.getElementById(`paketIcerik${index}`);
+
+            if (detay.classList.contains('acik')) {
+                detay.classList.remove('acik');
+            } else {
+                detay.classList.add('acik');
+
+                try {
+                    icerik.innerHTML = '<div class="paket-yukleniyor">Yükleniyor...</div>';
+
+                    const response = await fetch(`/api/mikro/malzeme-paketler/${encodeURIComponent(faturaNo)}/${kalemId}`);
+                    const data = await response.json();
+
+                    if (data.success && data.paketler) {
+                        icerik.innerHTML = data.paketler.map(paket => {
+                            let paketSinif = 'paket-gray';
+                            if (paket.okunan > 0 && paket.okunan < paket.beklenen) paketSinif = 'paket-yellow';
+                            if (paket.okunan >= paket.beklenen) paketSinif = 'paket-green';
+
+                            return `
+                                <div class="paket-kutu ${paketSinif}">
+                                    <div class="paket-etiket">P${paket.paket_sira}</div>
+                                    <div class="paket-sayi">${paket.okunan}</div>
+                                </div>
+                            `;
+                        }).join('');
+                    } else {
+                        icerik.innerHTML = '<div class="paket-yukleniyor">Paket bilgisi bulunamadı</div>';
+                    }
+                } catch (error) {
+                    console.error('Paket detay hatası:', error);
+                    icerik.innerHTML = '<div class="paket-yukleniyor">Yüklenemedi</div>';
+                }
+            }
+        }
+
+        // Tüm malzemeleri daralt
+        function tumunuDaralt() {
+            document.querySelectorAll('.paket-detay').forEach(detay => {
+                detay.classList.remove('acik');
+            });
+        }
+
+        // Tüm malzemeleri genişlet
+        async function tumunuGenislet() {
+            const malzemeItems = document.querySelectorAll('.malzeme-item.status-yellow, .malzeme-item.status-gray');
+
+            for (let i = 0; i < malzemeItems.length; i++) {
+                const item = malzemeItems[i];
+                const index = item.dataset.index;
+                const kalemId = item.dataset.kalemId;
+
+                const detay = document.getElementById(`paketDetay${index}`);
+                const icerik = document.getElementById(`paketIcerik${index}`);
+
+                if (detay.classList.contains('acik')) continue;
+
+                detay.classList.add('acik');
+
+                if (icerik.querySelector('.paket-yukleniyor')) {
+                    try {
+                        const response = await fetch(`/api/mikro/malzeme-paketler/${encodeURIComponent(faturaNo)}/${kalemId}`);
+                        const data = await response.json();
+
+                        if (data.success && data.paketler) {
+                            icerik.innerHTML = data.paketler.map(paket => {
+                                let paketSinif = 'paket-gray';
+                                if (paket.okunan > 0 && paket.okunan < paket.beklenen) paketSinif = 'paket-yellow';
+                                if (paket.okunan >= paket.beklenen) paketSinif = 'paket-green';
+
+                                return `
+                                    <div class="paket-kutu ${paketSinif}">
+                                        <div class="paket-etiket">P${paket.paket_sira}</div>
+                                        <div class="paket-sayi">${paket.okunan}</div>
+                                    </div>
+                                `;
+                            }).join('');
+                        }
+                    } catch (error) {
+                        console.error('Paket detay hatası:', error);
+                    }
+                }
+            }
+        }
+
+        // Aksiyon butonları
+        function kaydet() {
+            console.log('Kaydet tıklandı');
+        }
+
+        function devamEt() {
+            console.log('Devam Et tıklandı');
+        }
+
+        function iptalEt() {
+            console.log('İptal tıklandı');
+        }
+
+        // Son mesaj göster
+        function sonMesajGoster(mesaj, tip) {
+            sonMesaj.textContent = mesaj;
+            sonMesaj.className = 'son-mesaj ' + tip;
+            sonMesaj.classList.remove('gizle');
+            document.getElementById('aksiyonButonlari').classList.remove('gizle');
+        }
+
+        // Son okumaları güncelle
+        function sonOkumalariGuncelle() {
+            const sonOnOkuma = okumalar.slice(0, 10);
+
+            okumaListesi.innerHTML = sonOnOkuma.map(okuma => `
+                <div class="okuma-item ${okuma.basarili ? 'basarili' : 'hata'}">
+                    <svg class="okuma-ikon ${okuma.basarili ? 'basarili' : 'hata'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        ${okuma.basarili
+                            ? '<polyline points="20 6 9 17 4 12"/>'
+                            : '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'
+                        }
+                    </svg>
+                    <div class="okuma-bilgi">
+                        <div class="okuma-urun">${okuma.mesaj}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Tamamlandı göster
+        function tamamlandiGoster() {
+            tamamlandiKutu.classList.remove('gizle');
+            okumaAlani.style.display = 'none';
+            sonMesaj.classList.add('gizle');
+
+            sesliGeriBildirim('tamamlandi');
+        }
+
+        // Okuma alanı temizle
+        function okumaAlaniTemizle() {
+            okumaAlani.classList.remove('basarili', 'hata');
+        }
+
+        // Sesli geri bildirim
+        function sesliGeriBildirim(tip) {
+            if ('vibrate' in navigator) {
+                if (tip === 'basarili') {
+                    navigator.vibrate(100);
+                } else if (tip === 'hata' || tip === 'tekrar') {
+                    navigator.vibrate([100, 50, 100, 50, 100]);
+                } else if (tip === 'tamamlandi') {
+                    navigator.vibrate([100, 50, 100, 50, 200]);
+                }
+            }
+
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                if (tip === 'basarili') {
+                    oscillator.frequency.value = 880;
+                    oscillator.type = 'sine';
+                    gainNode.gain.value = 0.3;
+                    oscillator.start();
+                    oscillator.stop(audioContext.currentTime + 0.1);
+                } else if (tip === 'tekrar') {
+                    oscillator.frequency.value = 440;
+                    oscillator.type = 'sawtooth';
+                    gainNode.gain.value = 0.4;
+                    oscillator.start();
+                    oscillator.stop(audioContext.currentTime + 0.1);
+
+                    setTimeout(() => {
+                        try {
+                            const ctx2 = new (window.AudioContext || window.webkitAudioContext)();
+                            const osc2 = ctx2.createOscillator();
+                            const gain2 = ctx2.createGain();
+                            osc2.connect(gain2);
+                            gain2.connect(ctx2.destination);
+                            osc2.frequency.value = 440;
+                            osc2.type = 'sawtooth';
+                            gain2.gain.value = 0.4;
+                            osc2.start();
+                            osc2.stop(ctx2.currentTime + 0.1);
+                        } catch(e) {}
+                    }, 150);
+                } else if (tip === 'hata') {
+                    oscillator.frequency.value = 220;
+                    oscillator.type = 'square';
+                    gainNode.gain.value = 0.3;
+                    oscillator.start();
+                    oscillator.stop(audioContext.currentTime + 0.3);
+                } else if (tip === 'tamamlandi') {
+                    const notes = [523, 659, 784, 1047];
+                    let startTime = audioContext.currentTime;
+                    notes.forEach((freq, i) => {
+                        const osc = audioContext.createOscillator();
+                        const gain = audioContext.createGain();
+                        osc.connect(gain);
+                        gain.connect(audioContext.destination);
+                        osc.frequency.value = freq;
+                        osc.type = 'sine';
+                        gain.gain.value = 0.2;
+                        osc.start(startTime + i * 0.15);
+                        osc.stop(startTime + i * 0.15 + 0.15);
+                    });
+                }
+            } catch (e) {
+                // Ses çalınamazsa sessizce devam et
+            }
+        }
+
+        function yukleniyorGoster() {
+            yukleniyorOverlay.classList.remove('gizle');
+        }
+
+        function yukleniyorGizle() {
+            yukleniyorOverlay.classList.add('gizle');
+        }
+    </script>
+</body>
+</html>

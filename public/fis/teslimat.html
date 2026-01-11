@@ -6,54 +6,293 @@
     <title>Satış / Teslimat Fişi - Güneşler Elektronik</title>
     <link rel="stylesheet" href="/css/stil.css">
     <style>
-        .barkod-alani {
+        .fatura-bilgi {
             background-color: #f8f9fa;
             padding: 20px;
             border-radius: 8px;
             margin-bottom: 20px;
         }
-        .urun-listesi {
-            margin-top: 20px;
-        }
-        .urun-satir {
+        .fatura-baslik {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 15px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 12px;
-            border-bottom: 1px solid #eee;
+            gap: 10px;
         }
-        .urun-bilgi {
-            flex: 1;
+        .fatura-id {
+            background-color: #9b59b6;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 14px;
         }
-        .urun-ad {
+        .bilgi-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .bilgi-satir {
+            display: flex;
+            flex-direction: column;
+        }
+        .bilgi-etiket {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 2px;
+        }
+        .bilgi-deger {
+            font-size: 15px;
             font-weight: 500;
+            color: #2c3e50;
         }
-        .urun-barkod {
+        .istatistik-kutu {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        .istatistik {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            background-color: #f3e5f5;
+            border-radius: 6px;
+        }
+        .istatistik-sayi {
+            font-size: 24px;
+            font-weight: 700;
+            color: #8e24aa;
+        }
+        .istatistik-etiket {
             font-size: 12px;
             color: #666;
         }
-        .urun-adet {
+        .okutma-btn {
+            width: 100%;
+            padding: 18px;
+            font-size: 18px;
             font-weight: 600;
+            background-color: #9b59b6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .okutma-btn:hover {
+            background-color: #8e44ad;
+        }
+        .okutma-btn:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .yukleniyor-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .yukleniyor-overlay.gizle {
+            display: none;
+        }
+        .yukleniyor-icerik {
+            text-align: center;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #9b59b6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .hata-kutu {
+            background-color: #fdecea;
+            color: #c0392b;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-top: 20px;
+        }
+        .fatura-secim {
+            margin-bottom: 20px;
+        }
+        .fatura-secim label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #555;
+        }
+        .fatura-secim input {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            outline: none;
+            box-sizing: border-box;
+        }
+        .fatura-secim input:focus {
+            border-color: #9b59b6;
+        }
+        .ara-btn {
+            margin-top: 10px;
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            background-color: #9b59b6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .ara-btn:hover {
+            background-color: #8e44ad;
+        }
+        .acik-fatura-btn {
+            margin-top: 10px;
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+            background-color: #f39c12;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .acik-fatura-btn:hover {
+            background-color: #e67e22;
+        }
+        .kapatilan-fatura-btn {
+            margin-top: 10px;
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+            background-color: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .kapatilan-fatura-btn:hover {
+            background-color: #7f8c8d;
+        }
+        .mikro-yukle-btn {
+            margin-top: 10px;
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .mikro-yukle-btn:hover {
+            background-color: #2980b9;
+        }
+        /* Modal */
+        .fatura-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001;
+        }
+        .fatura-overlay.goster {
+            display: flex;
+        }
+        .fatura-modal {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-baslik {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .modal-baslik h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #2c3e50;
+        }
+        .modal-kapat {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        .fatura-liste {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .fatura-item {
+            padding: 12px;
+            background-color: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .fatura-item:hover {
+            background-color: #f3e5f5;
+            border-color: #9b59b6;
+        }
+        .fatura-item-baslik {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .fatura-item-detay {
+            font-size: 13px;
+            color: #666;
+        }
+        .fatura-item-kalan {
+            font-size: 12px;
             color: #e74c3c;
-            min-width: 40px;
-            text-align: right;
+            margin-top: 5px;
         }
         .bos-liste {
             text-align: center;
-            color: #999;
             padding: 30px;
+            color: #666;
         }
-        .son-okunan {
+        .basari-mesaj {
             background-color: #d4edda;
-            padding: 10px;
-            border-radius: 6px;
-            margin-top: 10px;
-            font-size: 14px;
             color: #155724;
-            display: none;
-        }
-        .son-okunan.goster {
-            display: block;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            text-align: center;
         }
     </style>
 </head>
@@ -62,96 +301,357 @@
         <a href="/cikis-islemleri.html" class="geri-buton">Geri</a>
 
         <h1 class="baslik">Satış / Teslimat Fişi</h1>
+        <span id="kullaniciBilgi" style="display:none;"></span>
 
-        <div class="barkod-alani">
-            <div id="barkodOkuyucu"></div>
-            <div id="sonOkunan" class="son-okunan"></div>
+        <!-- Fatura No yoksa manuel giriş alanı -->
+        <div id="faturaSecimAlani" class="fatura-secim" style="display: none;">
+            <label for="faturaNoInput">Fatura No</label>
+            <input type="text" id="faturaNoInput" placeholder="Örn: 13420">
+            <button type="button" class="ara-btn" id="faturaAraBtn">Fatura Ara</button>
+            <button type="button" class="acik-fatura-btn" id="acikFaturalarBtn">Açık Faturaları Göster</button>
+            <button type="button" class="kapatilan-fatura-btn" id="kapatilanFaturalarBtn">Kapatılan Faturaları Göster</button>
+            <button type="button" class="mikro-yukle-btn" id="mikroYukleBtn">Mikro Fatura Yükleme</button>
+            <div id="yuklemeSonuc"></div>
         </div>
 
-        <div class="urun-listesi">
-            <h3 style="margin-bottom: 10px;">Teslim Edilen Ürünler</h3>
-            <div id="urunListesi">
-                <div class="bos-liste">Henüz ürün eklenmedi</div>
+        <!-- Açık Faturalar Modal -->
+        <div id="acikFaturaOverlay" class="fatura-overlay">
+            <div class="fatura-modal">
+                <div class="modal-baslik">
+                    <h3>Açık Faturalar</h3>
+                    <button type="button" class="modal-kapat" id="acikModalKapat">&times;</button>
+                </div>
+                <div id="acikFaturaListesi" class="fatura-liste">
+                </div>
             </div>
         </div>
 
-        <button id="kaydetBtn" class="buton" style="margin-top: 20px;" disabled>
-            Fişi Kaydet
-        </button>
+        <!-- Kapatılan Faturalar Modal -->
+        <div id="kapatilanFaturaOverlay" class="fatura-overlay">
+            <div class="fatura-modal">
+                <div class="modal-baslik">
+                    <h3>Kapatılan Faturalar</h3>
+                    <button type="button" class="modal-kapat" id="kapatilanModalKapat">&times;</button>
+                </div>
+                <div id="kapatilanFaturaListesi" class="fatura-liste">
+                </div>
+            </div>
+        </div>
+
+        <!-- Fatura bilgileri -->
+        <div id="faturaBilgiAlani" style="display: none;">
+            <div class="fatura-bilgi">
+                <div class="fatura-baslik">
+                    <span>Fatura:</span>
+                    <span class="fatura-id" id="faturaNoGoster"></span>
+                </div>
+
+                <div class="bilgi-grid">
+                    <div class="bilgi-satir">
+                        <span class="bilgi-etiket">Cari Kodu</span>
+                        <span class="bilgi-deger" id="cariKoduGoster">-</span>
+                    </div>
+                    <div class="bilgi-satir">
+                        <span class="bilgi-etiket">Cari Adı</span>
+                        <span class="bilgi-deger" id="cariAdiGoster">-</span>
+                    </div>
+                    <div class="bilgi-satir">
+                        <span class="bilgi-etiket">Tarih</span>
+                        <span class="bilgi-deger" id="tarihGoster">-</span>
+                    </div>
+                    <div class="bilgi-satir">
+                        <span class="bilgi-etiket">Evrak Adı</span>
+                        <span class="bilgi-deger" id="evrakAdiGoster">-</span>
+                    </div>
+                </div>
+
+                <div class="istatistik-kutu">
+                    <div class="istatistik">
+                        <div class="istatistik-sayi" id="toplamKalemGoster">0</div>
+                        <div class="istatistik-etiket">Kalem</div>
+                    </div>
+                    <div class="istatistik">
+                        <div class="istatistik-sayi" id="toplamPaketGoster">0</div>
+                        <div class="istatistik-etiket">Paket</div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" class="okutma-btn" id="okumayaBaslaBtn">
+                Okumaya Başla
+            </button>
+        </div>
+
+        <!-- Hata mesajı -->
+        <div id="hataKutusu" class="hata-kutu" style="display: none;"></div>
+    </div>
+
+    <div id="yukleniyor" class="yukleniyor-overlay gizle">
+        <div class="yukleniyor-icerik">
+            <div class="spinner"></div>
+            <div>Yükleniyor...</div>
+        </div>
     </div>
 
     <script src="/js/ortak.js"></script>
-    <script src="/js/barkod-okuyucu.js"></script>
     <script>
-        let eklenenUrunler = [];
+        // Elementler
+        const faturaSecimAlani = document.getElementById('faturaSecimAlani');
+        const faturaBilgiAlani = document.getElementById('faturaBilgiAlani');
+        const faturaNoInput = document.getElementById('faturaNoInput');
+        const faturaAraBtn = document.getElementById('faturaAraBtn');
+        const faturaNoGoster = document.getElementById('faturaNoGoster');
+        const cariKoduGoster = document.getElementById('cariKoduGoster');
+        const cariAdiGoster = document.getElementById('cariAdiGoster');
+        const tarihGoster = document.getElementById('tarihGoster');
+        const evrakAdiGoster = document.getElementById('evrakAdiGoster');
+        const toplamKalemGoster = document.getElementById('toplamKalemGoster');
+        const toplamPaketGoster = document.getElementById('toplamPaketGoster');
+        const okumayaBaslaBtn = document.getElementById('okumayaBaslaBtn');
+        const hataKutusu = document.getElementById('hataKutusu');
+        const yukleniyorOverlay = document.getElementById('yukleniyor');
+        const acikFaturalarBtn = document.getElementById('acikFaturalarBtn');
+        const acikFaturaOverlay = document.getElementById('acikFaturaOverlay');
+        const acikFaturaListesi = document.getElementById('acikFaturaListesi');
+        const acikModalKapat = document.getElementById('acikModalKapat');
+        const kapatilanFaturalarBtn = document.getElementById('kapatilanFaturalarBtn');
+        const kapatilanFaturaOverlay = document.getElementById('kapatilanFaturaOverlay');
+        const kapatilanFaturaListesi = document.getElementById('kapatilanFaturaListesi');
+        const kapatilanModalKapat = document.getElementById('kapatilanModalKapat');
+        const mikroYukleBtn = document.getElementById('mikroYukleBtn');
+        const yuklemeSonuc = document.getElementById('yuklemeSonuc');
 
-        const kaydetBtn = document.getElementById('kaydetBtn');
-        const urunListesiElement = document.getElementById('urunListesi');
-        const sonOkunanElement = document.getElementById('sonOkunan');
+        let mevcutFatura = null;
+        let faturaKalemleri = [];
 
-        const barkodOkuyucu = new BarkodOkuyucu('#barkodOkuyucu', {
-            okumaSonrasi: function(barkod) {
-                urunEkle(barkod);
+        // URL'den fatura parametresini al
+        const urlParams = new URLSearchParams(window.location.search);
+        const faturaParam = urlParams.get('fatura');
+
+        // Sayfa yüklendiğinde
+        if (faturaParam) {
+            faturaYukle(faturaParam);
+        } else {
+            faturaSecimAlani.style.display = 'block';
+        }
+
+        // 5 haneli sayı girilince otomatik ara
+        faturaNoInput.addEventListener('input', function(e) {
+            const deger = e.target.value.trim();
+            // Sadece rakam ve 5 hane ise otomatik ara
+            if (/^\d{5}$/.test(deger)) {
+                faturaYukle(deger);
             }
         });
 
-        function urunEkle(barkod) {
-            if (!barkod) return;
-
-            const mevcutUrun = eklenenUrunler.find(u => u.barkod === barkod);
-
-            if (mevcutUrun) {
-                mevcutUrun.adet++;
+        // Fatura ara butonu
+        faturaAraBtn.addEventListener('click', function() {
+            const faturaNo = faturaNoInput.value.trim();
+            if (faturaNo) {
+                faturaYukle(faturaNo);
             } else {
-                eklenenUrunler.push({
-                    barkod: barkod,
-                    ad: 'Ürün ' + barkod,
-                    adet: 1
-                });
+                hataGoster('Lütfen fatura numarası girin');
             }
-
-            sonOkunanElement.textContent = 'Son okunan: ' + barkod;
-            sonOkunanElement.classList.add('goster');
-
-            listeGuncelle();
-        }
-
-        function listeGuncelle() {
-            if (eklenenUrunler.length === 0) {
-                urunListesiElement.innerHTML = '<div class="bos-liste">Henüz ürün eklenmedi</div>';
-                kaydetBtn.disabled = true;
-                return;
-            }
-
-            kaydetBtn.disabled = false;
-
-            let html = '';
-            eklenenUrunler.forEach((urun) => {
-                html += `
-                    <div class="urun-satir">
-                        <div class="urun-bilgi">
-                            <div class="urun-ad">${urun.ad}</div>
-                            <div class="urun-barkod">${urun.barkod}</div>
-                        </div>
-                        <div class="urun-adet">-${urun.adet}</div>
-                    </div>
-                `;
-            });
-
-            urunListesiElement.innerHTML = html;
-        }
-
-        kaydetBtn.addEventListener('click', function() {
-            if (eklenenUrunler.length === 0) {
-                alert('Lütfen en az bir ürün ekleyin');
-                return;
-            }
-
-            alert('Teslimat fişi kaydedildi! (Demo)');
-            eklenenUrunler = [];
-            listeGuncelle();
-            sonOkunanElement.classList.remove('goster');
         });
+
+        // Enter ile arama
+        faturaNoInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                faturaAraBtn.click();
+            }
+        });
+
+        // Açık faturalar butonu
+        acikFaturalarBtn.addEventListener('click', async function() {
+            acikFaturaListesi.innerHTML = '<div class="bos-liste">Yükleniyor...</div>';
+            acikFaturaOverlay.classList.add('goster');
+
+            try {
+                const response = await fetch('/api/mikro/acik-faturalar');
+                const data = await response.json();
+
+                if (data.success && data.faturalar.length > 0) {
+                    acikFaturaListesi.innerHTML = data.faturalar.map(fatura => {
+                        const tarih = fatura.tarih ? new Date(fatura.tarih).toLocaleDateString('tr-TR') : '-';
+                        return `
+                            <div class="fatura-item" data-fatura="${fatura.evrakno_sira}">
+                                <div class="fatura-item-baslik">${fatura.evrakno_seri}-${fatura.evrakno_sira}</div>
+                                <div class="fatura-item-detay">${fatura.cari_adi || '-'} | ${tarih}</div>
+                                <div class="fatura-item-kalan">${fatura.kalan_paket} paket kaldı (${fatura.okunan_paket}/${fatura.toplam_paket})</div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    acikFaturaListesi.querySelectorAll('.fatura-item').forEach(item => {
+                        item.addEventListener('click', function() {
+                            const faturaNo = this.dataset.fatura;
+                            acikFaturaOverlay.classList.remove('goster');
+                            window.location.href = `/fis/teslimat-okut.html?fatura=${faturaNo}`;
+                        });
+                    });
+                } else {
+                    acikFaturaListesi.innerHTML = '<div class="bos-liste">Açık fatura bulunamadı</div>';
+                }
+            } catch (error) {
+                acikFaturaListesi.innerHTML = '<div class="bos-liste">Hata: ' + error.message + '</div>';
+            }
+        });
+
+        // Açık modal kapat
+        acikModalKapat.addEventListener('click', function() {
+            acikFaturaOverlay.classList.remove('goster');
+        });
+
+        acikFaturaOverlay.addEventListener('click', function(e) {
+            if (e.target === acikFaturaOverlay) {
+                acikFaturaOverlay.classList.remove('goster');
+            }
+        });
+
+        // Kapatılan faturalar butonu
+        kapatilanFaturalarBtn.addEventListener('click', async function() {
+            kapatilanFaturaListesi.innerHTML = '<div class="bos-liste">Yükleniyor...</div>';
+            kapatilanFaturaOverlay.classList.add('goster');
+
+            try {
+                const response = await fetch('/api/mikro/kapatilan-faturalar');
+                const data = await response.json();
+
+                if (data.success && data.faturalar.length > 0) {
+                    kapatilanFaturaListesi.innerHTML = data.faturalar.map(fatura => {
+                        const tarih = fatura.tarih ? new Date(fatura.tarih).toLocaleDateString('tr-TR') : '-';
+                        return `
+                            <div class="fatura-item" data-fatura="${fatura.evrakno_sira}">
+                                <div class="fatura-item-baslik">${fatura.evrakno_seri}-${fatura.evrakno_sira}</div>
+                                <div class="fatura-item-detay">${fatura.cari_adi || '-'} | ${tarih}</div>
+                                <div class="fatura-item-kalan" style="color: #27ae60;">Tamamlandı (${fatura.okunan_paket}/${fatura.toplam_paket})</div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    kapatilanFaturaListesi.querySelectorAll('.fatura-item').forEach(item => {
+                        item.addEventListener('click', function() {
+                            const faturaNo = this.dataset.fatura;
+                            kapatilanFaturaOverlay.classList.remove('goster');
+                            window.location.href = `/fis/teslimat-okut.html?fatura=${faturaNo}`;
+                        });
+                    });
+                } else {
+                    kapatilanFaturaListesi.innerHTML = '<div class="bos-liste">Kapatılan fatura bulunamadı</div>';
+                }
+            } catch (error) {
+                kapatilanFaturaListesi.innerHTML = '<div class="bos-liste">Hata: ' + error.message + '</div>';
+            }
+        });
+
+        // Kapatılan modal kapat
+        kapatilanModalKapat.addEventListener('click', function() {
+            kapatilanFaturaOverlay.classList.remove('goster');
+        });
+
+        kapatilanFaturaOverlay.addEventListener('click', function(e) {
+            if (e.target === kapatilanFaturaOverlay) {
+                kapatilanFaturaOverlay.classList.remove('goster');
+            }
+        });
+
+        // Mikro fatura yükleme butonu
+        mikroYukleBtn.addEventListener('click', async function() {
+            mikroYukleBtn.disabled = true;
+            mikroYukleBtn.textContent = 'Yükleniyor...';
+            yuklemeSonuc.innerHTML = '';
+
+            try {
+                const response = await fetch('/api/mikro/fatura-yukle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    yuklemeSonuc.innerHTML = `<div class="basari-mesaj">${data.message}</div>`;
+                } else {
+                    yuklemeSonuc.innerHTML = `<div class="hata-kutu">${data.message}</div>`;
+                }
+            } catch (error) {
+                yuklemeSonuc.innerHTML = `<div class="hata-kutu">Hata: ${error.message}</div>`;
+            } finally {
+                mikroYukleBtn.disabled = false;
+                mikroYukleBtn.textContent = 'Mikro Fatura Yükleme';
+            }
+        });
+
+        // Fatura bilgilerini yükle
+        async function faturaYukle(faturaNo) {
+            yukleniyorGoster();
+            hataGizle();
+
+            try {
+                const response = await fetch(`/api/mikro/fatura/${encodeURIComponent(faturaNo)}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    mevcutFatura = data.fatura;
+                    faturaKalemleri = data.kalemler;
+
+                    // Bilgileri göster
+                    faturaNoGoster.textContent = `${mevcutFatura.evrakno_seri}-${mevcutFatura.evrakno_sira}`;
+                    cariKoduGoster.textContent = mevcutFatura.cari_kodu || '-';
+                    cariAdiGoster.textContent = mevcutFatura.cari_adi || '-';
+                    tarihGoster.textContent = mevcutFatura.tarih ? new Date(mevcutFatura.tarih).toLocaleDateString('tr-TR') : '-';
+                    evrakAdiGoster.textContent = mevcutFatura.evrak_adi || '-';
+                    toplamKalemGoster.textContent = mevcutFatura.toplam_kalem;
+                    toplamPaketGoster.textContent = mevcutFatura.toplam_paket;
+
+                    // Alanları güncelle
+                    faturaSecimAlani.style.display = 'none';
+                    faturaBilgiAlani.style.display = 'block';
+
+                    // URL'i güncelle
+                    if (!faturaParam) {
+                        history.replaceState(null, '', `?fatura=${faturaNo}`);
+                    }
+                } else {
+                    hataGoster(data.message || 'Fatura bulunamadı');
+                    faturaSecimAlani.style.display = 'block';
+                    faturaBilgiAlani.style.display = 'none';
+                }
+            } catch (error) {
+                hataGoster('Bağlantı hatası: ' + error.message);
+                faturaSecimAlani.style.display = 'block';
+                faturaBilgiAlani.style.display = 'none';
+            } finally {
+                yukleniyorGizle();
+            }
+        }
+
+        // Okumaya başla butonu
+        okumayaBaslaBtn.addEventListener('click', function() {
+            if (!mevcutFatura) {
+                alert('Önce bir fatura seçin');
+                return;
+            }
+
+            // Barkod okutma sayfasına git
+            window.location.href = `/fis/teslimat-okut.html?fatura=${mevcutFatura.evrakno_sira}`;
+        });
+
+        function hataGoster(mesaj) {
+            hataKutusu.textContent = mesaj;
+            hataKutusu.style.display = 'block';
+        }
+
+        function hataGizle() {
+            hataKutusu.style.display = 'none';
+        }
+
+        function yukleniyorGoster() {
+            yukleniyorOverlay.classList.remove('gizle');
+        }
+
+        function yukleniyorGizle() {
+            yukleniyorOverlay.classList.add('gizle');
+        }
     </script>
 </body>
 </html>

@@ -346,4 +346,231 @@ Malzeme Durumu hizasında "Daralt" ve "Genişlet" butonları ekle. burada "Daral
 gerek yok ikonu kaldırabilir misin? zaten bastığım zaman paket kutucukları açılıyor.
 ayrıca "Genişlet" butonuna bastığım zaman sadece sarı renkler ve hiç okunmayan yani beyaz renk satırların paket kutucukları gözüksün.
 ayrıca "Daralt" butonuna bastığım zaman sadece malzeme adları gözüksün.
+
+/fis/barkod-okut.html?oturum=260109-02 örnek olarak okuduğum sayfasında "(3/3) için tüm okumalar tamamlandı!" mesajı en üste gelmesi sağlanmalı. sonrasında barkod okunma alanı giriş input kısmı ve ilerleme çubuğu bu alanın altına da kaydet, devam et, iptal butonları da bu alanın altına kaydet. buna göre düzeltme yapar mısın?
+
+/fis/nakliye-okutma.html sayfasında id="acikOturumlarBtn" yani "Açık Oturumlar" butonu altına "Kapatılan Oturumlar" butonu da eklenmeli. ayrıca "Kapatılan Oturumlar" butonuna bastığım zaman "Kapatılan Oturumlar" penceresi açılmalı. öncesinde "Açık Oturumlar" mantığını açıklar mısın?
 Süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR! Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin.
+test edebilir misin? normalde supabase veritabanı nakliye_yuklemeleri tablosunda 3 oturum var ama açılan pencerede sadece 2 oturum gösteriyor. test edip hatasının sebebini bulup düzeltir misin?
+
+/fis/barkod-okut.html?oturum=260111-01 sayfasında "Tebrikler!
+Tüm paketler başarıyla okundu.
+
+Oturum Listesine Dön" mesajından "Tebrikler!" yerine "Tamamlandı!" ifadesi ile değiştir. Ayrıca yazı rengi beyaz değil siyah olmalı.
+
+SELECT TOP 100 PERCENT
+MIN(sth_RECno) AS kayit_no,
+sth_evrakno_seri AS evrak_seri ,
+sth_evrakno_sira AS evrak_sira_no,
+MIN(sth_tarih) AS tarih,
+dbo.fn_StokHarDepoIsmi(MIN(sth_giris_depo_no),MIN(sth_cikis_depo_no),1) AS cikis_depo,
+dbo.fn_StokHarDepoIsmi(MIN(sth_giris_depo_no),MIN(sth_cikis_depo_no),0) AS giris_depo ,
+dbo.fn_StokHarEvrTip(sth_evraktip) AS evrak_adi,
+FROM dbo.STOK_HAREKETLERI WITH (NOLOCK)
+WHERE (sth_tip=2) AND (sth_evraktip=2) AND (sth_evrakno_seri LIKE N'%') AND (sth_cins=6) AND (sth_normal_iade=0) GROUP BY sth_tip, sth_evraktip, sth_evrakno_seri, sth_evrakno_sira, sth_cins,sth_normal_iade
+ORDER BY kayit_no DESC
+
+/_ [sth_evraktip] = 2 yani DEPOALAR ARASI SEVK _/
+
+---
+
+SELECT
+cha_evrakno_sira AS [satis_faturasi_no],
+CONVERT(DATE, cha_tarihi) AS [tarih],
+dbo.fn_CarininIsminiBul(cha_cari_cins, cha_kod) AS [cari_adi]
+FROM dbo.CARI_HESAP_HAREKETLERI WITH (NOLOCK, INDEX = NDX_CARI_HESAP_HAREKETLERI_04)
+WHERE (cha_evrak_tip = 63)
+AND (cha_tip = 0)
+AND (cha_evrakno_seri LIKE N'%')
+AND (cha_cinsi IN (6,7,10,11,14,13,15,8,28,29))
+GROUP BY cha_evrakno_sira, cha_tarihi, cha_cari_cins, cha_kod
+ORDER BY cha_evrakno_sira DESC
+
+/_ [sth_evraktip] = 4 - SATIŞ FATURASI _/
+
+---
+
+SELECT TOP 100 PERCENT
+MIN(sth_RECno) AS kayit_no,
+sth_evrakno_seri AS evrak_seri_no,
+sth_evrakno_sira AS evrak_sira_no,
+CONVERT(DATE, MIN(sth_tarih)) AS tarih,
+dbo.fn_StokHarDepoIsmi(MIN(sth_giris_depo_no), MIN(sth_cikis_depo_no), sth_tip) AS depo,
+dbo.fn_StokHarEvrTip(sth_evraktip) AS evrak_adi,
+dbo.fn_StokHarTip(sth_tip) AS giris_or_cikis
+FROM dbo.STOK_HAREKETLERI WITH (NOLOCK)
+WHERE (sth_tip = 1)
+AND (sth_evraktip = 0)
+AND (sth_evrakno_seri LIKE N'%')
+AND (sth_cins = 10)
+AND (sth_normal_iade = 0)
+GROUP BY sth_tip, sth_evraktip, sth_evrakno_seri, sth_evrakno_sira, sth_cins, sth_normal_iade
+ORDER BY kayit_no DESC
+
+/_ [sth_evraktip] = 12 çıkış fişi _/
+
+---
+
+SELECT TOP (1000)
+[sth_evraktip]
+,[sth_evrakno_seri]
+,[sth_evrakno_sira]
+,[sth_stok_kod]
+,[sth_miktar]
+FROM [MikroDB_V14_DOGTAS_12].[dbo].[STOK_HAREKETLERI]
+WHERE sth_tarih > '2026-01-01'
+
+Yukarıda 4 adet sql kodum var. bunların ilk üçü sadece tarih, evrak no ve evrak adı bilgilerini vb. bilgileri içeriyor. son sql kodu ise bütün bu evrak numaralarına ait stok hareketlerini veriyor. son kodda evrak tipine göre filtreleme yapılıyor. her kodun altına evrak tipini yazmışım buna göre bu 4 kodu tek kodda nasıl yazabilirim? son kodda sql koduna sütün eklemeleri yapmak istiyorum. örnek olarak cha_cari_cins gibi sütunları eklemek istiyorum. nasıl bir yol izlemeliyim?  
+Süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR! Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin.
+
+bütün sql kodlarında [sth_evrakno_seri] ve [sth_evrakno_sira] sütunları var buna göre eşleştirme yap. mantığı tam anlamadım bir daha soru sorabilirsin ayrıca sql kodlarımı güncelledim. yeni kodlar aşağıda ;
+
+SELECT TOP 100 PERCENT
+MIN(cha_RECno) AS kayit_no,
+cha_evrakno_seri AS [sth_evrakno_seri],
+cha_evrakno_sira AS [sth_evrakno_sira],
+CONVERT(DATE, cha_tarihi) AS [tarih],
+cha_kod AS cari_kodu,
+dbo.fn_CarininIsminiBul(cha_cari_cins,cha_kod) AS cari_adi
+FROM dbo.CARI_HESAP_HAREKETLERI WITH (NOLOCK, INDEX = NDX_CARI_HESAP_HAREKETLERI_04)
+WHERE (cha_evrak_tip = 63)
+AND (cha_tip = 0)
+AND (cha_evrakno_seri LIKE N'%')
+AND (cha_cinsi IN (6,7,10,11,14,13,15,8,28,29))
+AND (cha_tarihi > '2026-01-01')
+GROUP BY cha_evrak_tip, cha_evrakno_seri, cha_evrakno_sira, cha_tarihi, cha_tip, cha_cinsi, cha_cari_cins, cha_kod, cha_tpoz, cha_normal_Iade, cha_ciro_cari_kodu, cha_firmano, cha_subeno
+ORDER BY kayit_no DESC
+
+/_ [sth_evraktip] = 4 - SATIŞ FATURASI _/
+
+SELECT TOP 100 PERCENT
+MIN(sth_RECno) AS kayit_no,
+sth_evrakno_seri,
+sth_evrakno_sira,
+CONVERT(DATE, MIN(sth_tarih)) AS tarih,
+dbo.fn_StokHarDepoIsmi(MIN(sth_giris_depo_no),MIN(sth_cikis_depo_no),1) AS cikis_depo,
+dbo.fn_StokHarDepoIsmi(MIN(sth_giris_depo_no),MIN(sth_cikis_depo_no),0) AS giris_depo,
+dbo.fn_StokHarEvrTip(sth_evraktip) AS evrak_adi
+FROM dbo.STOK_HAREKETLERI WITH (NOLOCK)
+WHERE (sth_tip = 2)
+AND (sth_evraktip = 2)
+AND (sth_evrakno_seri LIKE N'%')
+AND (sth_cins = 6)
+AND (sth_normal_iade = 0)
+AND (sth_tarih > '2026-01-01')
+GROUP BY sth_tip, sth_evraktip, sth_evrakno_seri, sth_evrakno_sira, sth_cins, sth_normal_iade
+ORDER BY kayit_no DESC
+
+/_ [sth_evraktip] = 2 yani DEPOALAR ARASI SEVK _/
+
+SELECT TOP 100 PERCENT
+MIN(sth_RECno) AS kayit_no,
+sth_evrakno_seri AS [sth_evrakno_seri],
+sth_evrakno_sira AS [sth_evrakno_sira],
+CONVERT(DATE, MIN(sth_tarih)) AS tarih,
+dbo.fn_StokHarDepoIsmi(MIN(sth_giris_depo_no), MIN(sth_cikis_depo_no), sth_tip) AS depo,
+dbo.fn_StokHarEvrTip(sth_evraktip) AS evrak_adi,
+dbo.fn_StokHarTip(sth_tip) AS giris_or_cikis
+FROM dbo.STOK_HAREKETLERI WITH (NOLOCK)
+WHERE (sth_tip = 1)
+AND (sth_evraktip = 0)
+AND (sth_evrakno_seri LIKE N'%')
+AND (sth_cins = 10)
+AND (sth_normal_iade = 0)
+AND (sth_tarih > '2026-01-01')
+GROUP BY sth_tip, sth_evraktip, sth_evrakno_seri, sth_evrakno_sira, sth_cins, sth_normal_iade
+ORDER BY kayit_no DESC
+
+/_ [sth_evraktip] = 12 çıkış fişi _/
+
+SELECT TOP (1000)
+[sth_evraktip]
+,[sth_evrakno_seri]
+,[sth_evrakno_sira]
+,[sth_stok_kod]
+,[sth_miktar]
+FROM [MikroDB_V14_DOGTAS_12].[dbo].[STOK_HAREKETLERI]
+WHERE sth_tarih > '2026-01-01'
+
+//////////////////////////////////////////////////////////
+Yaklaşım 1: Her Evrak Tipi Ayrı + Cari Bilgileri Eklenmiş
+Her sorgu için ayrı ayrı, ama stok detayları ve cari bilgileri JOIN ile eklenmiş:
+
+Satış Faturası (evraktip = 4) - Stok + Cari Birleşik:
+
+SELECT
+sth.sth_evrakno_seri,
+sth.sth_evrakno_sira,
+CONVERT(DATE, sth.sth_tarih) AS tarih,
+sth.sth_stok_kod,
+sth.sth_miktar,
+dbo.fn_StokHarEvrTip(sth.sth_evraktip) AS evrak_adi,
+cha.cha_kod AS cari_kodu,
+dbo.fn_CarininIsminiBul(cha.cha_cari_cins, cha.cha_kod) AS cari_adi
+FROM dbo.STOK_HAREKETLERI sth WITH (NOLOCK)
+LEFT JOIN dbo.CARI_HESAP_HAREKETLERI cha WITH (NOLOCK)
+ON sth.sth_evrakno_seri = cha.cha_evrakno_seri
+AND sth.sth_evrakno_sira = cha.cha_evrakno_sira
+AND cha.cha_evrak_tip = 63
+WHERE sth.sth_evraktip = 4
+AND sth.sth_tarih > '2026-01-01'
+ORDER BY sth.sth_evrakno_sira DESC
+
+//////////////////////////////////////////////////////////
+Depolar Arası Sevk (evraktip = 2):
+
+SELECT
+sth.sth_evrakno_seri,
+sth.sth_evrakno_sira,
+CONVERT(DATE, sth.sth_tarih) AS tarih,
+sth.sth_stok_kod,
+sth.sth_miktar,
+dbo.fn_StokHarEvrTip(sth.sth_evraktip) AS evrak_adi,
+dbo.fn_StokHarDepoIsmi(sth.sth_giris_depo_no, sth.sth_cikis_depo_no, 1) AS cikis_depo,
+dbo.fn_StokHarDepoIsmi(sth.sth_giris_depo_no, sth.sth_cikis_depo_no, 0) AS giris_depo
+FROM dbo.STOK_HAREKETLERI sth WITH (NOLOCK)
+WHERE sth.sth_evraktip = 2
+AND sth.sth_tarih > '2026-01-01'
+ORDER BY sth.sth_evrakno_sira DESC
+
+//////////////////////////////////////////////////////////
+Çıkış Fişi (evraktip = 12):
+
+SELECT
+sth.sth_evrakno_seri,
+sth.sth_evrakno_sira,
+CONVERT(DATE, sth.sth_tarih) AS tarih,
+sth.sth_stok_kod,
+sth.sth_miktar,
+dbo.fn_StokHarEvrTip(sth.sth_evraktip) AS evrak_adi,
+dbo.fn_StokHarDepoIsmi(sth.sth_giris_depo_no, sth.sth_cikis_depo_no, sth.sth_tip) AS depo
+FROM dbo.STOK_HAREKETLERI sth WITH (NOLOCK)
+WHERE sth.sth_evraktip = 12
+AND sth.sth_tarih > '2026-01-01'
+ORDER BY sth.sth_evrakno_sira DESC
+//////////////////////////////////////////////////////////
+
+artık /cikis-islemleri.html sayfasında <a href="/fis/teslimat.html" class="buton">Satış / Teslimat Fişi</a> butonuna tıklandığında /fis/nakliye-okutma.html sayfasındaki gibi bir yapı oluşturmalısın. burada "Nakliye Okutma" text alanı yerine Satış / Teslimat Fişi yazmalısın.
+<label for="oturumIdInput">Oturum Numarası</label> yerine "Fatura No" yazmalısın.
+<input type="text" id="oturumIdInput" placeholder="Örn: 260109-01"> yerine "Örn: 13420" yazmalısın. burada fişten bir barkod okuttumğum zaman eğer 5 haneli bir sayı okuttuğum zaman direkt oturuma gitmesi lazım.
+<button type="button" class="ara-btn" id="oturumAraBtn">Oturum Ara</button> butonuna bastığım zaman input alanına gelen değere göre oturum bilgilerini getirmeli.
+<button type="button" class="acik-oturum-btn" id="acikOturumlarBtn">Açık Oturumları Göster</button> butonuna bastığım zaman açık oturumları getirmeli. ama burada getirecek oturumlar supabasede satis_faturasi tablosundan getirmelidir.
+<button type="button" class="kapatilan-oturum-btn" id="kapatilanOturumlarBtn">Kapatılan Oturumları Göster</button>butonuna bastığım zaman kapalı yani okutması tamamlanmış oturumları getirmeli. ama burada getirecek oturumlar supabasede satis_faturasi tablosundan getirmelidir.
+bu butonların altına da "Mikro Fatura Yükleme" butonu olmalı. bu butona tıklandığında "SELECT
+sth.sth_evrakno_seri,
+sth.sth_evrakno_sira,
+CONVERT(DATE, sth.sth_tarih) AS tarih,
+sth.sth_stok_kod,
+sth.sth_miktar,
+dbo.fn_StokHarEvrTip(sth.sth_evraktip) AS evrak_adi,
+cha.cha_kod AS cari_kodu,
+dbo.fn_CarininIsminiBul(cha.cha_cari_cins, cha.cha_kod) AS cari_adi
+FROM dbo.STOK_HAREKETLERI sth WITH (NOLOCK)
+LEFT JOIN dbo.CARI_HESAP_HAREKETLERI cha WITH (NOLOCK)
+ON sth.sth_evrakno_seri = cha.cha_evrakno_seri
+AND sth.sth_evrakno_sira = cha.cha_evrakno_sira
+AND cha.cha_evrak_tip = 63
+WHERE sth.sth_evraktip = 4
+AND sth.sth_tarih > '2026-01-01'
+ORDER BY sth.sth_evrakno_sira DESC" ana bilgisayarda çalışan bir sorgusunu çalıştırıp sonuçları supabase tablosuna kaydetmelisin. kaydedilecek tablonun adi satis_faturasi olmalı. daha önce kaydedilen fişlerin bir daha kaydedilmesi gerekmiyor.
+tek seferde çok şey istedim senden opus kardeş ama sen bir harikasın Süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR! Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin.

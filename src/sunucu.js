@@ -28,11 +28,13 @@ const yetkilendirmeRotalari = require('./rotalar/yetkilendirme');
 const dogtasRotalari = require('./rotalar/dogtas');
 const supabaseRotalari = require('./rotalar/supabase');
 const ayarlarRotalari = require('./rotalar/ayarlar');
+const mikroRotalari = require('./rotalar/mikro');
 
 uygulama.use('/api/yetkilendirme', yetkilendirmeRotalari);
 uygulama.use('/api/dogtas', dogtasRotalari);
 uygulama.use('/api/supabase', supabaseRotalari);
 uygulama.use('/api/ayarlar', ayarlarRotalari);
+uygulama.use('/api/mikro', mikroRotalari);
 
 // Ana sayfa yönlendirmesi
 uygulama.get('/', (istek, yanit) => {
