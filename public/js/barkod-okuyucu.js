@@ -223,8 +223,13 @@ class BarkodOkuyucu {
         params.set('qr_scan', '1');
         params.delete('qr_code');
 
+        // Chrome iOS tespiti - QRafter browser=external her zaman Safari'ye döner
+        // Chrome'dayken googlechromes:// şemasıyla Chrome'a dönmesini sağla
+        const isChrome = /CriOS/.test(navigator.userAgent);
+        const scheme = isChrome ? 'googlechromes://' : 'https://';
+
         // {CODE} placeholder'ı URLSearchParams dışında ekle (double-encoding önlenir)
-        const donusUrl = 'https://' + window.location.host + window.location.pathname
+        const donusUrl = scheme + window.location.host + window.location.pathname
             + '?' + params.toString()
             + '&qr_code={CODE}';
 
