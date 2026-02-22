@@ -200,39 +200,20 @@ class BarkodOkuyucu {
     // ═══════════════════════════════════════════
 
     hariciUygulamaIleTara() {
-        const isSafari = !(/CriOS|FxiOS/.test(navigator.userAgent));
+        // Tüm tarayıcılarda aynı yaklaşım: QRafter tara → kopyala → geri dön → yapıştır
+        this._qrafterBekleniyor = true;
 
-        if (isSafari) {
-            // Safari: x-callback-url ile otomatik geri dönüş (aynı sekme)
-            const params = new URLSearchParams(window.location.search);
-            params.set('qr_scan', '1');
-            params.delete('qr_code');
+        // Sayfa tekrar görünür olduğunda yapıştır diyalogu göster
+        document.addEventListener('visibilitychange', this._sayfaGorunurHandler = () => {
+            if (document.visibilityState === 'visible' && this._qrafterBekleniyor) {
+                this._qrafterBekleniyor = false;
+                document.removeEventListener('visibilitychange', this._sayfaGorunurHandler);
+                this._yapistirDialoguGoster();
+            }
+        });
 
-            const donusUrl = 'https://' + window.location.host + window.location.pathname
-                + '?' + params.toString()
-                + '&qr_code={CODE}';
-
-            const qrafterUrl = 'qrafter://x-callback-url/scan'
-                + '?x-success=' + encodeURIComponent(donusUrl)
-                + '&browser=external';
-
-            window.location.href = qrafterUrl;
-        } else {
-            // Chrome/Firefox: clipboard yaklaşımı (yeni sekme sorunu önlenir)
-            this._qrafterBekleniyor = true;
-
-            // Sayfa tekrar görünür olduğunda yapıştır diyalogu göster
-            document.addEventListener('visibilitychange', this._sayfaGorunurHandler = () => {
-                if (document.visibilityState === 'visible' && this._qrafterBekleniyor) {
-                    this._qrafterBekleniyor = false;
-                    document.removeEventListener('visibilitychange', this._sayfaGorunurHandler);
-                    this._yapistirDialoguGoster();
-                }
-            });
-
-            // QRafter'ı aç (x-success olmadan, kullanıcı kopyalayıp geri dönecek)
-            window.location.href = 'qrafter://x-callback-url/scan';
-        }
+        // QRafter'ı aç
+        window.location.href = 'qrafter://x-callback-url/scan';
     }
 
     _yapistirDialoguGoster() {
@@ -280,28 +261,18 @@ class BarkodOkuyucu {
     }
 
     hariciTaramaKontrol() {
+        // Eski x-callback-url geri dönüş desteği (geriye uyumluluk)
         const params = new URLSearchParams(window.location.search);
-
         if (params.get('qr_scan') !== '1') return;
 
-        // QRafter'dan gelen veriyi al ({CODE} placeholder yerine taranan değer gelir)
         const code = params.get('qr_code');
-
-        // URL'yi temizle
         params.delete('qr_scan');
         params.delete('qr_code');
         const temizUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
         history.replaceState(null, '', temizUrl);
 
         if (code && code !== '{CODE}' && code !== '%7BCODE%7D') {
-            console.log('QRafter geri dönüş - okunan:', code);
-
-            // Değeri input alanına yaz
-            if (this.input) {
-                this.input.value = code;
-            }
-
-            // Kısa gecikme ile callback çağır (sayfa tamamen yüklensin)
+            this.input.value = code;
             setTimeout(() => {
                 if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
                     this.ayarlar.okumaSonrasi(code);
