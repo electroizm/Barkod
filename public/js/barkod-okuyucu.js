@@ -3,6 +3,7 @@
  * - Barkod tarayıcı ile otomatik okuma
  * - Kamera ile QR/Barkod okuma (html5-qrcode)
  * - Fotoğraftan QR/Barkod okuma
+ * - Harici uygulama ile tarama (QRafter Pro x-callback-url)
  * - Tüm sayfalarda ortak kullanım
  */
 
@@ -26,6 +27,9 @@ class BarkodOkuyucu {
 
         this.olustur();
         this.olaylariDinle();
+
+        // QRafter Pro geri dönüş kontrolü
+        this.hariciTaramaKontrol();
     }
 
     olustur() {
@@ -38,7 +42,8 @@ class BarkodOkuyucu {
                            autocomplete="off"
                            autocorrect="off"
                            autocapitalize="off"
-                           spellcheck="false">
+                           spellcheck="false"
+                           placeholder="QR kodu manuel girin veya tarayıcı ile okutun">
                 </div>
                 <div class="barkod-alt-satir">
                     <span class="barkod-etiket">QR Barkod</span>
@@ -54,6 +59,13 @@ class BarkodOkuyucu {
                             <line x1="14" y1="8" x2="17" y2="8"/>
                             <line x1="7" y1="16" x2="10" y2="16"/>
                             <line x1="14" y1="16" x2="17" y2="16"/>
+                        </svg>
+                    </button>
+                    <button type="button" class="barkod-ikon-btn" id="appBtn" title="QRafter ile tara">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                            <path d="M9 8h2v2H9z M13 8h2v2h-2z M9 12h2v2H9z M13 12h2v2h-2z"/>
+                            <line x1="12" y1="18" x2="12.01" y2="18"/>
                         </svg>
                     </button>
                     <button type="button" class="barkod-ikon-btn" id="fotoBtn" title="Fotoğraftan barkod oku">
@@ -88,6 +100,7 @@ class BarkodOkuyucu {
         // Elementleri yakala
         this.input = this.konteyner.querySelector('#barkodInput');
         this.kameraBtn = this.konteyner.querySelector('#kameraBtn');
+        this.appBtn = this.konteyner.querySelector('#appBtn');
         this.fotoBtn = this.konteyner.querySelector('#fotoBtn');
         this.enterBtn = this.konteyner.querySelector('#enterBtn');
         this.fotoInput = this.konteyner.querySelector('#fotoInput');
@@ -117,6 +130,11 @@ class BarkodOkuyucu {
         // Kamera butonu
         this.kameraBtn.addEventListener('click', () => {
             this.kameraAc();
+        });
+
+        // QRafter Pro butonu
+        this.appBtn.addEventListener('click', () => {
+            this.hariciUygulamaIleTara();
         });
 
         // Kamera kapat butonu
@@ -177,7 +195,55 @@ class BarkodOkuyucu {
         this.input.focus();
     }
 
-    // html5-qrcode kütüphanesini CDN'den yükle
+    // ═══════════════════════════════════════════
+    // QRafter Pro - Harici Uygulama Entegrasyonu
+    // ═══════════════════════════════════════════
+
+    hariciUygulamaIleTara() {
+        // Mevcut URL'yi koru ve geri dönüş parametresi ekle
+        const params = new URLSearchParams(window.location.search);
+        params.set('qr_scan', '1');
+        const donusUrl = window.location.origin + window.location.pathname + '?' + params.toString();
+
+        // QRafter Pro x-callback-url
+        const qrafterUrl = 'qrafterpro://x-callback-url/scan?x-success=' + encodeURIComponent(donusUrl);
+
+        console.log('QRafter Pro açılıyor, dönüş URL:', donusUrl);
+        window.location.href = qrafterUrl;
+    }
+
+    hariciTaramaKontrol() {
+        const params = new URLSearchParams(window.location.search);
+
+        if (params.get('qr_scan') !== '1') return;
+
+        // QRafter Pro'dan gelen veriyi al
+        const code = params.get('code') || params.get('content') || params.get('result');
+
+        // URL'yi temizle (qr_scan, code, type parametrelerini kaldır)
+        params.delete('qr_scan');
+        params.delete('code');
+        params.delete('content');
+        params.delete('result');
+        params.delete('type');
+        const temizUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+        history.replaceState(null, '', temizUrl);
+
+        if (code) {
+            console.log('QRafter Pro geri dönüş - okunan:', code);
+            // Kısa gecikme ile callback çağır (sayfa tamamen yüklensin)
+            setTimeout(() => {
+                if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
+                    this.ayarlar.okumaSonrasi(code);
+                }
+            }, 500);
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    // Kamera - html5-qrcode
+    // ═══════════════════════════════════════════
+
     html5QrcodeYukle() {
         if (window.Html5Qrcode) return Promise.resolve();
 
@@ -280,6 +346,10 @@ class BarkodOkuyucu {
         this.input.focus();
     }
 
+    // ═══════════════════════════════════════════
+    // Fotoğraftan Okuma
+    // ═══════════════════════════════════════════
+
     async fotograftanOku(e) {
         const dosya = e.target.files[0];
         if (!dosya) return;
@@ -309,17 +379,18 @@ class BarkodOkuyucu {
         this.input.focus();
     }
 
-    // Dışarıdan input'a odaklanmak için
+    // ═══════════════════════════════════════════
+    // Yardımcı Metodlar
+    // ═══════════════════════════════════════════
+
     odaklan() {
         this.input.focus();
     }
 
-    // Dışarıdan değer almak için
     degerAl() {
         return this.input.value.trim();
     }
 
-    // Dışarıdan değer ayarlamak için
     degerAyarla(deger) {
         this.input.value = deger;
     }

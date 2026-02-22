@@ -1041,11 +1041,11 @@ router.post('/qr-okut', async (req, res) => {
 
         return res.json({
             success: true,
-            message: `${eslesenKalem.malzeme_adi || stokKod} (${paketSira}/${paketToplam})`,
+            message: `${eslesenKalem.malzeme_adi || eslesenKalem.product_desc || stokKod} (${paketSira}/${paketToplam})`,
             eslesen_kalem: {
                 id: eslesenKalem.id,
                 stok_kod: stokKod,
-                malzeme_adi: eslesenKalem.malzeme_adi || stokKod,
+                malzeme_adi: eslesenKalem.malzeme_adi || eslesenKalem.product_desc || stokKod,
                 miktar: eslesenKalem.miktar
             },
             paket_bilgi: {
