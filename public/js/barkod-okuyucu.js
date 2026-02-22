@@ -200,79 +200,46 @@ class BarkodOkuyucu {
     // ═══════════════════════════════════════════
 
     hariciUygulamaIleTara() {
-        // Tüm tarayıcılarda aynı yaklaşım: QRafter tara → kopyala → geri dön → yapıştır
-        this._qrafterBekleniyor = true;
+        // Mevcut URL parametrelerini koru
+        const params = new URLSearchParams(window.location.search);
+        params.set('qr_scan', '1');
+        params.delete('qr_code');
 
-        // Sayfa tekrar görünür olduğunda yapıştır diyalogu göster
-        document.addEventListener('visibilitychange', this._sayfaGorunurHandler = () => {
-            if (document.visibilityState === 'visible' && this._qrafterBekleniyor) {
-                this._qrafterBekleniyor = false;
-                document.removeEventListener('visibilitychange', this._sayfaGorunurHandler);
-                this._yapistirDialoguGoster();
-            }
-        });
+        // {CODE} placeholder'ı URLSearchParams dışında ekle (double-encoding önlenir)
+        const donusUrl = 'https://' + window.location.host + window.location.pathname
+            + '?' + params.toString()
+            + '&qr_code={CODE}';
 
-        // QRafter'ı aç
-        window.location.href = 'qrafter://x-callback-url/scan';
-    }
+        // qrafter:// x-callback-url ile tarama ve otomatik geri dönüş
+        const qrafterUrl = 'qrafter://x-callback-url/scan'
+            + '?x-success=' + encodeURIComponent(donusUrl)
+            + '&browser=external';
 
-    _yapistirDialoguGoster() {
-        // Yapıştır overlay'i oluştur
-        const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
-        overlay.innerHTML = `
-            <div style="background:#fff;border-radius:12px;padding:24px;margin:20px;text-align:center;max-width:320px;">
-                <p style="font-size:16px;margin:0 0 16px;color:#333;">QRafter'dan kopyaladığınız kodu yapıştırmak için butona basın</p>
-                <button id="yapistirBtn" style="background:#2ecc71;color:#fff;border:none;border-radius:8px;padding:14px 28px;font-size:16px;font-weight:600;cursor:pointer;width:100%;margin-bottom:8px;">Yapıştır</button>
-                <button id="yapistirIptal" style="background:none;border:1px solid #ddd;border-radius:8px;padding:10px 28px;font-size:14px;cursor:pointer;width:100%;color:#666;">İptal</button>
-            </div>
-        `;
-        document.body.appendChild(overlay);
-
-        overlay.querySelector('#yapistirBtn').addEventListener('click', async () => {
-            try {
-                const text = await navigator.clipboard.readText();
-                overlay.remove();
-
-                if (text && text.length > 10) {
-                    console.log('Clipboard\'dan okundu:', text);
-                    this.input.value = text;
-
-                    if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
-                        this.ayarlar.okumaSonrasi(text);
-                    }
-                    this.input.value = '';
-                    this.input.focus();
-                } else {
-                    alert('Panoda QR kod verisi bulunamadı.\nQRafter\'da "Kopyala" butonuna bastığınızdan emin olun.');
-                }
-            } catch (err) {
-                overlay.remove();
-                // Clipboard izni reddedildi - manuel yapıştır
-                this.input.focus();
-                alert('Pano erişimi reddedildi.\nAlana uzun basarak "Yapıştır" ile kodu ekleyip Enter\'a basın.');
-            }
-        });
-
-        overlay.querySelector('#yapistirIptal').addEventListener('click', () => {
-            overlay.remove();
-            this.input.focus();
-        });
+        console.log('QRafter açılıyor, dönüş URL:', donusUrl);
+        window.location.href = qrafterUrl;
     }
 
     hariciTaramaKontrol() {
-        // Eski x-callback-url geri dönüş desteği (geriye uyumluluk)
         const params = new URLSearchParams(window.location.search);
+
         if (params.get('qr_scan') !== '1') return;
 
+        // QRafter'dan gelen veriyi al ({CODE} placeholder yerine taranan değer gelir)
         const code = params.get('qr_code');
+
+        // URL'yi temizle
         params.delete('qr_scan');
         params.delete('qr_code');
         const temizUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
         history.replaceState(null, '', temizUrl);
 
         if (code && code !== '{CODE}' && code !== '%7BCODE%7D') {
-            this.input.value = code;
+            console.log('QRafter geri dönüş - okunan:', code);
+
+            if (this.input) {
+                this.input.value = code;
+            }
+
             setTimeout(() => {
                 if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
                     this.ayarlar.okumaSonrasi(code);
