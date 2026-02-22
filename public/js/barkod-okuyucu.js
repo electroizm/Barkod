@@ -156,6 +156,20 @@ class BarkodOkuyucu {
         this.enterBtn.addEventListener('click', () => {
             this.barkodOku();
         });
+
+        // QRafter localStorage bridge: orijinal sekme geri geldiğinde kontrol et
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                this.localStorageKontrol();
+            }
+        });
+
+        // Aynı tarayıcıda storage event ile de dinle (farklı sekmeden yazılınca tetiklenir)
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'qrafter_result' && e.newValue) {
+                this.localStorageKontrol();
+            }
+        });
     }
 
     tarayiciGirisTespit(e) {
@@ -200,6 +214,10 @@ class BarkodOkuyucu {
     // ═══════════════════════════════════════════
 
     hariciUygulamaIleTara() {
+        // Önceki sonucu temizle
+        localStorage.removeItem('qrafter_result');
+        localStorage.removeItem('qrafter_time');
+
         // Mevcut URL parametrelerini koru
         const params = new URLSearchParams(window.location.search);
         params.set('qr_scan', '1');
@@ -227,24 +245,62 @@ class BarkodOkuyucu {
         // QRafter'dan gelen veriyi al ({CODE} placeholder yerine taranan değer gelir)
         const code = params.get('qr_code');
 
-        // URL'yi temizle
+        if (code && code !== '{CODE}' && code !== '%7BCODE%7D') {
+            console.log('QRafter geri dönüş (yeni sekme) - okunan:', code);
+
+            // Kodu localStorage'a yaz - orijinal sekme bunu alacak
+            localStorage.setItem('qrafter_result', code);
+            localStorage.setItem('qrafter_time', Date.now().toString());
+
+            // Bu sekmeyi kapatmaya çalış
+            // Not: window.close() sadece JavaScript ile açılmış sekmelerde çalışır
+            // iOS Safari'de genelde çalışmaz, bu yüzden fallback mesaj göster
+            document.title = 'Tarama Tamamlandı';
+            document.body.innerHTML = `
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center;
+                            height:100vh; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+                            background:#f5f5f5; color:#333; text-align:center; padding:20px;">
+                    <div style="font-size:48px; margin-bottom:16px;">&#10003;</div>
+                    <h2 style="margin:0 0 8px;">Barkod okundu!</h2>
+                    <p style="color:#666; margin:0 0 24px; font-size:14px;">${code}</p>
+                    <p style="color:#999; font-size:13px;">Bu sekmeyi kapatabilirsiniz.<br>Sonuç diğer sekmede işleniyor.</p>
+                </div>
+            `;
+
+            try { window.close(); } catch (e) {}
+
+            return;
+        }
+
+        // Kod yoksa URL'yi temizle
         params.delete('qr_scan');
         params.delete('qr_code');
         const temizUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
         history.replaceState(null, '', temizUrl);
+    }
 
-        if (code && code !== '{CODE}' && code !== '%7BCODE%7D') {
-            console.log('QRafter geri dönüş - okunan:', code);
+    localStorageKontrol() {
+        const code = localStorage.getItem('qrafter_result');
+        const time = localStorage.getItem('qrafter_time');
 
-            if (this.input) {
-                this.input.value = code;
-            }
+        if (!code) return;
 
-            setTimeout(() => {
-                if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
-                    this.ayarlar.okumaSonrasi(code);
-                }
-            }, 500);
+        // 60 saniyeden eski sonuçları yoksay
+        if (time && (Date.now() - parseInt(time)) > 60000) {
+            localStorage.removeItem('qrafter_result');
+            localStorage.removeItem('qrafter_time');
+            return;
+        }
+
+        console.log('QRafter localStorage bridge - okunan:', code);
+
+        // Sonucu temizle (tekrar işlenmemesi için)
+        localStorage.removeItem('qrafter_result');
+        localStorage.removeItem('qrafter_time');
+
+        // Callback fonksiyonu çağır
+        if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
+            this.ayarlar.okumaSonrasi(code);
         }
     }
 
