@@ -573,4 +573,295 @@ AND cha.cha_evrak_tip = 63
 WHERE sth.sth_evraktip = 4
 AND sth.sth_tarih > '2026-01-01'
 ORDER BY sth.sth_evrakno_sira DESC" ana bilgisayarda çalışan bir sorgusunu çalıştırıp sonuçları supabase tablosuna kaydetmelisin. kaydedilecek tablonun adi satis_faturasi olmalı. daha önce kaydedilen fişlerin bir daha kaydedilmesi gerekmiyor.
-tek seferde çok şey istedim senden opus kardeş ama sen bir harikasın Süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR! Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin.
+tek seferde çok şey istedim senden opus kardeş ama sen bir harikasın
+
+daha önce doğtaş apisinden veri çekmiştim. nakliye bilgilerini çekmek için /SapDealer/GetShipments url si ile veri çekiyorum. bu token bilgilierini kullanarak /api/SapDealer/GetProductPackages url si ile ürün bilgilerini çekmek istiyorum.
+/api/SapDealer/GetProductPackages
+veya
+https://bayi.doganlarmobilyagrubu.com/ProductPackageGrid
+dikkate alarak daha önce veri çekme mantığını kullanarak ürün bilgilerini çekip supabase tablosuna kaydetmelisin. ama önce ham veriyi konsolda yazdırarak kontrol etmeliyim. 3120028259, 3120009172, 3120009173, 3400001681, 3120011662 kodları için ham veriyi konsolda yazdırarak kontrol etmeliyim.
+
+---
+
+SELECT
+sth.sth_evrakno_seri,
+sth.sth_evrakno_sira,
+CONVERT(DATE, sth.sth_tarih) AS tarih,
+sth.sth_stok_kod,
+sth.sth_miktar,
+dbo.fn_StokHarEvrTip(sth.sth_evraktip) AS evrak_adi,
+cha.cha_kod AS cari_kodu,
+dbo.fn_CarininIsminiBul(cha.cha_cari_cins, cha.cha_kod) AS cari_adi,
+bar.bar_serino_veya_bagkodu AS bagKodum,
+sto.sto_isim AS malzemeAdi
+FROM dbo.STOK_HAREKETLERI sth WITH (NOLOCK)
+LEFT JOIN dbo.CARI_HESAP_HAREKETLERI cha WITH (NOLOCK)
+ON sth.sth_evrakno_seri = cha.cha_evrakno_seri
+AND sth.sth_evrakno_sira = cha.cha_evrakno_sira
+AND cha.cha_evrak_tip = 63
+LEFT JOIN dbo.BARKOD_TANIMLARI bar WITH (NOLOCK)
+ON sth.sth_stok_kod = bar.bar_stokkodu
+LEFT JOIN dbo.STOKLAR sto WITH (NOLOCK)
+ON sto.sto_kod = sth.sth_stok_kod
+AND (sto.sto_pasif_fl IS NULL OR sto.sto_pasif_fl = 0)
+WHERE sth.sth_evraktip = 4
+AND sth.sth_tarih > '2026-01-01'
+ORDER BY sth.sth_evrakno_sira DESC
+sth_stok_kod verisi malzeme kodunu veriyor bu tabloda biz işte her malzeme kodu için paket sayısı verisini çekmek istiyorum. bunun için tek önemli veri sth_stok_kod sütunundaki değerin sadece ilk 10 hanesindeki veridir "-" ilk karakterininden önceki veri bu verinin adı productCode olsun böylece her productCode için doğtaş apisinden paketSayisi verisini çek. tabi tabloda paketSayisi sütun adını paket_sayisi olarak günceller misin? bu sql kod sonucunu supabase tablosuna kaydetmelisin. tabi kayıt edilecek tablonun ismi satis_faturasi olmalıdır. bunu daha önce kaydetmiştim yeni sütunlar ekledim buna göre supabase sql kodunu günceller misin?
+
+burada aslında her seferinde büyük bir sql verisi çekip supabase tablosuna kaydetmek sunuyu yoruyor ve bekleme süresini artırmaktadır. bunun için evrakno_sira en büyük sıra numarasını dikkate alıp en büyük sıra numarasından sonra gelen verileri çekip supabase tablosuna kaydetmelisin. sql kodumu aşağıdaki gibidir.
+SELECT
+sth.sth_evrakno_seri,
+sth.sth_evrakno_sira,
+CONVERT(DATE, sth.sth_tarih) AS tarih,
+sth.sth_stok_kod,
+sth.sth_miktar,
+dbo.fn_StokHarEvrTip(sth.sth_evraktip) AS evrak_adi,
+cha.cha_kod AS cari_kodu,
+dbo.fn_CarininIsminiBul(cha.cha_cari_cins, cha.cha_kod) AS cari_adi,
+bar.bar_serino_veya_bagkodu AS bagKodum,
+sto.sto_isim AS malzemeAdi
+FROM dbo.STOK_HAREKETLERI sth WITH (NOLOCK)
+LEFT JOIN dbo.CARI_HESAP_HAREKETLERI cha WITH (NOLOCK)
+ON sth.sth_evrakno_seri = cha.cha_evrakno_seri
+AND sth.sth_evrakno_sira = cha.cha_evrakno_sira
+AND cha.cha_evrak_tip = 63
+LEFT JOIN dbo.BARKOD_TANIMLARI bar WITH (NOLOCK)
+ON sth.sth_stok_kod = bar.bar_stokkodu
+LEFT JOIN dbo.STOKLAR sto WITH (NOLOCK)
+ON sto.sto_kod = sth.sth_stok_kod
+AND (sto.sto_pasif_fl IS NULL OR sto.sto_pasif_fl = 0)
+WHERE sth.sth_evraktip = 4
+AND sth.sth_tarih > '2026-01-01'
+ORDER BY sth.sth_evrakno_sira DESC
+
+---
+
+Doğtaş API konfigürasyonu PRGsheet'ten yüklendi.
+
+=== ÜRÜN PAKETLERİ İSTEĞİ ===
+API URL: https://connectapi.doganlarmobilyagrubu.com/api/SapDealer/GetProductPackages
+Request Body: {"dealerCode":"1600703","productCodes":["3400002025","3300003422","3120020619","3120020621","3120021343","3200421044","3200421049","3200421202"]}
+
+=== ÜRÜN PAKETLERİ HAM VERİSİ ===
+Tarih: 2026-01-11T21:31:55.976Z
+HTTP Status: 200
+Toplam kayıt: 18
+Response:
+{
+"isSuccess": true,
+"data": [
+{
+"dealerCode": "1600703",
+"productCode": "3120020619",
+"productDesc": "NITA 3LU YT GK:2491K45:2492BM:2491AR:SYH",
+"materialCode": "2100382293",
+"materialDesc": "NITA 3LU GVD PKT GK:2491 AR:SYH"
+},
+{
+"dealerCode": "1600703",
+"productCode": "3120020619",
+"productDesc": "NITA 3LU YT GK:2491K45:2492BM:2491AR:SYH",
+"materialCode": "2100382294",
+"materialDesc": "NITA 3LU KOL PKT GK:2491"
+},
+{
+"dealerCode": "1600703",
+"productCode": "3120020619",
+"productDesc": "NITA 3LU YT GK:2491K45:2492BM:2491AR:SYH",
+"materialCode": "2100390692",
+"materialDesc": "NITA 3LU SRT PKT GK:2491"
+},
+{
+"dealerCode": "1600703",
+"productCode": "3120020621",
+"productDesc": "NITA BERJER GK:2373 AR:SYH",
+"materialCode": "2100382431",
+"materialDesc": "NITA BERJER GVD PKT GK:2373 AR:SYH"
+},
+{
+"dealerCode": "1600703",
+"productCode": "3120021343",
+"productDesc": "NITA SANDALYE GK:2491 AR:FUME",
+"materialCode": "2100386184",
+"materialDesc": "NITA SANDALYE GVD PKT"
+},
+{
+"dealerCode": "1600703",
+"productCode": "3200421044",
+"productDesc": "NITA ACILIR YEMEK MASASI",
+"materialCode": "2200327774",
+"materialDesc": "NITA ACILIR YEMEK MASASI 1. PKT"
+},
+{
+"dealerCode": "1600703",
+"productCode": "3200421044",
+"productDesc": "NITA ACILIR YEMEK MASASI",
+"materialCode": "2200327204",
+"materialDesc": "NITA ACILIR YEMEK MASASI 2.PKT"
+},
+{
+"dealerCode": "1600703",
+"productCode": "3200421049",
+"productDesc": "NITA KONSOL",
+"materialCode": "2200327554",
+"materialDesc": "NITA KONSOL 1. PKT"
+},
+{
+"dealerCode": "1600703",
+"productCode": "3200421049",
+"productDesc": "NITA KONSOL",
+"materialCode": "2200327565",
+"materialDesc": "NITA KONSOL 2. PKT"
+},
+{
+"dealerCode": "1600703",
+"productCode": "3200421049",
+"productDesc": "NITA KONSOL",
+"materialCode": "2200327576",
+"materialDesc": "NITA KONSOL 3. PKT"
+},
+{
+"dealerCode": "1600703",
+"productCode": "3200421049",
+"productDesc": "NITA KONSOL",
+"materialCode": "2200327588",
+"materialDesc": "NITA KONSOL 4. PKT"
+},
+{
+"dealerCode": "1600703",
+"productCode": "3200421049",
+"productDesc": "NITA KONSOL",
+"materialCode": "2200327205",
+"materialDesc": "NITA KONSOL 5.PKT"
+},
+{
+"dealerCode": "1600703",
+"productCode": "3200421049",
+"productDesc": "NITA KONSOL",
+"materialCode": "2200327170",
+"materialDesc": "NITA KONSOL 6.PKT"
+},
+{
+"dealerCode": "1600703",
+"productCode": "3200421049",
+"productDesc": "NITA KONSOL",
+"materialCode": "2200327595",
+"materialDesc": "NITA KONSOL 8. PKT"
+},
+{
+"dealerCode": "1600703",
+"productCode": "3200421049",
+"productDesc": "NITA KONSOL",
+"materialCode": "2200331375",
+"materialDesc": "NITA KONSOL 7. PKT"
+},
+{
+"dealerCode": "1600703",
+"productCode": "3200421202",
+"productDesc": "HOLLY ZIGON SEHPA-VIZON WOOD",
+"materialCode": "2200328323",
+"materialDesc": "HOLLY ZIGON SEHPA-VIZON WOOD 1. PAKET"
+},
+{
+"dealerCode": "1600703",
+"productCode": "3300003422",
+"productDesc": "DUO SENSE BAMBOO 160X200 YATAK",
+"materialCode": "2300010203",
+"materialDesc": "DUO SENSE BAMBOO 160X200 YATAK 1.PKT"
+},
+{
+"dealerCode": "1600703",
+"productCode": "3400002025",
+"productDesc": "VISCO NATURE SENSE YASTIK",
+"materialCode": "2400001955",
+"materialDesc": "VISCO NATURE SENSE YASTIK 1.PKT"
+}
+],
+"messageCode": 200,
+"messages": [
+"Transaction completed successfully"
+]
+}
+=== HAM VERİ SONU ===
+
+8 ürün için paket bilgisi alındı
+Supabase'deki son evrak sıra: 13458
+Mikro SQL Server'a bağlanılıyor...
+Mikro'dan 0 kayıt çekildi verisini konsola yazdırmaya artık gerek yok ayrıca, bazı product_code 'ler için ürün eski olduğundan mıdır yoksa başka sebeplerden midir? paket sayısı NULL yazıyor. böyle durumlarda NULL yerine 1 yazılmalıdir.
+ayrıca çok problemli bir sorunumuz var. örnek verecek olursam eğer " 3200395022" ürün kodu için test et burada paket sayısını 18 bulacaksın ama bunun paket sayısı aslında gerçek değeri 9 dur. bazen ürünler aynı ürün kodu olmasına rağmen 2 defa paket kodları kayıtlı olabilir. buda büyük bir hataya sebep olabilir. bu hatanın önlenmesi için yapmamız gereken şey aynı "productCode" verisine sahip olanlardan aynı "materialCode" sahip olan kayıtları sorgulayıp aynı varsa aynı olan paketleri saymayarak bu şekilde paket sayısını bulmamız gerekiyor. karmaşık bir konu oldu lütfen bu konuda beni yormayın.
+
+Süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR! Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin.
+/fis/teslimat.html sayfasında <button type="button" class="mikro-yukle-btn" id="mikroYukleBtn">Mikro Fatura Yükleme</button> bastığım zaman fatura yükleniyor. yüklendikten sonra <div class="basari-mesaj">169 fatura kaydedildi, 0 atlandi</div> bilgi mesajı geliyor ama bu bilgi mesajı aslında satır sayısını veriyor benim istediğim ise evrak sayısını vermesi gerekiyor. buna göre düzenleme yapmalısınız.
+
+/fis/teslimat.html sayfasında <button type="button" class="acik-fatura-btn" id="acikFaturalarBtn">Açık Faturaları Göster</button> butonuna basıldığında açılan pencerede
+"Açık Faturalar
+×
+-13458
+SALİH ŞİMŞEK | 10.01.2026
+1 paket kaldı (0/1)
+-13457
+MURAT AZBOY | 10.01.2026
+1 paket kaldı (0/1)
+-13456
+YUSUF SOYDAN | 10.01.2026
+22 paket kaldı (0/22)" tarzında bilgi mesajı geliyor ancak bu bilgi mesajı burada değişiklik yapmak istiyorum. örnek olarak
+
+<div class="fatura-item" data-fatura="13458">
+                                <div class="fatura-item-baslik">-13458</div>
+                                <div class="fatura-item-detay">SALİH ŞİMŞEK | 10.01.2026</div>
+                                <div class="fatura-item-kalan">1 paket kaldı (0/1)</div>
+                            </div>
+verisinde <div class="fatura-item-baslik">-13458</div> verisine "SALİH ŞİMŞEK" verisinin gelmesini istiyorum . <div class="fatura-item-detay">SALİH ŞİMŞEK | 10.01.2026</div> verisine "-13458" verisinin gelmesini istiyorum ama başında "-" olmasın.  daha sonra da "|" ifadesi sonrasında "10.01.2026" verisinin gelmesini istiyorum. buna göre düzeltme yapmalısınız.
+
+/fis/teslimat-okut.html?fatura=13429 sayfası için değişiklik yapmak istiyorum
+
+<div class="fatura-ozet" id="faturaOzet">
+            <div class="fatura-ozet-baslik" id="faturaOzetBaslik">Fatura: -13429</div>
+            <div class="fatura-ozet-detay" id="faturaOzetDetay">Cari: KEMAL HAYYAMAKSU</div>
+        </div> ifadesini "Fatura: 13429 - KEMAL HAYYAMAKSU" şeklinde değiştirmeniz gerekiyor. tek satır olsun ve koyu renkte olmalı. buna göre guncelleme yapmalısınız.
+
+c:\Users\GUNES\git\Barkod\ projesini en detaylı şekilde incele ve programda her sayfada ne yapılıyor en dataylı bir şekilde yap. 1 aydır program ile uğraşamıyorum ve neler eklediğimi, hangi özelliklerini eklediğimi unuttum. en detaylı şekilde yazmanı istiyorum. bunu .md uzantılı olarak kaydedebilirsin.
+
+http://localhost:3000/fis/teslimat.html SAYFASINDA Geri
+Satış / Teslimat Fişi
+Fatura No
+13623
+Fatura Ara Açık Faturaları Göster Kapatılan Faturaları Göster Mikro Fatura Yükleme
+Mikro'dan aktarılmamış Satış Faturası bulunamadı.
+Fatura bulunamadı UYARISI alıyorum bunun sebebi ben daha önce faturayı supabase'den silmiş olabilirim. ama en son evrak numarasınına göre ekleme mi yapılıyor onu öğrenmek istiyorum. ayrıca eğer arama <input type="text" id="faturaNoInput" placeholder="Örn: 13420"> alanına eğer bir fatura numarası girersem supabase'e eklenmesini istiyorum. buna göre ekleme yapmalısınız. \_
+
+Süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR!\*
+\_Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin.
+http://localhost:3000/fis/teslimat-okut.html?fatura=13623 sayfasında test etmeni istiyorum. buradaki null değerleri düzeltmelisin. bu veriyi nereden alıyorsun onu öğrenmek istiyorum. ayrıca nasıl düzeltebiliriz onu da öğrenmek istiyorum.
+
+https://supabase.com/dashboard/project/ncjoguihglafswpennku/editor/23432?schema=public&sort=evrakno_sira%3Adesc&sort=id%3Adesc sayfasında eğer "malzeme_adi" NULL ise "product_desc" verisini almalısın. buna göre düzenleme yapmalısın. "stok_kod" verisini almak çok mantıksızdır. Süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR!\*
+\_Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin. http://localhost:3000/fis/teslimat-okut.html?fatura=13623 sayfasında test etmeni istiyorum.
+
+012868140398047621032025100297277310110260421000001091029201930194000000000095000000000096451500686597001209800000000210036118399000000003120021342
+
+3120021342
+
+http://localhost:3000/fis/teslimat-okut.html?fatura=13621 sayfası için Fatura : 13621 olan verileri test etmeni istiyorum. 1 - MILENA KOMODIN SOL satırı için barkodu okutuyorum ama <div class="son-mesaj hata" id="sonMesaj">Bu ürün (3200395066) faturada bulunamadı!</div> hatası alıyorum. ama bu okunması gereken bir ürün. bunun sebebi nedir? bunu nasıl düzeltebiliriz? bunu öğrenmek istiyorum. paket okumlarını nasıl yapıyoruz onu da öğrenmek istiyorum. Süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR!\* Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin.
+
+okutmak istediğim barkodlar.
+
+01286814037892602104202510032386221000000000000000009103920393019410201757459510201757559600102017575597000009800000000220026728599000000003200395066
+
+01286814037892602104202510032386221000000000000000009103920193019410201757459510201757559600102017575597000009800000000220026728599000000003200395066
+
+01286814037892532104202050030446631000000000000000009101920193019410200780629510200770609600102007706097000009800000000220026727699000000003200398883
+
+http://localhost:3000/fis/teslimat.html?fatura=13621 sayfasında test etmeni istiyorum. burada daha önce okunan paket varsa sayısının yazılımasını ve okunması gereken paket sayısının yazılmasını istiyorum.
+
+Süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR!\* Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin.
+http://localhost:3000/stok.html sayfasında stok arama alanına stok kodu yazıp arama yaptığım zaman stok detaylarını yazdırılmasını istiyorum. buna göre düzenleme yapmalısınız. bu stoğu tabiki PRGsheet dosyasının Stok sayfasından almalısın. "Malzeme Adı" verisine göre sıralanmasını istiyorum. ayrıca bu verinin üzerine tıkladığım zaman o "Malzeme Adı" verisine DEPO, Fazla, Borç, Bekleyen, Plan, EXC, SUBE, ID1, ID2, ###, INDIRIM, PERAKENDE, LISTE verilerini getirmesini isitiyorum. ayrıca "Mazleme Adı" göre arama yapabileceğim bir input alanau eklemeni istiyorum en üste. stok arama alanına yazıp arama yapmasını istiyorum. buna göre düzenleme yapmalısınız. detaylı olarak planlı bir şekilde süreci yönetmeni istiyorum.
+
+http://localhost:3000/stok.html sayfasında harika iş çıkardın şimdi bazı özellikler eklemeni istiyorum.
+
+1- "Stok Arama" input alanına örnek olarak "bend" yazarsam bütün bend kelimesini içeren stokları getirmesini istiyorum. eğer bend kelimesinden sonra "dolap" yazarsam hem bend hemde dolap kelimesini içeren stokları getirmesini istiyorum. buna göre düzenleme yapmalısınız.
+2- <span class="stok-malzeme-adi">BEND 6 KAPAKLI DOLAP</span> verisinde yazması gereken veri DEPO verisini değil "Fazla" verisini getirmesini istiyorum. buna göre düzenleme yapmalısınız. ayrıca eğer "Fazla" verisi 0 dan büyükse rengi yeşil olsun eğer sıfrsa sarı olsun. buna göre düzenleme yapmalısınız.
+
+Süreci pürüzsüz ilerletmek adına sormaktan çekinme. NEYE İHTİYACIN VARSA SOR!\* Netlik kazanmak için askuserquestiontool ile dilediğin kadar soru sorabilirsin. http://localhost:3000/stok.html sayfasında görüntüdeki gibi yan yana 2 veri değil 3 veri yan yana gelmeli. buna göre düzenleme yapmalısınız. görüntülenme sırası ise DEPO, EXC, SUBE, Borç, Bekleyen, Plan, ID1, ID2, ###, LISTE, INDIRIM, PERAKENDE şeklinde olmalı. ayrıca ID1 text verisini yazısını "ProSAP" yaz. "ID2" text verisini yazısını "Excel" yaz. "###" text verisini yazısını "Marj" yaz. buna göre düzenleme yapmalısınız.
+
+hem Fazla hemde Miktar sutunlarındaki verileri gösterilmeli. buna göre düzenleme yapmalısınız. ben komo 2 10 şeklinde gösterilsin. Miktar verisi renksiz olsun. Fazla verisi ise eğer 0 dan büyükse yeşil olsun.

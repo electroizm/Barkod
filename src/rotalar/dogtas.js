@@ -373,6 +373,157 @@ router.post('/nakliye-ara', async (req, res) => {
 });
 
 /**
+ * Ürün Paketleri API Endpoint
+ * POST /api/dogtas/urun-paketleri
+ *
+ * Belirli stok kodları için ürün paket bilgilerini çeker
+ * /api/SapDealer/GetProductPackages endpoint'ini kullanır
+ */
+router.post('/urun-paketleri', async (req, res) => {
+    try {
+        const { stokKodlari } = req.body;
+
+        if (!stokKodlari || !Array.isArray(stokKodlari) || stokKodlari.length === 0) {
+            return res.json({
+                success: false,
+                message: 'Stok kodları gereklidir (dizi olarak)'
+            });
+        }
+
+        // Token al
+        const token = await getToken();
+        if (!token) {
+            return res.json({
+                success: false,
+                message: 'API bağlantısı kurulamadı'
+            });
+        }
+
+        // Her stok kodu için ürün paketlerini çek
+        const tumSonuclar = [];
+
+        // GetProductPackages için API URL
+        const productPackagesBaseUrl = 'https://connectapi.doganlarmobilyagrubu.com/api';
+        const apiUrl = `${productPackagesBaseUrl}/SapDealer/GetProductPackages`;
+
+        // Doğru API formatı: dealerCode + productCodes array
+        const requestBody = {
+            dealerCode: DOGTAS_CONFIG.customerNo,
+            productCodes: stokKodlari
+        };
+
+        console.log('\n=== ÜRÜN PAKETLERİ İSTEĞİ ===');
+        console.log('API URL:', apiUrl);
+        console.log('Request Body:', JSON.stringify(requestBody));
+
+        try {
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            const data = await response.json();
+
+            // HAM VERİYİ KONSOLA YAZDIR
+            console.log('\n=== ÜRÜN PAKETLERİ HAM VERİSİ ===');
+            console.log('Tarih:', new Date().toISOString());
+            console.log('HTTP Status:', response.status);
+            console.log('Toplam kayıt:', data.data?.length || 0);
+            console.log('Response:');
+            console.log(JSON.stringify(data, null, 2));
+            console.log('=== HAM VERİ SONU ===\n');
+
+            if (data.isSuccess && Array.isArray(data.data)) {
+                // Ürünleri productCode'a göre grupla ve BENZERSIZ materialCode ile paket sayısını hesapla
+                const urunGruplari = {};
+                for (const item of data.data) {
+                    if (!urunGruplari[item.productCode]) {
+                        urunGruplari[item.productCode] = {
+                            productCode: item.productCode,
+                            productDesc: item.productDesc,
+                            paketSayisi: 0,
+                            paketler: [],
+                            _materialCodeSet: new Set() // Mükerrer kontrolü için
+                        };
+                    }
+
+                    // Sadece benzersiz materialCode'ları say (mükerrer kayıtları atla)
+                    if (!urunGruplari[item.productCode]._materialCodeSet.has(item.materialCode)) {
+                        urunGruplari[item.productCode]._materialCodeSet.add(item.materialCode);
+                        urunGruplari[item.productCode].paketSayisi++;
+                        urunGruplari[item.productCode].paketler.push({
+                            materialCode: item.materialCode,
+                            materialDesc: item.materialDesc
+                        });
+                    }
+                }
+
+                // _materialCodeSet'i temizle (response'da gösterme)
+                for (const productCode of Object.keys(urunGruplari)) {
+                    delete urunGruplari[productCode]._materialCodeSet;
+                }
+
+                // Gruplanmış ürünleri sonuçlara ekle
+                for (const productCode of Object.keys(urunGruplari)) {
+                    tumSonuclar.push({
+                        stokKod: productCode,
+                        basarili: true,
+                        veri: urunGruplari[productCode]
+                    });
+                }
+
+                // İstenen ama bulunamayan kodları da ekle
+                for (const kod of stokKodlari) {
+                    if (!urunGruplari[kod]) {
+                        tumSonuclar.push({
+                            stokKod: kod,
+                            basarili: false,
+                            mesaj: 'Ürün paketi bulunamadı'
+                        });
+                    }
+                }
+            } else {
+                // Hata durumunda tüm kodlar için hata döndür
+                for (const kod of stokKodlari) {
+                    tumSonuclar.push({
+                        stokKod: kod,
+                        basarili: false,
+                        mesaj: data.messages?.join(', ') || 'API hatası'
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('API isteği hatası:', error.message);
+            for (const kod of stokKodlari) {
+                tumSonuclar.push({
+                    stokKod: kod,
+                    basarili: false,
+                    hata: error.message
+                });
+            }
+        }
+
+        return res.json({
+            success: true,
+            sonuclar: tumSonuclar,
+            toplam: tumSonuclar.length
+        });
+
+    } catch (error) {
+        console.error('Ürün paketleri hatası:', error);
+        return res.json({
+            success: false,
+            message: 'Sunucu hatası oluştu',
+            error: error.message
+        });
+    }
+});
+
+/**
  * Nakliye Detayları API Endpoint
  * POST /api/dogtas/nakliye-detay
  */

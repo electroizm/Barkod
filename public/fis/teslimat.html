@@ -475,8 +475,8 @@
                         const tarih = fatura.tarih ? new Date(fatura.tarih).toLocaleDateString('tr-TR') : '-';
                         return `
                             <div class="fatura-item" data-fatura="${fatura.evrakno_sira}">
-                                <div class="fatura-item-baslik">${fatura.evrakno_seri}-${fatura.evrakno_sira}</div>
-                                <div class="fatura-item-detay">${fatura.cari_adi || '-'} | ${tarih}</div>
+                                <div class="fatura-item-baslik">${fatura.cari_adi || '-'}</div>
+                                <div class="fatura-item-detay">${fatura.evrakno_sira} | ${tarih}</div>
                                 <div class="fatura-item-kalan">${fatura.kalan_paket} paket kaldı (${fatura.okunan_paket}/${fatura.toplam_paket})</div>
                             </div>
                         `;
@@ -522,8 +522,8 @@
                         const tarih = fatura.tarih ? new Date(fatura.tarih).toLocaleDateString('tr-TR') : '-';
                         return `
                             <div class="fatura-item" data-fatura="${fatura.evrakno_sira}">
-                                <div class="fatura-item-baslik">${fatura.evrakno_seri}-${fatura.evrakno_sira}</div>
-                                <div class="fatura-item-detay">${fatura.cari_adi || '-'} | ${tarih}</div>
+                                <div class="fatura-item-baslik">${fatura.cari_adi || '-'}</div>
+                                <div class="fatura-item-detay">${fatura.evrakno_sira} | ${tarih}</div>
                                 <div class="fatura-item-kalan" style="color: #27ae60;">Tamamlandı (${fatura.okunan_paket}/${fatura.toplam_paket})</div>
                             </div>
                         `;
@@ -595,13 +595,22 @@
                     faturaKalemleri = data.kalemler;
 
                     // Bilgileri göster
-                    faturaNoGoster.textContent = `${mevcutFatura.evrakno_seri}-${mevcutFatura.evrakno_sira}`;
+                    faturaNoGoster.textContent = mevcutFatura.evrakno_seri ? `${mevcutFatura.evrakno_seri}-${Math.abs(mevcutFatura.evrakno_sira)}` : Math.abs(mevcutFatura.evrakno_sira);
                     cariKoduGoster.textContent = mevcutFatura.cari_kodu || '-';
                     cariAdiGoster.textContent = mevcutFatura.cari_adi || '-';
                     tarihGoster.textContent = mevcutFatura.tarih ? new Date(mevcutFatura.tarih).toLocaleDateString('tr-TR') : '-';
                     evrakAdiGoster.textContent = mevcutFatura.evrak_adi || '-';
                     toplamKalemGoster.textContent = mevcutFatura.toplam_kalem;
                     toplamPaketGoster.textContent = mevcutFatura.toplam_paket;
+
+                    // Okunan paket sayısını al
+                    try {
+                        const durumResponse = await fetch(`/api/mikro/fatura-durumu/${encodeURIComponent(faturaNo)}`);
+                        const durumData = await durumResponse.json();
+                        if (durumData.success) {
+                            toplamPaketGoster.textContent = `${durumData.okunan_paket} / ${durumData.toplam_paket}`;
+                        }
+                    } catch (e) { }
 
                     // Alanları güncelle
                     faturaSecimAlani.style.display = 'none';

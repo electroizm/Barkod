@@ -5,20 +5,217 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Stok - Güneşler Elektronik</title>
     <link rel="stylesheet" href="/css/stil.css">
+    <style>
+        .arama-alani {
+            padding: 10px 15px;
+            position: sticky;
+            top: 0;
+            background: #f5f5f5;
+            z-index: 10;
+        }
+        .arama-input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            outline: none;
+        }
+        .arama-input:focus {
+            border-color: #6c5ce7;
+        }
+        .sonuc-bilgi {
+            text-align: center;
+            color: #888;
+            padding: 8px;
+            font-size: 13px;
+        }
+        .stok-liste {
+            padding: 0 15px 15px;
+        }
+        .stok-item {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            overflow: hidden;
+        }
+        .stok-item-baslik {
+            padding: 12px 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .stok-item-baslik:active {
+            background: #f0f0f0;
+        }
+        .stok-malzeme-adi {
+            font-weight: 600;
+            font-size: 14px;
+            color: #333;
+            flex: 1;
+        }
+        .stok-depo-badge {
+            background: transparent;
+            color: #333;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            margin-left: 6px;
+            white-space: nowrap;
+            border: 2px solid #333;
+            min-width: 28px;
+            text-align: center;
+        }
+        .stok-detay {
+            display: none;
+            border-top: 1px solid #e0e0e0;
+            padding: 12px 15px;
+            background: #fafafa;
+        }
+        .stok-detay.acik {
+            display: block;
+        }
+        .detay-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+        }
+        .detay-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 10px;
+            background: #fff;
+            border-radius: 6px;
+            border: 1px solid #eee;
+        }
+        .detay-etiket {
+            color: #888;
+            font-size: 12px;
+        }
+        .detay-deger {
+            font-weight: 600;
+            font-size: 13px;
+            color: #333;
+        }
+        .bos-mesaj {
+            text-align: center;
+            color: #999;
+            padding: 40px 20px;
+            font-size: 14px;
+        }
+        .yukleniyor {
+            text-align: center;
+            padding: 30px;
+            color: #888;
+        }
+    </style>
 </head>
 <body>
     <div class="kapsayici">
-        <a href="/anasayfa.html" class="geri-buton">Geri</a>
+        <a href="/anasayfa.html" class="geri-buton">&larr; Geri</a>
+        <h1 class="baslik">Stok Arama</h1>
 
-        <h1 class="baslik">Stok Listesi</h1>
+        <div class="arama-alani">
+            <input type="text" class="arama-input" id="aramaInput" placeholder="Malzeme adı veya stok kodu ile arayın..." autofocus>
+        </div>
 
-        <p style="text-align: center; color: #666; padding: 40px;">
-            Bu sayfa güncel stok durumunu listelemek için kullanılacaktır.
-            <br><br>
-            <em>(Yakında eklenecek)</em>
-        </p>
+        <div class="sonuc-bilgi" id="sonucBilgi"></div>
+
+        <div class="stok-liste" id="stokListe">
+            <div class="bos-mesaj">Aramaya başlamak için yukarıdaki alana yazın.</div>
+        </div>
     </div>
 
     <script src="/js/ortak.js"></script>
+    <script>
+        const aramaInput = document.getElementById('aramaInput');
+        const stokListe = document.getElementById('stokListe');
+        const sonucBilgi = document.getElementById('sonucBilgi');
+
+        const DETAY_SUTUNLARI = ['DEPO', 'EXC', 'SUBE', 'Borç', 'Bekleyen', 'Plan', 'ID1', 'ID2', '###', 'LISTE', 'INDIRIM', 'PERAKENDE'];
+        const ETIKET_ADLARI = { 'ID1': 'ProSAP', 'ID2': 'Excel', '###': 'Marj', 'PERAKENDE': 'Fiyat' };
+        const FIYAT_SUTUNLARI = ['PERAKENDE', 'LISTE', 'ID1', 'ID2'];
+
+        let aramaZamanlayici = null;
+
+        aramaInput.addEventListener('input', function() {
+            clearTimeout(aramaZamanlayici);
+            aramaZamanlayici = setTimeout(() => {
+                stokAra(this.value.trim());
+            }, 300);
+        });
+
+        async function stokAra(sorgu) {
+            if (!sorgu || sorgu.length < 2) {
+                stokListe.innerHTML = '<div class="bos-mesaj">Aramaya başlamak için en az 2 karakter yazın.</div>';
+                sonucBilgi.textContent = '';
+                return;
+            }
+
+            stokListe.innerHTML = '<div class="yukleniyor">Aranıyor...</div>';
+
+            try {
+                const response = await fetch(`/api/stok/ara?q=${encodeURIComponent(sorgu)}`);
+                const data = await response.json();
+
+                if (!data.success) {
+                    stokListe.innerHTML = `<div class="bos-mesaj">${data.message}</div>`;
+                    sonucBilgi.textContent = '';
+                    return;
+                }
+
+                if (data.sonuclar.length === 0) {
+                    stokListe.innerHTML = '<div class="bos-mesaj">Sonuç bulunamadı.</div>';
+                    sonucBilgi.textContent = '';
+                    return;
+                }
+
+                sonucBilgi.textContent = `${data.sonuclar.length} sonuç bulundu`;
+
+                stokListe.innerHTML = data.sonuclar.map((kayit, index) => {
+                    const malzemeAdi = kayit['Malzeme Adı'] || '-';
+                    const fazla = parseInt(kayit['Fazla']) || 0;
+                    const miktar = parseInt(kayit['Miktar']) || 0;
+                    const fazlaRenk = fazla > 0 ? '#27ae60' : '#f39c12';
+
+                    const detayHTML = DETAY_SUTUNLARI.map(sutun => {
+                        let deger = kayit[sutun] !== undefined ? kayit[sutun] : '-';
+                        if (FIYAT_SUTUNLARI.includes(sutun) && deger !== '-') {
+                            deger = Number(deger).toLocaleString('tr-TR');
+                        }
+                        const etiket = ETIKET_ADLARI[sutun] || sutun;
+                        return `<div class="detay-item">
+                            <span class="detay-etiket">${etiket}</span>
+                            <span class="detay-deger">${deger}</span>
+                        </div>`;
+                    }).join('');
+
+                    return `<div class="stok-item">
+                        <div class="stok-item-baslik" onclick="detayToggle(${index})">
+                            <span class="stok-malzeme-adi">${malzemeAdi}</span>
+                            <span class="stok-depo-badge" style="border-color:${fazlaRenk};color:${fazlaRenk}">${fazla}</span>
+                            <span class="stok-depo-badge" style="border-color:#333">${miktar}</span>
+                        </div>
+                        <div class="stok-detay" id="detay${index}">
+                            <div class="detay-grid">${detayHTML}</div>
+                        </div>
+                    </div>`;
+                }).join('');
+
+            } catch (error) {
+                stokListe.innerHTML = `<div class="bos-mesaj">Bağlantı hatası: ${error.message}</div>`;
+                sonucBilgi.textContent = '';
+            }
+        }
+
+        function detayToggle(index) {
+            const detay = document.getElementById(`detay${index}`);
+            detay.classList.toggle('acik');
+        }
+    </script>
 </body>
 </html>

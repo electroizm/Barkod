@@ -18,7 +18,7 @@
         }
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #8e44ad, #9b59b6);
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
             transition: width 0.3s ease;
             border-radius: 9px;
         }
@@ -56,8 +56,8 @@
             margin-bottom: 20px;
         }
         .okuma-alani.basarili {
-            border-color: #9b59b6;
-            background-color: #f3e5f5;
+            border-color: #27ae60;
+            background-color: #f0fff4;
             animation: flash-success 0.3s;
         }
         .okuma-alani.hata {
@@ -66,8 +66,8 @@
             animation: flash-error 0.3s;
         }
         @keyframes flash-success {
-            0%, 100% { background-color: #f3e5f5; }
-            50% { background-color: #e1bee7; }
+            0%, 100% { background-color: #f0fff4; }
+            50% { background-color: #d4edda; }
         }
         @keyframes flash-error {
             0%, 100% { background-color: #fef2f2; }
@@ -81,8 +81,8 @@
             font-weight: 500;
         }
         .son-mesaj.basarili {
-            background-color: #e1bee7;
-            color: #4a148c;
+            background-color: #d4edda;
+            color: #155724;
         }
         .son-mesaj.hata {
             background-color: #f8d7da;
@@ -110,7 +110,7 @@
             font-size: 13px;
         }
         .okuma-item.basarili {
-            border-left: 3px solid #9b59b6;
+            border-left: 3px solid #27ae60;
         }
         .okuma-item.hata {
             border-left: 3px solid #e74c3c;
@@ -122,7 +122,7 @@
             flex-shrink: 0;
         }
         .okuma-ikon.basarili {
-            color: #9b59b6;
+            color: #27ae60;
         }
         .okuma-ikon.hata {
             color: #e74c3c;
@@ -139,7 +139,7 @@
             color: #888;
         }
         .tamamlandi-kutu {
-            background: linear-gradient(135deg, #8e44ad, #9b59b6);
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
             color: #1e293b;
             padding: 30px;
             border-radius: 12px;
@@ -149,12 +149,10 @@
         .tamamlandi-kutu h2 {
             margin: 0 0 10px;
             font-size: 24px;
-            color: white;
         }
         .tamamlandi-kutu p {
             margin: 0;
             opacity: 0.9;
-            color: white;
         }
         .geri-btn {
             display: inline-block;
@@ -184,7 +182,7 @@
             width: 40px;
             height: 40px;
             border: 4px solid #f3f3f3;
-            border-top: 4px solid #9b59b6;
+            border-top: 4px solid #3498db;
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -204,7 +202,7 @@
             box-sizing: border-box;
         }
         .manuel-input input:focus {
-            border-color: #9b59b6;
+            border-color: #3498db;
             outline: none;
         }
 
@@ -299,13 +297,13 @@
             box-shadow: 0 4px 12px rgba(234, 179, 8, 0.2);
         }
 
-        /* MOR: Tamamlanmış */
+        /* YEŞİL: Tamamlanmış */
         .malzeme-item.status-green {
-            background-color: #e1bee7;
+            background-color: #bbf7d0;
             color: #1e293b;
-            border-color: #9b59b6;
+            border-color: #22c55e;
             transform: scale(1.01);
-            box-shadow: 0 4px 12px rgba(155, 89, 182, 0.2);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
         }
         .malzeme-item.status-green::after {
             content: '✔';
@@ -313,7 +311,7 @@
             top: 15px;
             right: 15px;
             font-size: 1rem;
-            color: #9b59b6;
+            color: #22c55e;
         }
 
         /* Paket detayları */
@@ -353,8 +351,8 @@
             border-color: #eab308;
         }
         .paket-kutu.paket-green {
-            background-color: #e1bee7;
-            border-color: #9b59b6;
+            background-color: #dcfce7;
+            border-color: #22c55e;
         }
         .paket-etiket {
             font-size: 10px;
@@ -392,7 +390,7 @@
             font-size: 14px;
         }
         .btn-kaydet {
-            background-color: #9b59b6;
+            background-color: #27ae60;
             color: white;
         }
         .btn-devam {
@@ -406,19 +404,13 @@
 
         /* Fatura Bilgi Özeti */
         .fatura-ozet {
-            background-color: #f3e5f5;
-            padding: 10px 15px;
+            background-color: #d4edda;
+            padding: 12px 15px;
             border-radius: 8px;
             margin-bottom: 15px;
-            font-size: 13px;
-        }
-        .fatura-ozet-baslik {
-            font-weight: 600;
-            color: #8e44ad;
-        }
-        .fatura-ozet-detay {
-            color: #666;
-            margin-top: 4px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #155724;
         }
     </style>
 </head>
@@ -431,10 +423,7 @@
         <span id="faturaNoGoster" style="display:none;">-</span>
 
         <!-- Fatura Özet Bilgisi -->
-        <div class="fatura-ozet" id="faturaOzet">
-            <div class="fatura-ozet-baslik" id="faturaOzetBaslik">Fatura: -</div>
-            <div class="fatura-ozet-detay" id="faturaOzetDetay">Cari: -</div>
-        </div>
+        <div class="fatura-ozet" id="faturaOzet">Fatura: -</div>
 
         <!-- Son Mesaj - EN ÜSTTE -->
         <div class="son-mesaj gizle" id="sonMesaj"></div>
@@ -505,8 +494,7 @@
         // Elementler
         const malzemeListesi = document.getElementById('malzemeListesi');
         const faturaNoGoster = document.getElementById('faturaNoGoster');
-        const faturaOzetBaslik = document.getElementById('faturaOzetBaslik');
-        const faturaOzetDetay = document.getElementById('faturaOzetDetay');
+        const faturaOzet = document.getElementById('faturaOzet');
         const progressFill = document.getElementById('progressFill');
         const progressText = document.getElementById('progressText');
         const okunanPaketGoster = document.getElementById('okunanPaketGoster');
@@ -730,9 +718,8 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    // Fatura özet bilgileri
-                    faturaOzetBaslik.textContent = `Fatura: ${data.fatura.evrakno_seri}-${data.fatura.evrakno_sira}`;
-                    faturaOzetDetay.textContent = `Cari: ${data.fatura.cari_adi || '-'}`;
+                    // Fatura özet bilgileri (tek satır, koyu)
+                    faturaOzet.textContent = `Fatura: ${data.fatura.evrakno_sira} - ${data.fatura.cari_adi || '-'}`;
 
                     // İlerleme
                     const yuzde = data.tamamlanma_yuzdesi;
@@ -802,7 +789,7 @@
                     <div class="malzeme-item ${durumSinifi}" data-kalem-id="${kalem.id}" data-index="${index}">
                         <div class="malzeme-baslik" onclick="malzemeToggle(${index}, ${kalem.id})">
                             <div class="malzeme-bilgi">
-                                <div class="malzeme-miktar">${miktarInt} - ${kalem.malzeme_adi}</div>
+                                <div class="malzeme-miktar">${miktarInt} - ${kalem.malzeme_adi || kalem.product_desc || '-'}</div>
                             </div>
                         </div>
                         <div class="paket-detay" id="paketDetay${index}">
