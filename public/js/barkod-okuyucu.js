@@ -200,14 +200,18 @@ class BarkodOkuyucu {
     // ═══════════════════════════════════════════
 
     hariciUygulamaIleTara() {
-        // Mevcut URL parametrelerini koru, qr_code={CODE} placeholder ekle
+        // Mevcut URL parametrelerini koru
         const params = new URLSearchParams(window.location.search);
         params.set('qr_scan', '1');
-        params.set('qr_code', '{CODE}');
-        const donusUrl = window.location.origin + window.location.pathname + '?' + params.toString();
+        params.delete('qr_code'); // Eski varsa temizle
 
-        // QRafter x-callback-url (scheme: qrafter://, browser=external ile Safari'ye döner)
-        const qrafterUrl = 'qrafter://x-callback-url/scan'
+        // {CODE} placeholder'ı URLSearchParams dışında ekle (double-encoding önlenir)
+        const donusUrl = window.location.origin + window.location.pathname
+            + '?' + params.toString()
+            + '&qr_code={CODE}';
+
+        // Universal link ile aç (iOS "uygulama açılsın mı?" uyarısı göstermez)
+        const qrafterUrl = 'https://qrafter.com/x-callback-url/scan'
             + '?x-success=' + encodeURIComponent(donusUrl)
             + '&browser=external';
 
@@ -229,8 +233,14 @@ class BarkodOkuyucu {
         const temizUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
         history.replaceState(null, '', temizUrl);
 
-        if (code && code !== '{CODE}') {
+        if (code && code !== '{CODE}' && code !== '%7BCODE%7D') {
             console.log('QRafter geri dönüş - okunan:', code);
+
+            // Değeri input alanına yaz
+            if (this.input) {
+                this.input.value = code;
+            }
+
             // Kısa gecikme ile callback çağır (sayfa tamamen yüklensin)
             setTimeout(() => {
                 if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
