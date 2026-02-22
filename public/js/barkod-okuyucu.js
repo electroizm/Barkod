@@ -200,15 +200,18 @@ class BarkodOkuyucu {
     // ═══════════════════════════════════════════
 
     hariciUygulamaIleTara() {
-        // Mevcut URL'yi koru ve geri dönüş parametresi ekle
+        // Mevcut URL parametrelerini koru, qr_code={CODE} placeholder ekle
         const params = new URLSearchParams(window.location.search);
         params.set('qr_scan', '1');
+        params.set('qr_code', '{CODE}');
         const donusUrl = window.location.origin + window.location.pathname + '?' + params.toString();
 
-        // QRafter Pro x-callback-url
-        const qrafterUrl = 'qrafterpro://x-callback-url/scan?x-success=' + encodeURIComponent(donusUrl);
+        // QRafter x-callback-url (scheme: qrafter://, browser=external ile Safari'ye döner)
+        const qrafterUrl = 'qrafter://x-callback-url/scan'
+            + '?x-success=' + encodeURIComponent(donusUrl)
+            + '&browser=external';
 
-        console.log('QRafter Pro açılıyor, dönüş URL:', donusUrl);
+        console.log('QRafter açılıyor, dönüş URL:', donusUrl);
         window.location.href = qrafterUrl;
     }
 
@@ -217,20 +220,17 @@ class BarkodOkuyucu {
 
         if (params.get('qr_scan') !== '1') return;
 
-        // QRafter Pro'dan gelen veriyi al
-        const code = params.get('code') || params.get('content') || params.get('result');
+        // QRafter'dan gelen veriyi al ({CODE} placeholder yerine taranan değer gelir)
+        const code = params.get('qr_code');
 
-        // URL'yi temizle (qr_scan, code, type parametrelerini kaldır)
+        // URL'yi temizle
         params.delete('qr_scan');
-        params.delete('code');
-        params.delete('content');
-        params.delete('result');
-        params.delete('type');
+        params.delete('qr_code');
         const temizUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
         history.replaceState(null, '', temizUrl);
 
-        if (code) {
-            console.log('QRafter Pro geri dönüş - okunan:', code);
+        if (code && code !== '{CODE}') {
+            console.log('QRafter geri dönüş - okunan:', code);
             // Kısa gecikme ile callback çağır (sayfa tamamen yüklensin)
             setTimeout(() => {
                 if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
