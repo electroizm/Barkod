@@ -252,9 +252,28 @@ class BarkodOkuyucu {
             });
             this.taramaDongusu();
         } else {
-            // Fallback: jsQR kütüphanesi ile (ileride eklenebilir)
-            console.warn('BarcodeDetector desteklenmiyor. Manuel giriş kullanın.');
+            // Fallback: jsQR kütüphanesi ile
+            this.jsQRYukle().then(() => {
+                console.log('jsQR yüklendi, tarama başlıyor...');
+                this.taramaDongusuJsQR();
+            }).catch(hata => {
+                console.error('jsQR yüklenemedi:', hata);
+                alert('Barkod tarama kütüphanesi yüklenemedi.\nManuel giriş veya fotoğraf kullanın.');
+                this.kameraKapat_();
+            });
         }
+    }
+
+    jsQRYukle() {
+        if (window.jsQR) return Promise.resolve();
+
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
     }
 
     async taramaDongusu() {
@@ -291,6 +310,53 @@ class BarkodOkuyucu {
         }
     }
 
+    async taramaDongusuJsQR() {
+        if (!this.kameraAcik || !this.video.videoWidth) {
+            if (this.kameraAcik) {
+                requestAnimationFrame(() => this.taramaDongusuJsQR());
+            }
+            return;
+        }
+
+        try {
+            // Canvas oluştur (bir kez)
+            if (!this._taramaCanvas) {
+                this._taramaCanvas = document.createElement('canvas');
+                this._taramaCtx = this._taramaCanvas.getContext('2d', { willReadFrequently: true });
+            }
+
+            this._taramaCanvas.width = this.video.videoWidth;
+            this._taramaCanvas.height = this.video.videoHeight;
+            this._taramaCtx.drawImage(this.video, 0, 0);
+
+            const imageData = this._taramaCtx.getImageData(0, 0, this._taramaCanvas.width, this._taramaCanvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'dontInvert'
+            });
+
+            if (code) {
+                // Kamerayı kapat
+                this.kameraKapat_();
+
+                // Callback çağır
+                if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
+                    this.ayarlar.okumaSonrasi(code.data);
+                }
+
+                return;
+            }
+        } catch (hata) {
+            console.error('jsQR tarama hatası:', hata);
+        }
+
+        // Taramaya devam et (~15fps yeterli, mobilde performans için)
+        if (this.kameraAcik) {
+            setTimeout(() => {
+                requestAnimationFrame(() => this.taramaDongusuJsQR());
+            }, 50);
+        }
+    }
+
     async fotograftanOku(e) {
         const dosya = e.target.files[0];
         if (!dosya) return;
@@ -298,6 +364,8 @@ class BarkodOkuyucu {
         try {
             // Resmi yükle
             const resim = await this.dosyayiResmeYukle(dosya);
+
+            let barkodBulundu = false;
 
             // BarcodeDetector ile oku
             if ('BarcodeDetector' in window) {
@@ -308,17 +376,38 @@ class BarkodOkuyucu {
                 const barkodlar = await detector.detect(resim);
 
                 if (barkodlar.length > 0) {
-                    const barkod = barkodlar[0].rawValue;
-
-                    // Callback çağır
+                    barkodBulundu = true;
                     if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
-                        this.ayarlar.okumaSonrasi(barkod);
+                        this.ayarlar.okumaSonrasi(barkodlar[0].rawValue);
                     }
-                } else {
-                    alert('Fotoğrafta barkod/QR kod bulunamadı.');
                 }
-            } else {
-                alert('Tarayıcınız barkod okuma özelliğini desteklemiyor.');
+            }
+
+            // BarcodeDetector yoksa veya bulamadıysa, jsQR ile dene
+            if (!barkodBulundu) {
+                await this.jsQRYukle();
+
+                if (window.jsQR) {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = resim.width;
+                    canvas.height = resim.height;
+                    ctx.drawImage(resim, 0, 0);
+
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+                    if (code) {
+                        barkodBulundu = true;
+                        if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
+                            this.ayarlar.okumaSonrasi(code.data);
+                        }
+                    }
+                }
+            }
+
+            if (!barkodBulundu) {
+                alert('Fotoğrafta QR kod bulunamadı.\nQR kodun net ve tam göründüğünden emin olun.');
             }
         } catch (hata) {
             console.error('Fotoğraf okuma hatası:', hata);
