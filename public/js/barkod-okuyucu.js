@@ -205,17 +205,37 @@ class BarkodOkuyucu {
         params.set('qr_scan', '1');
         params.delete('qr_code'); // Eski varsa temizle
 
-        // {CODE} placeholder'ı URLSearchParams dışında ekle (double-encoding önlenir)
-        const donusUrl = window.location.origin + window.location.pathname
+        const yol = window.location.host + window.location.pathname
             + '?' + params.toString()
             + '&qr_code={CODE}';
 
-        // qrafter:// scheme ile x-callback-url modunda aç
-        const qrafterUrl = 'qrafter://x-callback-url/scan'
-            + '?x-success=' + encodeURIComponent(donusUrl)
-            + '&browser=external';
+        // Tarayıcıyı algıla: Chrome iOS = "CriOS", Firefox iOS = "FxiOS"
+        const isChrome = /CriOS/.test(navigator.userAgent);
+        const isFirefox = /FxiOS/.test(navigator.userAgent);
 
-        console.log('QRafter açılıyor, dönüş URL:', donusUrl);
+        let donusUrl;
+        let qrafterUrl;
+
+        if (isChrome) {
+            // Chrome: googlechromes:// scheme ile Chrome'a geri dön
+            donusUrl = 'googlechromes://' + yol;
+            qrafterUrl = 'qrafter://x-callback-url/scan'
+                + '?x-success=' + encodeURIComponent(donusUrl);
+        } else if (isFirefox) {
+            // Firefox: firefox:// scheme ile Firefox'a geri dön
+            donusUrl = 'firefox://open-url?url=' + encodeURIComponent('https://' + yol);
+            qrafterUrl = 'qrafter://x-callback-url/scan'
+                + '?x-success=' + encodeURIComponent(donusUrl);
+        } else {
+            // Safari: browser=external ile Safari'ye geri dön
+            donusUrl = 'https://' + yol;
+            qrafterUrl = 'qrafter://x-callback-url/scan'
+                + '?x-success=' + encodeURIComponent(donusUrl)
+                + '&browser=external';
+        }
+
+        console.log('QRafter açılıyor, tarayıcı:', isChrome ? 'Chrome' : isFirefox ? 'Firefox' : 'Safari');
+        console.log('Dönüş URL:', donusUrl);
         window.location.href = qrafterUrl;
     }
 
