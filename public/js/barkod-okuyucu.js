@@ -206,8 +206,8 @@ class BarkodOkuyucu {
             + '?' + params.toString()
             + '&qr_code={CODE}';
 
-        // qrafter:// scheme ile x-callback-url modunda aç
-        const qrafterUrl = 'qrafter://x-callback-url/scan'
+        // Universal link ile aç (diyalog çıkmaz), fallback olarak qrafter:// scheme
+        const qrafterUrl = 'https://qrafter.app/x-callback-url/scan'
             + '?x-success=' + encodeURIComponent(donusUrl)
             + '&browser=external';
 
