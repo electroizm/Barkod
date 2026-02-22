@@ -1,7 +1,7 @@
 /**
  * Barkod Okuyucu Bileşeni
  * - Barkod tarayıcı ile otomatik okuma
- * - Kamera ile QR/Barkod okuma
+ * - Kamera ile QR/Barkod okuma (html5-qrcode)
  * - Fotoğraftan QR/Barkod okuma
  * - Tüm sayfalarda ortak kullanım
  */
@@ -22,7 +22,7 @@ class BarkodOkuyucu {
         this.sonGiris = '';
         this.girisZamanlayici = null;
         this.kameraAcik = false;
-        this.videoStream = null;
+        this.qrScanner = null;
 
         this.olustur();
         this.olaylariDinle();
@@ -73,8 +73,7 @@ class BarkodOkuyucu {
                     <input type="file" id="fotoInput" accept="image/*" style="display: none;">
                 </div>
                 <div class="kamera-alani gizle" id="kameraAlani">
-                    <video id="kameraVideo" playsinline></video>
-                    <div class="kamera-cerceve"></div>
+                    <div id="kameraOkuyucu"></div>
                     <button type="button" class="kamera-kapat" id="kameraKapat">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="18" y1="6" x2="6" y2="18"/>
@@ -82,6 +81,7 @@ class BarkodOkuyucu {
                         </svg>
                     </button>
                 </div>
+                <div id="fotoOkuyucu" style="display:none;"></div>
             </div>
         `;
 
@@ -92,8 +92,9 @@ class BarkodOkuyucu {
         this.enterBtn = this.konteyner.querySelector('#enterBtn');
         this.fotoInput = this.konteyner.querySelector('#fotoInput');
         this.kameraAlani = this.konteyner.querySelector('#kameraAlani');
-        this.video = this.konteyner.querySelector('#kameraVideo');
-        this.kameraKapat = this.konteyner.querySelector('#kameraKapat');
+        this.kameraOkuyucu = this.konteyner.querySelector('#kameraOkuyucu');
+        this.kameraKapatBtn = this.konteyner.querySelector('#kameraKapat');
+        this.fotoOkuyucu = this.konteyner.querySelector('#fotoOkuyucu');
 
         // Input'a odaklan
         this.input.focus();
@@ -119,7 +120,7 @@ class BarkodOkuyucu {
         });
 
         // Kamera kapat butonu
-        this.kameraKapat.addEventListener('click', () => {
+        this.kameraKapatBtn.addEventListener('click', () => {
             this.kameraKapat_();
         });
 
@@ -141,9 +142,6 @@ class BarkodOkuyucu {
 
     tarayiciGirisTespit(e) {
         // Barkod tarayıcıları çok hızlı giriş yapar
-        // Her input'ta zamanlayıcı sıfırla ve bekle
-        // QR kodlar uzun olabilir (149+ karakter), bu yüzden daha uzun bekle
-
         clearTimeout(this.girisZamanlayici);
 
         this.girisZamanlayici = setTimeout(() => {
@@ -154,7 +152,7 @@ class BarkodOkuyucu {
             if (mevcutDeger.length >= 50) {
                 this.barkodOku();
             }
-        }, 300); // 300ms bekle - uzun QR kodlar için yeterli süre
+        }, 300);
     }
 
     barkodOku() {
@@ -165,7 +163,6 @@ class BarkodOkuyucu {
             return;
         }
 
-        // Debug log
         console.log('Barkod okuyucu - ham değer:', this.input.value);
         console.log('Barkod okuyucu - temizlenmiş:', barkod);
         console.log('Barkod okuyucu - uzunluk:', barkod.length);
@@ -180,9 +177,25 @@ class BarkodOkuyucu {
         this.input.focus();
     }
 
+    // html5-qrcode kütüphanesini CDN'den yükle
+    html5QrcodeYukle() {
+        if (window.Html5Qrcode) return Promise.resolve();
+
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
+            script.onload = () => {
+                console.log('html5-qrcode kütüphanesi yüklendi');
+                resolve();
+            };
+            script.onerror = () => reject(new Error('html5-qrcode yüklenemedi'));
+            document.head.appendChild(script);
+        });
+    }
+
     async kameraAc() {
         try {
-            // HTTPS kontrolü - mobil cihazlarda kamera için HTTPS gerekli
+            // HTTPS kontrolü
             const guvenliKontrol = window.location.protocol === 'https:' ||
                                    window.location.hostname === 'localhost' ||
                                    window.location.hostname === '127.0.0.1';
@@ -192,37 +205,51 @@ class BarkodOkuyucu {
                 return;
             }
 
+            // html5-qrcode yükle
+            await this.html5QrcodeYukle();
+
             // Kamera alanını göster
             this.kameraAlani.classList.remove('gizle');
-
-            // Kamera izni iste
-            this.videoStream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'environment', // Arka kamera
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
-            });
-
-            this.video.srcObject = this.videoStream;
-            this.video.play();
             this.kameraAcik = true;
 
-            // QR kod tarama başlat
-            this.qrTaramaBaslat();
+            // Scanner oluştur ve başlat
+            this.qrScanner = new Html5Qrcode('kameraOkuyucu');
+
+            await this.qrScanner.start(
+                { facingMode: 'environment' },
+                {
+                    fps: 10,
+                    qrbox: { width: 250, height: 250 },
+                    aspectRatio: 1.0,
+                    disableFlip: false
+                },
+                (decodedText) => {
+                    // QR/Barkod bulundu!
+                    console.log('Kamera ile okundu:', decodedText);
+                    this.kameraKapat_();
+
+                    if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
+                        this.ayarlar.okumaSonrasi(decodedText);
+                    }
+                },
+                () => {
+                    // Her frame'de çağrılır - tarama devam ediyor
+                }
+            );
 
         } catch (hata) {
             console.error('Kamera erişim hatası:', hata);
 
             let hataMesaji = 'Kamera erişimi sağlanamadı.';
 
-            if (hata.name === 'NotAllowedError') {
+            if (hata.name === 'NotAllowedError' || (typeof hata === 'string' && hata.includes('Permission'))) {
                 hataMesaji += '\n\nKamera izni reddedildi. Tarayıcı ayarlarından izin verin.';
             } else if (hata.name === 'NotFoundError') {
                 hataMesaji += '\n\nKamera bulunamadı.';
             } else if (hata.name === 'NotReadableError') {
                 hataMesaji += '\n\nKamera başka bir uygulama tarafından kullanılıyor olabilir.';
             } else {
+                hataMesaji += '\n\n' + (hata.message || hata);
                 hataMesaji += '\n\nFotoğraf butonunu kullanarak galeriden barkod okuyabilirsiniz.';
             }
 
@@ -231,130 +258,26 @@ class BarkodOkuyucu {
         }
     }
 
-    kameraKapat_() {
+    async kameraKapat_() {
         this.kameraAcik = false;
         this.kameraAlani.classList.add('gizle');
 
-        if (this.videoStream) {
-            this.videoStream.getTracks().forEach(track => track.stop());
-            this.videoStream = null;
+        if (this.qrScanner) {
+            try {
+                const state = this.qrScanner.getState();
+                if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+                    await this.qrScanner.stop();
+                }
+            } catch (e) {
+                console.warn('Scanner durdurma hatası:', e);
+            }
+            try {
+                this.qrScanner.clear();
+            } catch (e) {}
+            this.qrScanner = null;
         }
 
-        this.video.srcObject = null;
         this.input.focus();
-    }
-
-    qrTaramaBaslat() {
-        // BarcodeDetector API kullanımı (destekleyen tarayıcılarda)
-        if ('BarcodeDetector' in window) {
-            this.barcodeDetector = new BarcodeDetector({
-                formats: ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'code_93', 'upc_a', 'upc_e']
-            });
-            this.taramaDongusu();
-        } else {
-            // Fallback: jsQR kütüphanesi ile
-            this.jsQRYukle().then(() => {
-                console.log('jsQR yüklendi, tarama başlıyor...');
-                this.taramaDongusuJsQR();
-            }).catch(hata => {
-                console.error('jsQR yüklenemedi:', hata);
-                alert('Barkod tarama kütüphanesi yüklenemedi.\nManuel giriş veya fotoğraf kullanın.');
-                this.kameraKapat_();
-            });
-        }
-    }
-
-    jsQRYukle() {
-        if (window.jsQR) return Promise.resolve();
-
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-        });
-    }
-
-    async taramaDongusu() {
-        if (!this.kameraAcik || !this.video.videoWidth) {
-            if (this.kameraAcik) {
-                requestAnimationFrame(() => this.taramaDongusu());
-            }
-            return;
-        }
-
-        try {
-            const barkodlar = await this.barcodeDetector.detect(this.video);
-
-            if (barkodlar.length > 0) {
-                const barkod = barkodlar[0].rawValue;
-
-                // Kamerayı kapat
-                this.kameraKapat_();
-
-                // Callback çağır
-                if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
-                    this.ayarlar.okumaSonrasi(barkod);
-                }
-
-                return;
-            }
-        } catch (hata) {
-            console.error('Barkod tarama hatası:', hata);
-        }
-
-        // Taramaya devam et
-        if (this.kameraAcik) {
-            requestAnimationFrame(() => this.taramaDongusu());
-        }
-    }
-
-    async taramaDongusuJsQR() {
-        if (!this.kameraAcik || !this.video.videoWidth) {
-            if (this.kameraAcik) {
-                requestAnimationFrame(() => this.taramaDongusuJsQR());
-            }
-            return;
-        }
-
-        try {
-            // Canvas oluştur (bir kez)
-            if (!this._taramaCanvas) {
-                this._taramaCanvas = document.createElement('canvas');
-                this._taramaCtx = this._taramaCanvas.getContext('2d', { willReadFrequently: true });
-            }
-
-            this._taramaCanvas.width = this.video.videoWidth;
-            this._taramaCanvas.height = this.video.videoHeight;
-            this._taramaCtx.drawImage(this.video, 0, 0);
-
-            const imageData = this._taramaCtx.getImageData(0, 0, this._taramaCanvas.width, this._taramaCanvas.height);
-            const code = jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: 'dontInvert'
-            });
-
-            if (code) {
-                // Kamerayı kapat
-                this.kameraKapat_();
-
-                // Callback çağır
-                if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
-                    this.ayarlar.okumaSonrasi(code.data);
-                }
-
-                return;
-            }
-        } catch (hata) {
-            console.error('jsQR tarama hatası:', hata);
-        }
-
-        // Taramaya devam et (~15fps yeterli, mobilde performans için)
-        if (this.kameraAcik) {
-            setTimeout(() => {
-                requestAnimationFrame(() => this.taramaDongusuJsQR());
-            }, 50);
-        }
     }
 
     async fotograftanOku(e) {
@@ -362,70 +285,28 @@ class BarkodOkuyucu {
         if (!dosya) return;
 
         try {
-            // Resmi yükle
-            const resim = await this.dosyayiResmeYukle(dosya);
+            // html5-qrcode yükle
+            await this.html5QrcodeYukle();
 
-            let barkodBulundu = false;
+            const scanner = new Html5Qrcode('fotoOkuyucu');
 
-            // BarcodeDetector ile oku
-            if ('BarcodeDetector' in window) {
-                const detector = new BarcodeDetector({
-                    formats: ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'code_93', 'upc_a', 'upc_e']
-                });
+            const decodedText = await scanner.scanFile(dosya, false);
 
-                const barkodlar = await detector.detect(resim);
+            console.log('Fotoğraftan okundu:', decodedText);
 
-                if (barkodlar.length > 0) {
-                    barkodBulundu = true;
-                    if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
-                        this.ayarlar.okumaSonrasi(barkodlar[0].rawValue);
-                    }
-                }
+            if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
+                this.ayarlar.okumaSonrasi(decodedText);
             }
 
-            // BarcodeDetector yoksa veya bulamadıysa, jsQR ile dene
-            if (!barkodBulundu) {
-                await this.jsQRYukle();
-
-                if (window.jsQR) {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    canvas.width = resim.width;
-                    canvas.height = resim.height;
-                    ctx.drawImage(resim, 0, 0);
-
-                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    const code = jsQR(imageData.data, imageData.width, imageData.height);
-
-                    if (code) {
-                        barkodBulundu = true;
-                        if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
-                            this.ayarlar.okumaSonrasi(code.data);
-                        }
-                    }
-                }
-            }
-
-            if (!barkodBulundu) {
-                alert('Fotoğrafta QR kod bulunamadı.\nQR kodun net ve tam göründüğünden emin olun.');
-            }
+            scanner.clear();
         } catch (hata) {
             console.error('Fotoğraf okuma hatası:', hata);
-            alert('Fotoğraf okunamadı. Lütfen tekrar deneyin.');
+            alert('Fotoğrafta QR kod/barkod bulunamadı.\nQR kodun net ve tam göründüğünden emin olun.');
         }
 
         // Input'u temizle (aynı dosyayı tekrar seçebilmek için)
         this.fotoInput.value = '';
         this.input.focus();
-    }
-
-    dosyayiResmeYukle(dosya) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => resolve(img);
-            img.onerror = reject;
-            img.src = URL.createObjectURL(dosya);
-        });
     }
 
     // Dışarıdan input'a odaklanmak için
