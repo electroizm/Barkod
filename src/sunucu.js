@@ -38,6 +38,11 @@ uygulama.use('/api/ayarlar', ayarlarRotalari);
 uygulama.use('/api/mikro', mikroRotalari);
 uygulama.use('/api/stok', stokRotalari);
 
+// Health check - UptimeRobot ping için
+uygulama.get('/api/health', (istek, yanit) => {
+    yanit.json({ durum: 'aktif', zaman: new Date().toISOString() });
+});
+
 // Ana sayfa yönlendirmesi
 uygulama.get('/', (istek, yanit) => {
     if (istek.session.kullanici) {
