@@ -190,42 +190,20 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        .eksik-kalem-alani {
-            margin-top: 10px;
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-        .eksik-kalem-alani select {
-            flex: 1;
-            padding: 10px;
-            font-size: 13px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            box-sizing: border-box;
-            background: #fff;
-        }
-        .eksik-kalem-alani select:focus {
-            border-color: #3498db;
-            outline: none;
-        }
-        .btn-toplu-okut {
-            padding: 10px 14px;
-            font-size: 13px;
+        .btn-malzeme-oku {
+            padding: 4px 10px;
+            font-size: 11px;
             font-weight: 600;
             border: none;
-            border-radius: 6px;
+            border-radius: 4px;
             background: #e67e22;
             color: #fff;
             cursor: pointer;
             white-space: nowrap;
+            margin-left: auto;
         }
-        .btn-toplu-okut:active {
+        .btn-malzeme-oku:active {
             background: #d35400;
-        }
-        .btn-toplu-okut:disabled {
-            background: #ccc;
-            cursor: not-allowed;
         }
 
         /* Malzeme Listesi Stilleri */
@@ -468,12 +446,6 @@
         <!-- QR Okuma Alanı -->
         <div class="okuma-alani" id="okumaAlani">
             <div id="barkodOkuyucuAlani"></div>
-            <div class="eksik-kalem-alani">
-                <select id="eksikKalemSelect" disabled>
-                    <option value="">Eksik kalem seçin...</option>
-                </select>
-                <button type="button" class="btn-toplu-okut" id="topluOkutBtn" disabled onclick="topluOkut()">Tümünü Oku</button>
-            </div>
         </div>
 
         <!-- Aksiyon Butonları -->
@@ -529,8 +501,6 @@
         const sonMesaj = document.getElementById('sonMesaj');
         const tamamlandiKutu = document.getElementById('tamamlandiKutu');
         const okumaListesi = document.getElementById('okumaListesi');
-        const eksikKalemSelect = document.getElementById('eksikKalemSelect');
-        const topluOkutBtn = document.getElementById('topluOkutBtn');
         const yukleniyorOverlay = document.getElementById('yukleniyor');
         const geriBtn = document.getElementById('geriBtn');
 
@@ -627,10 +597,6 @@
             });
         }
 
-        // Eksik kalem dropdown değişikliği
-        eksikKalemSelect.addEventListener('change', function() {
-            topluOkutBtn.disabled = !this.value;
-        });
 
         // QR Okutma
         async function qrOkut(qrKod) {
@@ -754,9 +720,6 @@
                     // Malzeme listesini güncelle
                     malzemeListesiGuncelle(data.kalemler);
 
-                    // Eksik kalem dropdown'unu güncelle
-                    eksikKalemDropdownGuncelle(data.kalemler);
-
                     // Tamamlandı mı?
                     if (data.kalan_paket === 0 && data.toplam_paket > 0) {
                         tamamlandiGoster();
@@ -808,12 +771,17 @@
                     miktarInt = Math.floor(parseFloat(miktarStr)) || 1;
                 }
 
+                const okuBtn = durumSinifi !== 'status-green'
+                    ? `<button class="btn-malzeme-oku" onclick="event.stopPropagation(); topluOkut(${kalem.id}, '${(kalem.malzeme_adi || kalem.product_desc || '-').replace(/'/g, "\\'")}')">Oku</button>`
+                    : '';
+
                 return `
                     <div class="malzeme-item ${durumSinifi}" data-kalem-id="${kalem.id}" data-index="${index}">
                         <div class="malzeme-baslik" onclick="malzemeToggle(${index}, ${kalem.id})">
                             <div class="malzeme-bilgi">
                                 <div class="malzeme-miktar">${miktarInt} - ${kalem.malzeme_adi || kalem.product_desc || '-'}</div>
                             </div>
+                            ${okuBtn}
                         </div>
                         <div class="paket-detay" id="paketDetay${index}">
                             <div class="paket-detay-icerik" id="paketIcerik${index}">
@@ -953,40 +921,13 @@
             `).join('');
         }
 
-        // Eksik kalem dropdown'unu güncelle
-        function eksikKalemDropdownGuncelle(kalemler) {
-            if (!kalemler) return;
-
-            const eksikler = kalemler.filter(k => k.okunan_paket < k.beklenen_paket);
-
-            eksikKalemSelect.innerHTML = '<option value="">Eksik kalem seçin...</option>';
-
-            eksikler.forEach(kalem => {
-                const eksikAdet = kalem.beklenen_paket - kalem.okunan_paket;
-                const ad = kalem.malzeme_adi || kalem.product_desc || kalem.stok_kod;
-                const option = document.createElement('option');
-                option.value = kalem.id;
-                option.textContent = `${ad} (${eksikAdet} paket eksik)`;
-                eksikKalemSelect.appendChild(option);
-            });
-
-            eksikKalemSelect.disabled = eksikler.length === 0;
-            topluOkutBtn.disabled = true;
-        }
-
-        // Toplu okutma
-        async function topluOkut() {
-            const kalemId = eksikKalemSelect.value;
+        // Toplu okutma - malzeme satırındaki Oku butonundan çağrılır
+        async function topluOkut(kalemId, malzemeAdi) {
             if (!kalemId) return;
 
-            const secilenText = eksikKalemSelect.options[eksikKalemSelect.selectedIndex].text;
-
-            if (!confirm(`"${secilenText}" için eksik paketlerin tümü okunmuş sayılsın mı?`)) {
+            if (!confirm(`"${malzemeAdi}" için eksik paketlerin tümü okunmuş sayılsın mı?`)) {
                 return;
             }
-
-            topluOkutBtn.disabled = true;
-            topluOkutBtn.textContent = 'İşleniyor...';
 
             try {
                 const kullanici = document.getElementById('kullaniciBilgi')?.textContent || 'bilinmiyor';
@@ -1014,7 +955,6 @@
                     });
                     sonOkumalariGuncelle();
 
-                    // Frontend cache'i senkronize et
                     await frontendCacheSenkronize();
                     durumGuncelle();
                 } else {
@@ -1024,9 +964,6 @@
             } catch (error) {
                 sonMesajGoster('Bağlantı hatası: ' + error.message, 'hata');
                 sesliGeriBildirim('hata');
-            } finally {
-                topluOkutBtn.textContent = 'Tümünü Oku';
-                topluOkutBtn.disabled = !eksikKalemSelect.value;
             }
         }
 
