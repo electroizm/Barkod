@@ -1134,6 +1134,118 @@ router.get('/malzeme-paketler/:faturaNo/:kalemId', async (req, res) => {
 });
 
 /**
+ * POST /api/mikro/toplu-okut
+ * Bir kalemin okunmamış paketlerini toplu olarak okunmuş say
+ */
+router.post('/toplu-okut', async (req, res) => {
+    try {
+        const { fatura_no, kalem_id, kullanici } = req.body;
+
+        if (!fatura_no || !kalem_id) {
+            return res.json({
+                success: false,
+                message: 'Fatura numarası ve kalem ID gerekli'
+            });
+        }
+
+        const client = await getSupabaseClient();
+        if (!client) {
+            return res.json({
+                success: false,
+                message: 'Veritabanı bağlantısı kurulamadı'
+            });
+        }
+
+        // Kalem bilgisini al
+        const { data: kalem, error: kalemError } = await client
+            .from('satis_faturasi')
+            .select('*')
+            .eq('id', parseInt(kalem_id))
+            .eq('evrakno_sira', parseInt(fatura_no))
+            .single();
+
+        if (kalemError || !kalem) {
+            return res.json({
+                success: false,
+                message: 'Kalem bulunamadı'
+            });
+        }
+
+        const miktar = parseFloat(kalem.miktar) || 1;
+        const paketSayisi = parseInt(kalem.paket_sayisi) || 1;
+        const toplamPaket = Math.ceil(miktar * paketSayisi);
+
+        // Bu kalem için mevcut okumaları al
+        const { data: mevcutOkumalar, error: okumaError } = await client
+            .from('fatura_okumalari')
+            .select('paket_sira')
+            .eq('fatura_no', parseInt(fatura_no))
+            .eq('kalem_id', parseInt(kalem_id));
+
+        const okunanPaketler = new Set((mevcutOkumalar || []).map(o => o.paket_sira));
+
+        // Okunmamış paketleri bul
+        const eksikPaketler = [];
+        for (let i = 1; i <= toplamPaket; i++) {
+            if (!okunanPaketler.has(i)) {
+                eksikPaketler.push(i);
+            }
+        }
+
+        if (eksikPaketler.length === 0) {
+            return res.json({
+                success: false,
+                message: 'Bu kalemin tüm paketleri zaten okunmuş'
+            });
+        }
+
+        // Eksik paketler için okuma kayıtları oluştur
+        const kayitlar = eksikPaketler.map(paketSira => ({
+            fatura_no: parseInt(fatura_no),
+            kalem_id: parseInt(kalem_id),
+            qr_kod: `MANUEL_TOPLU_${kalem.stok_kod}_P${paketSira}`,
+            qr_hash: qrKodHash(`MANUEL_TOPLU_${kalem.stok_kod}_P${paketSira}`),
+            stok_kod: kalem.stok_kod,
+            paket_sira: paketSira,
+            paket_toplam: toplamPaket,
+            kullanici: kullanici || 'bilinmiyor',
+            created_at: new Date().toISOString()
+        }));
+
+        const { error: insertError } = await client
+            .from('fatura_okumalari')
+            .insert(kayitlar);
+
+        if (insertError) {
+            console.error('Toplu okutma kayıt hatası:', insertError);
+            return res.json({
+                success: false,
+                message: 'Kayıt hatası: ' + insertError.message
+            });
+        }
+
+        // Cache'i güncelle
+        kayitlar.forEach(k => {
+            cacheyeOkumaEkle(fatura_no.toString(), k.qr_kod, k.stok_kod, k.paket_sira);
+        });
+
+        return res.json({
+            success: true,
+            message: `${kalem.malzeme_adi || kalem.product_desc || kalem.stok_kod} - ${eksikPaketler.length} paket okundu sayıldı`,
+            eklenen_paket: eksikPaketler.length,
+            malzeme_adi: kalem.malzeme_adi || kalem.product_desc || kalem.stok_kod
+        });
+
+    } catch (error) {
+        console.error('Toplu okutma hatası:', error);
+        return res.json({
+            success: false,
+            message: 'Sunucu hatası: ' + error.message
+        });
+    }
+});
+
+/**
  * GET /api/mikro/kapatilan-faturalar
  * Tamamlanmış faturaları listele
  */
