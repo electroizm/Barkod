@@ -961,6 +961,122 @@ router.get('/malzeme-paketler/:oturumId/:kalemId', async (req, res) => {
 });
 
 /**
+ * POST /api/supabase/toplu-okut
+ * Bir kalemin okunmamış paketlerini toplu olarak okunmuş say
+ */
+router.post('/toplu-okut', async (req, res) => {
+    try {
+        const { oturum_id, kalem_id, kullanici } = req.body;
+
+        if (!oturum_id || !kalem_id) {
+            return res.json({
+                success: false,
+                message: 'Oturum ID ve kalem ID gerekli'
+            });
+        }
+
+        const client = await getSupabaseClient();
+        if (!client) {
+            return res.json({
+                success: false,
+                message: 'Veritabanı bağlantısı kurulamadı'
+            });
+        }
+
+        // Kalem bilgisini al
+        const { data: kalem, error: kalemError } = await client
+            .from('nakliye_yuklemeleri')
+            .select('*')
+            .eq('id', parseInt(kalem_id))
+            .eq('oturum_id', oturum_id)
+            .single();
+
+        if (kalemError || !kalem) {
+            return res.json({
+                success: false,
+                message: 'Kalem bulunamadı'
+            });
+        }
+
+        const miktar = parseFloat((kalem.miktar || '1').replace(',', '.')) || 1;
+        const birimPaket = parseInt(kalem.paket_sayisi) || 1;
+
+        // Bu kaleme ait mevcut okumaları al
+        const { data: mevcutOkumalar, error: okumaError } = await client
+            .from('paket_okumalari')
+            .select('paket_sira')
+            .eq('nakliye_kalem_id', parseInt(kalem_id));
+
+        // Paket bazında okuma sayılarını hesapla
+        const paketOkumalari = {};
+        if (!okumaError && mevcutOkumalar) {
+            mevcutOkumalar.forEach(o => {
+                const sira = o.paket_sira || 1;
+                paketOkumalari[sira] = (paketOkumalari[sira] || 0) + 1;
+            });
+        }
+
+        // Eksik okumaları bul
+        const kayitlar = [];
+        for (let i = 1; i <= birimPaket; i++) {
+            const mevcutOkuma = paketOkumalari[i] || 0;
+            const eksikOkuma = Math.ceil(miktar) - mevcutOkuma;
+
+            for (let j = 0; j < eksikOkuma; j++) {
+                kayitlar.push({
+                    oturum_id: oturum_id,
+                    nakliye_kalem_id: parseInt(kalem_id),
+                    qr_kod: `MANUEL_TOPLU_${kalem.malzeme_no}_P${i}_${j + 1}`,
+                    qr_hash: qrKodHash(`MANUEL_TOPLU_${kalem.malzeme_no}_P${i}_${j + 1}`),
+                    paket_toplam: birimPaket,
+                    paket_sira: i,
+                    malzeme_no_qr: kalem.malzeme_no,
+                    okuyan_kullanici: kullanici || 'bilinmiyor'
+                });
+            }
+        }
+
+        if (kayitlar.length === 0) {
+            return res.json({
+                success: false,
+                message: 'Bu kalemin tüm paketleri zaten okunmuş'
+            });
+        }
+
+        const { error: insertError } = await client
+            .from('paket_okumalari')
+            .insert(kayitlar);
+
+        if (insertError) {
+            console.error('Toplu okutma kayıt hatası:', insertError);
+            return res.json({
+                success: false,
+                message: 'Kayıt hatası: ' + insertError.message
+            });
+        }
+
+        // Cache'i güncelle
+        kayitlar.forEach(k => {
+            cacheyeOkumaEkle(oturum_id, k.qr_kod, k.malzeme_no_qr, k.paket_sira);
+        });
+
+        return res.json({
+            success: true,
+            message: `${kalem.malzeme_adi || kalem.malzeme_no} - ${kayitlar.length} paket okundu sayıldı`,
+            eklenen_paket: kayitlar.length,
+            malzeme_adi: kalem.malzeme_adi || kalem.malzeme_no
+        });
+
+    } catch (error) {
+        console.error('Toplu okutma hatası:', error);
+        return res.json({
+            success: false,
+            message: 'Sunucu hatası: ' + error.message
+        });
+    }
+});
+
+/**
  * Son Okumaları Getir
  * GET /api/supabase/son-okumalar/:oturumId
  */

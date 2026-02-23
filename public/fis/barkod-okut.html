@@ -1031,11 +1031,11 @@
             try {
                 const kullanici = document.getElementById('kullaniciBilgi')?.textContent || 'bilinmiyor';
 
-                const response = await fetch('/api/mikro/toplu-okut', {
+                const response = await fetch('/api/supabase/toplu-okut', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        fatura_no: faturaNo,
+                        oturum_id: oturumId,
                         kalem_id: kalemId,
                         kullanici: kullanici
                     })
