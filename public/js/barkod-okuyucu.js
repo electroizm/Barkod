@@ -48,6 +48,13 @@ class BarkodOkuyucu {
                 <div class="barkod-alt-satir">
                     <span class="barkod-etiket">QR Barkod</span>
                     <div class="barkod-butonlar">
+                    <button type="button" class="barkod-ikon-btn" id="appBtn" title="QRafter ile tara">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+                            <path d="M9 8h2v2H9z M13 8h2v2h-2z M9 12h2v2H9z M13 12h2v2h-2z"/>
+                            <line x1="12" y1="18" x2="12.01" y2="18"/>
+                        </svg>
+                    </button>
                     <button type="button" class="barkod-ikon-btn" id="kameraBtn" title="Kamera ile barkod oku">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
@@ -59,13 +66,6 @@ class BarkodOkuyucu {
                             <line x1="14" y1="8" x2="17" y2="8"/>
                             <line x1="7" y1="16" x2="10" y2="16"/>
                             <line x1="14" y1="16" x2="17" y2="16"/>
-                        </svg>
-                    </button>
-                    <button type="button" class="barkod-ikon-btn" id="appBtn" title="QRafter ile tara">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
-                            <path d="M9 8h2v2H9z M13 8h2v2h-2z M9 12h2v2H9z M13 12h2v2h-2z"/>
-                            <line x1="12" y1="18" x2="12.01" y2="18"/>
                         </svg>
                     </button>
                     <button type="button" class="barkod-ikon-btn" id="fotoBtn" title="Fotoğraftan barkod oku">
