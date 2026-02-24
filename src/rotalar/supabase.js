@@ -803,7 +803,7 @@ router.post('/qr-okut', async (req, res) => {
 
         return res.json({
             success: true,
-            message: `Paket okundu: ${eslesenKalem.malzeme_adi} (${qrBilgi.paketSira}/${qrBilgi.paketToplam})`,
+            message: `${eslesenKalem.malzeme_adi} (${qrBilgi.paketSira}/${qrBilgi.paketToplam})`,
             eslesen_kalem: {
                 id: eslesenKalem.id,
                 malzeme_no: eslesenKalem.malzeme_no,
