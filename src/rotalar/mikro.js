@@ -327,6 +327,7 @@ async function sqlConfigYukle() {
         // SQL Server config
         SQL_CONFIG = {
             server: config['SQL_SERVER'] || '192.168.1.17',
+            port: parseInt(config['SQL_PORT']) || 1433,
             database: config['SQL_DATABASE'] || 'MikroDB_V14_DOGTAS_12',
             user: config['SQL_USERNAME'] || 'sa',
             password: config['SQL_PASSWORD'] || '',
@@ -340,7 +341,7 @@ async function sqlConfigYukle() {
         };
 
         configYuklendi = true;
-        console.log('SQL Server config PRGsheet\'ten yüklendi:', SQL_CONFIG.server);
+        console.log(`SQL Server config PRGsheet'ten yüklendi: ${SQL_CONFIG.server}:${SQL_CONFIG.port}`);
         return SQL_CONFIG;
 
     } catch (hata) {
