@@ -55,20 +55,27 @@ async function faturaCacheYukle(faturaNo, client, zorlaYenile = false) {
     // Okunan QR'ları yükle
     const { data: okumalar, error: okumaHata } = await client
         .from('fatura_okumalari')
-        .select('qr_kod, stok_kod, paket_sira')
+        .select('qr_kod, stok_kod, paket_sira, kalem_id')
         .eq('fatura_no', parseInt(faturaNo));
 
     const okunanQrler = new Set();
     const paketOkumaSayilari = new Map(); // "stok_kod:paket_sira" -> sayı
+    const kalemOkumaSayilari = new Map(); // "kalem_id:paket_sira" -> sayı (satır dağıtımı için)
 
     if (!okumaHata && okumalar) {
         okumalar.forEach(o => {
             okunanQrler.add(o.qr_kod);
 
-            // Paket okuma sayısını hesapla
+            // Paket okuma sayısını hesapla (toplam - stok_kod bazlı)
             if (o.stok_kod && o.paket_sira) {
                 const key = `${o.stok_kod}:${o.paket_sira}`;
                 paketOkumaSayilari.set(key, (paketOkumaSayilari.get(key) || 0) + 1);
+            }
+
+            // Kalem bazlı okuma sayısı (aynı üründen birden fazla satır olduğunda doğru dağıtım için)
+            if (o.kalem_id && o.paket_sira) {
+                const kalemKey = `${o.kalem_id}:${o.paket_sira}`;
+                kalemOkumaSayilari.set(kalemKey, (kalemOkumaSayilari.get(kalemKey) || 0) + 1);
             }
         });
     }
@@ -87,6 +94,7 @@ async function faturaCacheYukle(faturaNo, client, zorlaYenile = false) {
         kalemler: kalemler || [],
         okunanQrler,
         paketOkumaSayilari,
+        kalemOkumaSayilari,
         sonGuncelleme: simdi,
         toplamPaket,
         okunanPaket: okunanQrler.size
@@ -101,17 +109,23 @@ async function faturaCacheYukle(faturaNo, client, zorlaYenile = false) {
 /**
  * Cache'e yeni okuma ekle
  */
-function cacheyeOkumaEkle(faturaNo, qrKod, stokKod, paketSira) {
+function cacheyeOkumaEkle(faturaNo, qrKod, stokKod, paketSira, kalemId) {
     const cache = faturaCache.get(faturaNo);
     if (cache) {
         cache.okunanQrler.add(qrKod);
         cache.okunanPaket = cache.okunanQrler.size;
         cache.sonGuncelleme = Date.now();
 
-        // Paket okuma sayısını artır
+        // Paket okuma sayısını artır (stok_kod bazlı toplam)
         if (stokKod && paketSira) {
             const key = `${stokKod}:${paketSira}`;
             cache.paketOkumaSayilari.set(key, (cache.paketOkumaSayilari.get(key) || 0) + 1);
+        }
+
+        // Kalem bazlı okuma sayısını artır (satır dağıtımı için)
+        if (kalemId && paketSira) {
+            const kalemKey = `${kalemId}:${paketSira}`;
+            cache.kalemOkumaSayilari.set(kalemKey, (cache.kalemOkumaSayilari.get(kalemKey) || 0) + 1);
         }
     }
 }
@@ -128,7 +142,7 @@ function cachedeQrVarMi(faturaNo, qrKod) {
 }
 
 /**
- * Cache'den kalem bul (stok_kod ile)
+ * Cache'den kalem bul (stok_kod ile) - ilk eşleşeni döndürür
  */
 function cachedeStokKodBul(faturaNo, stokKod) {
     const cache = faturaCache.get(faturaNo);
@@ -139,6 +153,54 @@ function cachedeStokKodBul(faturaNo, stokKod) {
         k.product_code === stokKod ||
         k.stok_kod.startsWith(stokKod + '-')
     );
+}
+
+/**
+ * stok_kod ile eşleşen bir kalemin eşleşip eşleşmediğini kontrol et
+ */
+function stokKodEslesiyor(kalem, stokKod) {
+    return kalem.stok_kod === stokKod ||
+        kalem.product_code === stokKod ||
+        kalem.stok_kod.startsWith(stokKod + '-');
+}
+
+/**
+ * Aynı stok_kod'a sahip TÜM kalemlerin toplam miktarını hesapla
+ */
+function toplamMiktarBulStokKod(faturaNo, stokKod) {
+    const cache = faturaCache.get(faturaNo);
+    if (!cache) return 1;
+
+    return cache.kalemler
+        .filter(k => stokKodEslesiyor(k, stokKod))
+        .reduce((toplam, k) => toplam + (parseFloat(k.miktar) || 1), 0);
+}
+
+/**
+ * Aynı stok_kod'a sahip kalemlerden kapasitesi olan ilkini bul
+ */
+function uygunKalemBulStokKod(faturaNo, stokKod, paketSira) {
+    const cache = faturaCache.get(faturaNo);
+    if (!cache) return null;
+
+    const eslesenKalemler = cache.kalemler.filter(k => stokKodEslesiyor(k, stokKod));
+    if (eslesenKalemler.length === 0) return null;
+
+    // Tek satır varsa direkt döndür
+    if (eslesenKalemler.length === 1) return eslesenKalemler[0];
+
+    // Birden fazla satır: kapasitesi olan ilk kalemi bul
+    for (const kalem of eslesenKalemler) {
+        const kalemMiktar = parseFloat(kalem.miktar) || 1;
+        const kalemKey = `${kalem.id}:${paketSira}`;
+        const kalemOkuma = cache.kalemOkumaSayilari.get(kalemKey) || 0;
+        if (kalemOkuma < kalemMiktar) {
+            return kalem;
+        }
+    }
+
+    // Hepsi doluysa ilkini döndür (limit kontrolü yakalayacak)
+    return eslesenKalemler[0];
 }
 
 /**
@@ -964,34 +1026,37 @@ router.post('/qr-okut', async (req, res) => {
             eslesenKalem = cachedeProductCodeBul(fatura_no, qrBilgi.malzemeNo);
         }
 
-        // Bulunamadıysa stok_kod ile dene
+        // Bulunamadıysa stok_kod ile dene - önce var mı kontrol et
         if (!eslesenKalem) {
-            eslesenKalem = cachedeStokKodBul(fatura_no, stokKod);
-        }
-
-        if (!eslesenKalem) {
-            return res.json({
-                success: false,
-                message: `Bu ürün (${stokKod}) faturada bulunamadı!`,
-                hata_tipi: 'NOT_FOUND_STANDARD',
-                detay: { stok_kod: stokKod }
-            });
+            const herhangiKalem = cachedeStokKodBul(fatura_no, stokKod);
+            if (!herhangiKalem) {
+                return res.json({
+                    success: false,
+                    message: `Bu ürün (${stokKod}) faturada bulunamadı!`,
+                    hata_tipi: 'NOT_FOUND_STANDARD',
+                    detay: { stok_kod: stokKod }
+                });
+            }
+            // Kapasitesi olan uygun kalemi bul (aynı üründen birden fazla satır olabilir)
+            eslesenKalem = uygunKalemBulStokKod(fatura_no, stokKod, paketSira);
+            if (!eslesenKalem) eslesenKalem = herhangiKalem;
         }
 
         // 6. PAKET OKUMA LİMİT KONTROLÜ
-        const miktar = parseFloat(eslesenKalem.miktar) || 1;
+        // Aynı stok_kod'dan birden fazla satır olabilir, TOPLAM miktarı hesapla
+        const toplamMiktar = toplamMiktarBulStokKod(fatura_no, stokKod);
 
-        if (!paketOkumasiYapilabilirMi(fatura_no, stokKod, paketSira, miktar)) {
+        if (!paketOkumasiYapilabilirMi(fatura_no, stokKod, paketSira, toplamMiktar)) {
             const mevcutOkuma = paketOkumaSayisi(fatura_no, stokKod, paketSira);
             return res.json({
                 success: false,
-                message: `Paket ${paketSira}/${paketToplam} için tüm okumalar tamamlandı!`,
+                message: `${eslesenKalem.malzeme_adi || eslesenKalem.product_desc || stokKod} (${paketSira}/${paketToplam}) için tüm okumalar tamamlandı!`,
                 hata_tipi: 'PAKET_LIMIT_ASILDI',
                 detay: {
                     stok_kod: stokKod,
                     paket_sira: paketSira,
                     paket_toplam: paketToplam,
-                    miktar: miktar,
+                    miktar: toplamMiktar,
                     okunan: mevcutOkuma
                 }
             });
@@ -1017,7 +1082,7 @@ router.post('/qr-okut', async (req, res) => {
         if (insertError) {
             // Unique constraint hatası - duplicate
             if (insertError.code === '23505') {
-                cacheyeOkumaEkle(fatura_no, qr_kod, stokKod, paketSira);
+                cacheyeOkumaEkle(fatura_no, qr_kod, stokKod, paketSira, eslesenKalem.id);
                 return res.json({
                     success: false,
                     message: 'Bu paket zaten okundu!',
@@ -1034,7 +1099,7 @@ router.post('/qr-okut', async (req, res) => {
         }
 
         // 8. Başarılı! Cache'i güncelle
-        cacheyeOkumaEkle(fatura_no, qr_kod, stokKod, paketSira);
+        cacheyeOkumaEkle(fatura_no, qr_kod, stokKod, paketSira, eslesenKalem.id);
 
         // Güncel cache'den istatistik al
         const guncelCache = faturaCache.get(fatura_no);
@@ -1226,7 +1291,7 @@ router.post('/toplu-okut', async (req, res) => {
 
         // Cache'i güncelle
         kayitlar.forEach(k => {
-            cacheyeOkumaEkle(fatura_no.toString(), k.qr_kod, k.stok_kod, k.paket_sira);
+            cacheyeOkumaEkle(fatura_no.toString(), k.qr_kod, k.stok_kod, k.paket_sira, k.kalem_id);
         });
 
         return res.json({

@@ -55,20 +55,27 @@ async function oturumCacheYukle(oturumId, client, zorlaYenile = false) {
     // Okunan QR'ları ve paket okuma sayılarını yükle
     const { data: okumalar, error: okumaHata } = await client
         .from('paket_okumalari')
-        .select('qr_kod, malzeme_no_qr, paket_sira')
+        .select('qr_kod, malzeme_no_qr, paket_sira, nakliye_kalem_id')
         .eq('oturum_id', oturumId);
 
     const okunanQrler = new Set();
     const paketOkumaSayilari = new Map(); // "malzeme_no:paket_sira" -> sayı
+    const kalemOkumaSayilari = new Map(); // "kalem_id:paket_sira" -> sayı (satır dağıtımı için)
 
     if (!okumaHata && okumalar) {
         okumalar.forEach(o => {
             okunanQrler.add(o.qr_kod);
 
-            // Paket okuma sayısını hesapla
+            // Paket okuma sayısını hesapla (toplam - malzeme_no bazlı)
             if (o.malzeme_no_qr && o.paket_sira) {
                 const key = `${o.malzeme_no_qr}:${o.paket_sira}`;
                 paketOkumaSayilari.set(key, (paketOkumaSayilari.get(key) || 0) + 1);
+            }
+
+            // Kalem bazlı okuma sayısı (aynı üründen birden fazla satır olduğunda doğru dağıtım için)
+            if (o.nakliye_kalem_id && o.paket_sira) {
+                const kalemKey = `${o.nakliye_kalem_id}:${o.paket_sira}`;
+                kalemOkumaSayilari.set(kalemKey, (kalemOkumaSayilari.get(kalemKey) || 0) + 1);
             }
         });
     }
@@ -87,6 +94,7 @@ async function oturumCacheYukle(oturumId, client, zorlaYenile = false) {
         kalemler: kalemler || [],
         okunanQrler,
         paketOkumaSayilari,
+        kalemOkumaSayilari,
         sonGuncelleme: simdi,
         toplamPaket,
         okunanPaket: okunanQrler.size
@@ -101,17 +109,23 @@ async function oturumCacheYukle(oturumId, client, zorlaYenile = false) {
 /**
  * Cache'e yeni okuma ekle
  */
-function cacheyeOkumaEkle(oturumId, qrKod, malzemeNo, paketSira) {
+function cacheyeOkumaEkle(oturumId, qrKod, malzemeNo, paketSira, kalemId) {
     const cache = oturumCache.get(oturumId);
     if (cache) {
         cache.okunanQrler.add(qrKod);
         cache.okunanPaket = cache.okunanQrler.size;
         cache.sonGuncelleme = Date.now();
 
-        // Paket okuma sayısını artır
+        // Paket okuma sayısını artır (malzeme_no bazlı toplam)
         if (malzemeNo && paketSira) {
             const key = `${malzemeNo}:${paketSira}`;
             cache.paketOkumaSayilari.set(key, (cache.paketOkumaSayilari.get(key) || 0) + 1);
+        }
+
+        // Kalem bazlı okuma sayısını artır (satır dağıtımı için)
+        if (kalemId && paketSira) {
+            const kalemKey = `${kalemId}:${paketSira}`;
+            cache.kalemOkumaSayilari.set(kalemKey, (cache.kalemOkumaSayilari.get(kalemKey) || 0) + 1);
         }
     }
 }
@@ -153,13 +167,54 @@ function cachedeQrVarMi(oturumId, qrKod) {
 }
 
 /**
- * Cache'den kalem bul (malzeme_no ile)
+ * Cache'den kalem bul (malzeme_no ile) - ilk eşleşeni döndürür
  */
 function cachedeMalzemeNoBul(oturumId, malzemeNo) {
     const cache = oturumCache.get(oturumId);
     if (!cache) return null;
 
     return cache.kalemler.find(k => k.malzeme_no === malzemeNo);
+}
+
+/**
+ * Aynı malzeme_no'ya sahip TÜM kalemlerin toplam miktarını hesapla
+ * Birden fazla satır olduğunda limit kontrolü için kullanılır
+ */
+function toplamMiktarBulMalzemeNo(oturumId, malzemeNo) {
+    const cache = oturumCache.get(oturumId);
+    if (!cache) return 1;
+
+    return cache.kalemler
+        .filter(k => k.malzeme_no === malzemeNo)
+        .reduce((toplam, k) => toplam + (parseFloat((k.miktar || '1').replace(',', '.')) || 1), 0);
+}
+
+/**
+ * Aynı malzeme_no'ya sahip kalemlerden kapasitesi olan ilkini bul
+ * Birden fazla satır olduğunda okumayı doğru kaleme yönlendirir
+ */
+function uygunKalemBulMalzemeNo(oturumId, malzemeNo, paketSira) {
+    const cache = oturumCache.get(oturumId);
+    if (!cache) return null;
+
+    const eslesenKalemler = cache.kalemler.filter(k => k.malzeme_no === malzemeNo);
+    if (eslesenKalemler.length === 0) return null;
+
+    // Tek satır varsa direkt döndür
+    if (eslesenKalemler.length === 1) return eslesenKalemler[0];
+
+    // Birden fazla satır: kapasitesi olan ilk kalemi bul
+    for (const kalem of eslesenKalemler) {
+        const kalemMiktar = parseFloat((kalem.miktar || '1').replace(',', '.')) || 1;
+        const kalemKey = `${kalem.id}:${paketSira}`;
+        const kalemOkuma = cache.kalemOkumaSayilari.get(kalemKey) || 0;
+        if (kalemOkuma < kalemMiktar) {
+            return kalem;
+        }
+    }
+
+    // Hepsi doluysa ilkini döndür (limit kontrolü yakalayacak)
+    return eslesenKalemler[0];
 }
 
 /**
@@ -630,9 +685,10 @@ router.post('/qr-okut', async (req, res) => {
             }
         } else {
             // Standart ürün: malzeme_no ile eşleştir
-            eslesenKalem = cachedeMalzemeNoBul(oturum_id, qrBilgi.malzemeNo);
+            // Önce ürünün var olup olmadığını kontrol et
+            const herhangiKalem = cachedeMalzemeNoBul(oturum_id, qrBilgi.malzemeNo);
 
-            if (!eslesenKalem) {
+            if (!herhangiKalem) {
                 return res.json({
                     success: false,
                     message: 'Bu ürün bu nakliyede bulunamadı!',
@@ -642,6 +698,10 @@ router.post('/qr-okut', async (req, res) => {
                     }
                 });
             }
+
+            // Kapasitesi olan uygun kalemi bul (aynı üründen birden fazla satır olabilir)
+            eslesenKalem = uygunKalemBulMalzemeNo(oturum_id, qrBilgi.malzemeNo, qrBilgi.paketSira);
+            if (!eslesenKalem) eslesenKalem = herhangiKalem;
         }
 
         // 5. Paket toplam kontrolü
@@ -651,22 +711,22 @@ router.post('/qr-okut', async (req, res) => {
         }
 
         // 6. PAKET OKUMA LİMİT KONTROLÜ
-        // Bu malzeme_no + paket_sira için miktar kadar okuma yapılabilir
-        const miktar = parseFloat((eslesenKalem.miktar || '1').replace(',', '.')) || 1;
+        // Aynı malzeme_no'dan birden fazla satır olabilir, TOPLAM miktarı hesapla
         const malzemeNo = qrBilgi.malzemeNo;
         const paketSira = qrBilgi.paketSira;
+        const toplamMiktar = toplamMiktarBulMalzemeNo(oturum_id, malzemeNo);
 
-        if (!paketOkumasiYapilabilirMi(oturum_id, malzemeNo, paketSira, miktar)) {
+        if (!paketOkumasiYapilabilirMi(oturum_id, malzemeNo, paketSira, toplamMiktar)) {
             const mevcutOkuma = paketOkumaSayisi(oturum_id, malzemeNo, paketSira);
             return res.json({
                 success: false,
-                message: `(${paketSira}/${qrBilgi.paketToplam}) için tüm okumalar tamamlandı!`,
+                message: `${eslesenKalem.malzeme_adi} (${paketSira}/${qrBilgi.paketToplam}) için tüm okumalar tamamlandı!`,
                 hata_tipi: 'PAKET_LIMIT_ASILDI',
                 detay: {
                     malzeme_no: malzemeNo,
                     paket_sira: paketSira,
                     paket_toplam: qrBilgi.paketToplam,
-                    miktar: miktar,
+                    miktar: toplamMiktar,
                     okunan: mevcutOkuma
                 }
             });
@@ -704,7 +764,7 @@ router.post('/qr-okut', async (req, res) => {
 
                 if (mevcutOkuma && mevcutOkuma.oturum_id === oturum_id) {
                     // Aynı oturumda okunmuş - gerçek duplicate
-                    cacheyeOkumaEkle(oturum_id, qr_kod, malzemeNo, paketSira);
+                    cacheyeOkumaEkle(oturum_id, qr_kod, malzemeNo, paketSira, eslesenKalem.id);
                     return res.json({
                         success: false,
                         message: 'Bu paket zaten okundu!',
@@ -735,9 +795,9 @@ router.post('/qr-okut', async (req, res) => {
         }
 
         // 8. Başarılı! Cache'i güncelle
-        cacheyeOkumaEkle(oturum_id, qr_kod, malzemeNo, paketSira);
+        cacheyeOkumaEkle(oturum_id, qr_kod, malzemeNo, paketSira, eslesenKalem.id);
 
-        // 8. Güncel cache'den istatistik al
+        // 9. Güncel cache'den istatistik al
         const guncelCache = oturumCache.get(oturum_id);
         const oturumKalanPaket = guncelCache ? (guncelCache.toplamPaket - guncelCache.okunanPaket) : 0;
 
@@ -1057,7 +1117,7 @@ router.post('/toplu-okut', async (req, res) => {
 
         // Cache'i güncelle
         kayitlar.forEach(k => {
-            cacheyeOkumaEkle(oturum_id, k.qr_kod, k.malzeme_no_qr, k.paket_sira);
+            cacheyeOkumaEkle(oturum_id, k.qr_kod, k.malzeme_no_qr, k.paket_sira, k.nakliye_kalem_id);
         });
 
         return res.json({
