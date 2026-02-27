@@ -133,22 +133,16 @@ function qrKodParsele(qrKod) {
         // 4. Malzeme No çıkar
         // "99" kodundan sonra gelen 18 haneli değerin son 10 hanesi
         // Örnek: 99000000003200395024 -> malzeme_no = 3200395024
-        const doksandokuzPos = qrKod.lastIndexOf('99');
-        if (doksandokuzPos === -1) {
+        // NOT: lastIndexOf('99') kullanmak tehlikeli çünkü ürün kodu "99" ile
+        // bitebilir (ör: 3120013399). Regex ile "99" + 18 hane + string sonu arıyoruz.
+        const malzemeMatch = qrKod.match(/99(\d{18})$/);
+        if (!malzemeMatch) {
             return {
                 basarili: false,
                 hata: '"99" malzeme kodu bulunamadı'
             };
         }
-
-        // 99'dan sonra 18 hane olmalı
-        const malzemeNo = qrKod.substring(doksandokuzPos + 2, doksandokuzPos + 20);
-        if (malzemeNo.length !== 18) {
-            return {
-                basarili: false,
-                hata: 'Malzeme numarası 18 hane olmalı (99 sonrası)'
-            };
-        }
+        const malzemeNo = malzemeMatch[1];
 
         // 5. EAN kodu (ilk 14 karakter - eğer "0" ile başlıyorsa)
         let ean = '';

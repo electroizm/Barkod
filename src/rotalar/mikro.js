@@ -1163,8 +1163,8 @@ router.get('/malzeme-paketler/:faturaNo/:kalemId', async (req, res) => {
         }
 
         const miktar = parseFloat(kalem.miktar) || 1;
+        const miktarInt = Math.ceil(miktar);
         const paketSayisi = parseInt(kalem.paket_sayisi) || 1;
-        const toplamPaket = Math.ceil(miktar * paketSayisi);
 
         // Bu kalem için okunan paketleri al
         const { data: okumalar, error: okumaError } = await client
@@ -1173,15 +1173,20 @@ router.get('/malzeme-paketler/:faturaNo/:kalemId', async (req, res) => {
             .eq('fatura_no', parseInt(faturaNo))
             .eq('kalem_id', parseInt(kalemId));
 
-        const okunanPaketler = new Set((okumalar || []).map(o => o.paket_sira));
+        // Her paket_sira icin okuma sayisini hesapla
+        const okumaSayilari = {};
+        (okumalar || []).forEach(o => {
+            const ps = o.paket_sira;
+            okumaSayilari[ps] = (okumaSayilari[ps] || 0) + 1;
+        });
 
-        // Paket listesi oluştur
+        // Paket listesi: P1...P{paketSayisi}, her biri beklenen=miktarInt
         const paketler = [];
-        for (let i = 1; i <= toplamPaket; i++) {
+        for (let i = 1; i <= paketSayisi; i++) {
             paketler.push({
                 paket_sira: i,
-                beklenen: 1,
-                okunan: okunanPaketler.has(i) ? 1 : 0
+                beklenen: miktarInt,
+                okunan: okumaSayilari[i] || 0
             });
         }
 
@@ -1238,8 +1243,8 @@ router.post('/toplu-okut', async (req, res) => {
         }
 
         const miktar = parseFloat(kalem.miktar) || 1;
+        const miktarInt = Math.ceil(miktar);
         const paketSayisi = parseInt(kalem.paket_sayisi) || 1;
-        const toplamPaket = Math.ceil(miktar * paketSayisi);
 
         // Bu kalem için mevcut okumaları al
         const { data: mevcutOkumalar, error: okumaError } = await client
@@ -1248,35 +1253,39 @@ router.post('/toplu-okut', async (req, res) => {
             .eq('fatura_no', parseInt(fatura_no))
             .eq('kalem_id', parseInt(kalem_id));
 
-        const okunanPaketler = new Set((mevcutOkumalar || []).map(o => o.paket_sira));
+        // Her paket_sira icin mevcut okuma sayisini hesapla
+        const okumaSayilari = {};
+        (mevcutOkumalar || []).forEach(o => {
+            const ps = o.paket_sira;
+            okumaSayilari[ps] = (okumaSayilari[ps] || 0) + 1;
+        });
 
-        // Okunmamış paketleri bul
-        const eksikPaketler = [];
-        for (let i = 1; i <= toplamPaket; i++) {
-            if (!okunanPaketler.has(i)) {
-                eksikPaketler.push(i);
+        // Eksik okumalari bul: her paket_sira icin miktarInt kadar okuma olmali
+        const kayitlar = [];
+        for (let ps = 1; ps <= paketSayisi; ps++) {
+            const mevcut = okumaSayilari[ps] || 0;
+            const eksik = miktarInt - mevcut;
+            for (let k = 0; k < eksik; k++) {
+                kayitlar.push({
+                    fatura_no: parseInt(fatura_no),
+                    kalem_id: parseInt(kalem_id),
+                    qr_kod: `MANUEL_TOPLU_${kalem.stok_kod}_P${ps}_U${mevcut + k + 1}`,
+                    qr_hash: qrKodHash(`MANUEL_TOPLU_${kalem.stok_kod}_P${ps}_U${mevcut + k + 1}`),
+                    stok_kod: kalem.stok_kod,
+                    paket_sira: ps,
+                    paket_toplam: paketSayisi,
+                    kullanici: kullanici || 'bilinmiyor',
+                    created_at: new Date().toISOString()
+                });
             }
         }
 
-        if (eksikPaketler.length === 0) {
+        if (kayitlar.length === 0) {
             return res.json({
                 success: false,
                 message: 'Bu kalemin tüm paketleri zaten okunmuş'
             });
         }
-
-        // Eksik paketler için okuma kayıtları oluştur
-        const kayitlar = eksikPaketler.map(paketSira => ({
-            fatura_no: parseInt(fatura_no),
-            kalem_id: parseInt(kalem_id),
-            qr_kod: `MANUEL_TOPLU_${kalem.stok_kod}_P${paketSira}`,
-            qr_hash: qrKodHash(`MANUEL_TOPLU_${kalem.stok_kod}_P${paketSira}`),
-            stok_kod: kalem.stok_kod,
-            paket_sira: paketSira,
-            paket_toplam: toplamPaket,
-            kullanici: kullanici || 'bilinmiyor',
-            created_at: new Date().toISOString()
-        }));
 
         const { error: insertError } = await client
             .from('fatura_okumalari')
@@ -1297,8 +1306,8 @@ router.post('/toplu-okut', async (req, res) => {
 
         return res.json({
             success: true,
-            message: `${kalem.malzeme_adi || kalem.product_desc || kalem.stok_kod} - ${eksikPaketler.length} paket okundu sayıldı`,
-            eklenen_paket: eksikPaketler.length,
+            message: `${kalem.malzeme_adi || kalem.product_desc || kalem.stok_kod} - ${kayitlar.length} paket okundu sayıldı`,
+            eklenen_paket: kayitlar.length,
             malzeme_adi: kalem.malzeme_adi || kalem.product_desc || kalem.stok_kod
         });
 
