@@ -703,7 +703,7 @@ router.get('/fatura/:faturaNo', async (req, res) => {
                 cari_kodu: data[0].cari_kodu,
                 cari_adi: data[0].cari_adi,
                 evrak_adi: data[0].evrak_adi,
-                toplam_kalem: data.length,
+                toplam_kalem: Math.ceil(toplamMiktar),
                 toplam_miktar: toplamMiktar,
                 toplam_paket: toplamPaket
             },

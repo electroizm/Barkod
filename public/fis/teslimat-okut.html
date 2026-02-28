@@ -845,6 +845,10 @@
                 // Depo özeti
                 const topBeklenen = depoKalemleri.reduce((t, k) => t + k.beklenen_paket, 0);
                 const topOkunan = depoKalemleri.reduce((t, k) => t + k.okunan_paket, 0);
+                const topKalem = depoKalemleri.reduce((t, k) => {
+                    const m = k.miktar ? Math.ceil(parseFloat(String(k.miktar).replace(',', '.')) || 1) : 1;
+                    return t + m;
+                }, 0);
 
                 const kalemlerHtml = depoKalemleri.map(kalem => {
                     const h = kalemHtmlOlustur(kalem, globalIndex);
@@ -861,7 +865,7 @@
                 return `
                     <div class="depo-grup">
                         <div class="depo-baslik">
-                            <div class="depo-adi">${depoAdi}</div>
+                            <div class="depo-adi">${depoAdi} (${topKalem})</div>
                             <div class="depo-ozet">${topOkunan}/${topBeklenen} PAKET</div>
                         </div>
                         <div class="depo-kalemler">${kalemlerHtml}</div>

@@ -341,7 +341,7 @@ router.post('/nakliye-ara', async (req, res) => {
                     };
                 }
 
-                grupluVeri[grupKey].toplamKalem++;
+                grupluVeri[grupKey].toplamKalem += parseInt(item.materialQuantity) || 1;
                 grupluVeri[grupKey].toplamPaket += parseInt(item.productPackages) || 0;
                 grupluVeri[grupKey].kalemler.push(item);
             });
@@ -353,7 +353,7 @@ router.post('/nakliye-ara', async (req, res) => {
                 success: true,
                 data: grupluDizi,
                 toplam: grupluDizi.length,
-                toplamKalem: sonuclar.length
+                toplamKalem: sonuclar.reduce((t, item) => t + (parseInt(item.materialQuantity) || 1), 0)
             });
         } else {
             return res.json({

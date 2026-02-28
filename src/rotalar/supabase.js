@@ -470,7 +470,7 @@ router.get('/oturum/:oturumId', async (req, res) => {
 
         // Özet bilgileri hesapla
         const ilkKayit = data[0];
-        const toplamKalem = data.length;
+        const toplamKalem = data.reduce((t, k) => t + Math.ceil(parseFloat((k.miktar || '0').replace(',', '.')) || 1), 0);
         const toplamPaket = data.reduce((t, k) => t + (parseInt(k.paket_sayisi_toplam) || 0), 0);
         const depoYeriKod = ilkKayit.depo_yeri;
         const depoYeriAdi = depoYeriKod === '0002' ? 'Biga' : depoYeriKod === '0200' ? 'İnegöl' : depoYeriKod;
@@ -927,7 +927,7 @@ router.get('/okuma-durumu/:oturumId', async (req, res) => {
                 sofor_adi: ilkKalem.sofor_adi,
                 depo_yeri: ilkKalem.depo_yeri
             },
-            toplam_kalem: kalemler.length,
+            toplam_kalem: kalemler.reduce((t, k) => t + Math.ceil(parseFloat((k.miktar || '0').replace(',', '.')) || 1), 0),
             toplam_paket: toplamPaket,
             okunan_paket: toplamOkunan,
             kalan_paket: kalanPaket,
