@@ -315,43 +315,26 @@
 
         /* Depo kategori */
         .depo-grup {
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
         .depo-baslik {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
-            padding: 0 4px;
-        }
-        .depo-etiket {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 48px;
-            height: 48px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 800;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding: 6px 10px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border-radius: 8px;
             color: #fff;
-            flex-shrink: 0;
-        }
-        .depo-etiket.depo-100 { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
-        .depo-etiket.depo-200 { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
-        .depo-etiket.depo-300 { background: linear-gradient(135deg, #f59e0b, #d97706); }
-        .depo-etiket.depo-diger { background: linear-gradient(135deg, #6b7280, #4b5563); }
-        .depo-bilgi {
-            display: flex;
-            flex-direction: column;
         }
         .depo-adi {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 700;
-            color: #1e293b;
         }
         .depo-ozet {
             font-size: 12px;
-            color: #64748b;
+            opacity: 0.85;
+            margin-left: auto;
         }
         .depo-kalemler {
             padding-left: 0;
@@ -789,9 +772,9 @@
 
         // Depo adları
         const DEPO_ADLARI = {
-            100: 'Depo 100',
-            200: 'Depo 200',
-            300: 'Depo 300'
+            100: 'DEPO',
+            200: '\u015EUBE',
+            300: 'EXC'
         };
 
         // Kalem HTML'i oluştur
@@ -869,8 +852,6 @@
                     return h;
                 }).join('');
 
-                // Depo CSS sınıfı
-                const depoCss = [100, 200, 300].includes(depoNo) ? `depo-${depoNo}` : 'depo-diger';
                 const depoAdi = DEPO_ADLARI[depoNo] || `Depo ${depoNo}`;
 
                 if (tekDepo) {
@@ -880,11 +861,8 @@
                 return `
                     <div class="depo-grup">
                         <div class="depo-baslik">
-                            <div class="depo-etiket ${depoCss}">${depoNo}</div>
-                            <div class="depo-bilgi">
-                                <div class="depo-adi">${depoAdi}</div>
-                                <div class="depo-ozet">${depoKalemleri.length} kalem &middot; ${topOkunan}/${topBeklenen} paket</div>
-                            </div>
+                            <div class="depo-adi">${depoAdi}</div>
+                            <div class="depo-ozet">${depoKalemleri.length} kalem &middot; ${topOkunan}/${topBeklenen} paket</div>
                         </div>
                         <div class="depo-kalemler">${kalemlerHtml}</div>
                     </div>
