@@ -313,6 +313,50 @@
             box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);
         }
 
+        /* Depo kategori */
+        .depo-grup {
+            margin-bottom: 20px;
+        }
+        .depo-baslik {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 0 4px;
+        }
+        .depo-etiket {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 800;
+            color: #fff;
+            flex-shrink: 0;
+        }
+        .depo-etiket.depo-100 { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+        .depo-etiket.depo-200 { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+        .depo-etiket.depo-300 { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .depo-etiket.depo-diger { background: linear-gradient(135deg, #6b7280, #4b5563); }
+        .depo-bilgi {
+            display: flex;
+            flex-direction: column;
+        }
+        .depo-adi {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1e293b;
+        }
+        .depo-ozet {
+            font-size: 12px;
+            color: #64748b;
+        }
+        .depo-kalemler {
+            padding-left: 0;
+        }
+
         /* Paket detayları */
         .paket-detay {
             max-height: 0;
@@ -743,53 +787,111 @@
             return `${okunan}/${toplam}`;
         }
 
-        // Malzeme listesini oluştur
+        // Depo adları
+        const DEPO_ADLARI = {
+            100: 'Depo 100',
+            200: 'Depo 200',
+            300: 'Depo 300'
+        };
+
+        // Kalem HTML'i oluştur
+        function kalemHtmlOlustur(kalem, index) {
+            const durumSinifi = malzemeDurumSinifi(kalem.okunan_paket, kalem.beklenen_paket);
+            let miktarInt = 1;
+            if (kalem.miktar) {
+                const miktarStr = String(kalem.miktar).replace(',', '.');
+                miktarInt = Math.floor(parseFloat(miktarStr)) || 1;
+            }
+
+            const durumIkon = durumSinifi === 'status-green'
+                ? `<span class="malzeme-tik">&#10003;</span>`
+                : `<button class="btn-malzeme-oku" onclick="event.stopPropagation(); topluOkut(${kalem.id}, '${(kalem.malzeme_adi || kalem.product_desc || '-').replace(/'/g, "\\'")}')"></button>`;
+
+            return `
+                <div class="malzeme-item ${durumSinifi}" data-kalem-id="${kalem.id}" data-index="${index}">
+                    <div class="malzeme-baslik" onclick="malzemeToggle(${index}, ${kalem.id})">
+                        ${durumIkon}
+                        <div class="malzeme-bilgi">
+                            <div class="malzeme-miktar">${miktarInt} - ${kalem.malzeme_adi || kalem.product_desc || '-'}</div>
+                        </div>
+                    </div>
+                    <div class="paket-detay" id="paketDetay${index}">
+                        <div class="paket-detay-icerik" id="paketIcerik${index}">
+                            <div class="paket-yukleniyor">Yükleniyor...</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Malzeme listesini oluştur (depo bazlı gruplu)
         function malzemeListesiGuncelle(kalemler) {
             if (!kalemler || kalemler.length === 0) {
                 malzemeListesi.innerHTML = '<p style="text-align:center;color:#888;font-size:13px;">Henüz malzeme bilgisi yok</p>';
                 return;
             }
 
-            // Sıralama: sarı → beyaz → mor (yeşil yerine)
-            const siraliKalemler = [...kalemler].sort((a, b) => {
-                const durumA = malzemeDurumSinifi(a.okunan_paket, a.beklenen_paket);
-                const durumB = malzemeDurumSinifi(b.okunan_paket, b.beklenen_paket);
-                const sira = { 'status-yellow': 0, 'status-gray': 1, 'status-green': 2 };
-
-                const durumFark = sira[durumA] - sira[durumB];
-                if (durumFark !== 0) return durumFark;
-
-                return (a.malzeme_adi || '').localeCompare(b.malzeme_adi || '', 'tr');
+            // Depo bazlı grupla
+            const depoGruplari = {};
+            kalemler.forEach(kalem => {
+                const depo = kalem.cikis_depo_no || 0;
+                if (!depoGruplari[depo]) depoGruplari[depo] = [];
+                depoGruplari[depo].push(kalem);
             });
 
-            malzemeListesi.innerHTML = siraliKalemler.map((kalem, index) => {
-                const durumSinifi = malzemeDurumSinifi(kalem.okunan_paket, kalem.beklenen_paket);
-                let miktarInt = 1;
-                if (kalem.miktar) {
-                    const miktarStr = String(kalem.miktar).replace(',', '.');
-                    miktarInt = Math.floor(parseFloat(miktarStr)) || 1;
+            // Depo sıralaması: 100, 200, 300... (küçükten büyüğe)
+            const depoSirali = Object.keys(depoGruplari).map(Number).sort((a, b) => a - b);
+
+            // Tek depo varsa kategori başlığı gösterme
+            const tekDepo = depoSirali.length <= 1;
+
+            // Global index (tüm kalemler arası benzersiz olmalı)
+            let globalIndex = 0;
+
+            const html = depoSirali.map(depoNo => {
+                // Depo içi sıralama: sarı → beyaz → yeşil
+                const depoKalemleri = depoGruplari[depoNo].sort((a, b) => {
+                    const durumA = malzemeDurumSinifi(a.okunan_paket, a.beklenen_paket);
+                    const durumB = malzemeDurumSinifi(b.okunan_paket, b.beklenen_paket);
+                    const sira = { 'status-yellow': 0, 'status-gray': 1, 'status-green': 2 };
+                    const durumFark = sira[durumA] - sira[durumB];
+                    if (durumFark !== 0) return durumFark;
+                    return (a.malzeme_adi || '').localeCompare(b.malzeme_adi || '', 'tr');
+                });
+
+                // Depo özeti
+                const topBeklenen = depoKalemleri.reduce((t, k) => t + k.beklenen_paket, 0);
+                const topOkunan = depoKalemleri.reduce((t, k) => t + k.okunan_paket, 0);
+
+                const kalemlerHtml = depoKalemleri.map(kalem => {
+                    const h = kalemHtmlOlustur(kalem, globalIndex);
+                    globalIndex++;
+                    return h;
+                }).join('');
+
+                // Depo CSS sınıfı
+                const depoCss = [100, 200, 300].includes(depoNo) ? `depo-${depoNo}` : 'depo-diger';
+                const depoAdi = DEPO_ADLARI[depoNo] || `Depo ${depoNo}`;
+
+                if (tekDepo) {
+                    return `<div class="depo-kalemler">${kalemlerHtml}</div>`;
                 }
 
-                const durumIkon = durumSinifi === 'status-green'
-                    ? `<span class="malzeme-tik">&#10003;</span>`
-                    : `<button class="btn-malzeme-oku" onclick="event.stopPropagation(); topluOkut(${kalem.id}, '${(kalem.malzeme_adi || kalem.product_desc || '-').replace(/'/g, "\\'")}')"></button>`;
-
                 return `
-                    <div class="malzeme-item ${durumSinifi}" data-kalem-id="${kalem.id}" data-index="${index}">
-                        <div class="malzeme-baslik" onclick="malzemeToggle(${index}, ${kalem.id})">
-                            ${durumIkon}
-                            <div class="malzeme-bilgi">
-                                <div class="malzeme-miktar">${miktarInt} - ${kalem.malzeme_adi || kalem.product_desc || '-'}</div>
+                    <div class="depo-grup">
+                        <div class="depo-baslik">
+                            <div class="depo-etiket ${depoCss}">${depoNo}</div>
+                            <div class="depo-bilgi">
+                                <div class="depo-adi">${depoAdi}</div>
+                                <div class="depo-ozet">${depoKalemleri.length} kalem &middot; ${topOkunan}/${topBeklenen} paket</div>
                             </div>
                         </div>
-                        <div class="paket-detay" id="paketDetay${index}">
-                            <div class="paket-detay-icerik" id="paketIcerik${index}">
-                                <div class="paket-yukleniyor">Yükleniyor...</div>
-                            </div>
-                        </div>
+                        <div class="depo-kalemler">${kalemlerHtml}</div>
                     </div>
                 `;
             }).join('');
+
+            malzemeListesi.innerHTML = html;
         }
 
         // Malzeme açılır/kapanır

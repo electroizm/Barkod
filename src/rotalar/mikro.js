@@ -396,6 +396,7 @@ router.post('/fatura-yukle', async (req, res) => {
                 CONVERT(DATE, sth.sth_tarih) AS tarih,
                 sth.sth_stok_kod,
                 sth.sth_miktar,
+                sth.sth_cikis_depo_no,
                 dbo.fn_StokHarEvrTip(sth.sth_evraktip) AS evrak_adi,
                 cha.cha_kod AS cari_kodu,
                 dbo.fn_CarininIsminiBul(cha.cha_cari_cins, cha.cha_kod) AS cari_adi,
@@ -484,6 +485,7 @@ router.post('/fatura-yukle', async (req, res) => {
                 tarih: fatura.tarih,
                 stok_kod: fatura.sth_stok_kod,
                 miktar: fatura.sth_miktar,
+                cikis_depo_no: fatura.sth_cikis_depo_no,
                 evrak_adi: fatura.evrak_adi || 'Satış Faturası',
                 cari_kodu: fatura.cari_kodu || '',
                 cari_adi: fatura.cari_adi || '',
@@ -580,6 +582,7 @@ router.get('/fatura/:faturaNo', async (req, res) => {
                         CONVERT(DATE, sth.sth_tarih) AS tarih,
                         sth.sth_stok_kod,
                         sth.sth_miktar,
+                        sth.sth_cikis_depo_no,
                         dbo.fn_StokHarEvrTip(sth.sth_evraktip) AS evrak_adi,
                         cha.cha_kod AS cari_kodu,
                         dbo.fn_CarininIsminiBul(cha.cha_cari_cins, cha.cha_kod) AS cari_adi,
@@ -651,6 +654,7 @@ router.get('/fatura/:faturaNo', async (req, res) => {
                         tarih: f.tarih,
                         stok_kod: f.sth_stok_kod,
                         miktar: f.sth_miktar,
+                        cikis_depo_no: f.sth_cikis_depo_no,
                         evrak_adi: f.evrak_adi || 'Satış Faturası',
                         cari_kodu: f.cari_kodu || '',
                         cari_adi: f.cari_adi || '',
@@ -867,7 +871,8 @@ router.get('/fatura-durumu/:faturaNo', async (req, res) => {
                 product_desc: kalem.product_desc,
                 miktar: kalem.miktar,
                 beklenen_paket: beklenenPaket,
-                okunan_paket: kalemOkunan
+                okunan_paket: kalemOkunan,
+                cikis_depo_no: kalem.cikis_depo_no
             });
         }
 
