@@ -380,14 +380,6 @@
                             <span class="bilgi-etiket">Adres</span>
                             <span class="bilgi-deger" id="adresGoster" style="font-size:13px;">-</span>
                         </div>
-                        <div class="bilgi-satir">
-                            <span class="bilgi-etiket">İlçe / İl</span>
-                            <span class="bilgi-deger" id="ilceIlGoster">-</span>
-                        </div>
-                        <div class="bilgi-satir">
-                            <span class="bilgi-etiket">Not</span>
-                            <span class="bilgi-deger" id="ozelNotGoster" style="font-size:13px; color:#e67e22;">-</span>
-                        </div>
                     </div>
                 </div>
 
@@ -645,24 +637,39 @@
                             const adresData = await adresResponse.json();
                             if (adresData.success && adresData.adres) {
                                 const a = adresData.adres;
-                                const tel = a.adr_tel_no1 || a.cari_vdaire_adi || '-';
-                                const cepTel = a.cari_ceptel || a.adr_tel_no2 || '-';
-                                const adresParts = [a.adr_cadde, a.adr_sokak].filter(Boolean);
+
+                                // Telefon: 0 ile başlamıyorsa 0 ekle
+                                function telFormat(num) {
+                                    if (!num) return null;
+                                    num = num.trim();
+                                    if (num && !num.startsWith('0')) num = '0' + num;
+                                    return num;
+                                }
+                                const tel = telFormat(a.cari_vdaire_adi) || '-';
+                                const cepTel = telFormat(a.cari_ceptel) || '-';
+
+                                // Adres: tek satırda cadde + sokak + ilçe + il
+                                const adresParts = [a.adr_cadde, a.adr_sokak, a.adr_ilce, a.adr_il].filter(Boolean);
                                 const adres = adresParts.length > 0 ? adresParts.join(' ') : '-';
-                                const ilceIl = [a.adr_ilce, a.adr_il].filter(Boolean).join(' / ') || '-';
 
-                                document.getElementById('telefonGoster').textContent = tel;
-                                document.getElementById('cepTelGoster').textContent = cepTel;
-                                document.getElementById('adresGoster').textContent = adres;
-                                document.getElementById('ilceIlGoster').textContent = ilceIl;
-                                document.getElementById('ozelNotGoster').textContent = a.adr_ozel_not || '-';
-
-                                // Telefon numaralarını tıklanabilir yap
+                                // Telefon tıklanabilir
                                 if (tel !== '-') {
                                     document.getElementById('telefonGoster').innerHTML = `<a href="tel:${tel}" style="color:#2563eb;text-decoration:none;">${tel}</a>`;
+                                } else {
+                                    document.getElementById('telefonGoster').textContent = '-';
                                 }
                                 if (cepTel !== '-') {
                                     document.getElementById('cepTelGoster').innerHTML = `<a href="tel:${cepTel}" style="color:#2563eb;text-decoration:none;">${cepTel}</a>`;
+                                } else {
+                                    document.getElementById('cepTelGoster').textContent = '-';
+                                }
+
+                                // Adres: Google Maps linki
+                                if (adres !== '-') {
+                                    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adres)}`;
+                                    document.getElementById('adresGoster').innerHTML = `<a href="${mapsUrl}" target="_blank" style="color:#2563eb;text-decoration:none;">${adres} &#x1F4CD;</a>`;
+                                } else {
+                                    document.getElementById('adresGoster').textContent = '-';
                                 }
 
                                 document.getElementById('musteriIletisim').style.display = 'block';
