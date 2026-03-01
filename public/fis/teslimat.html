@@ -646,7 +646,7 @@
                             if (adresData.success && adresData.adres) {
                                 const a = adresData.adres;
                                 const tel = a.adr_tel_no1 || a.cari_vdaire_adi || '-';
-                                const cepTel = a.cari_CepTel || a.adr_tel_no2 || '-';
+                                const cepTel = a.cari_ceptel || a.adr_tel_no2 || '-';
                                 const adresParts = [a.adr_cadde, a.adr_sokak].filter(Boolean);
                                 const adres = adresParts.length > 0 ? adresParts.join(' ') : '-';
                                 const ilceIl = [a.adr_ilce, a.adr_il].filter(Boolean).join(' / ') || '-';
