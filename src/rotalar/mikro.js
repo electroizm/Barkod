@@ -1411,4 +1411,48 @@ router.get('/kapatilan-faturalar', async (req, res) => {
     }
 });
 
+/**
+ * GET /api/mikro/cari-adres/:cariKod
+ * Cari hesabın adres ve telefon bilgilerini getir (Supabase'den)
+ */
+router.get('/cari-adres/:cariKod', async (req, res) => {
+    try {
+        const { cariKod } = req.params;
+
+        const client = await getSupabaseClient();
+        if (!client) {
+            return res.status(500).json({
+                success: false,
+                message: 'Veritabanı bağlantısı kurulamadı'
+            });
+        }
+
+        const { data, error } = await client
+            .from('satis_faturasi_adres')
+            .select('*')
+            .eq('cari_kod', cariKod)
+            .limit(1)
+            .single();
+
+        if (error || !data) {
+            return res.json({
+                success: false,
+                message: 'Adres bilgisi bulunamadı'
+            });
+        }
+
+        return res.json({
+            success: true,
+            adres: data
+        });
+
+    } catch (error) {
+        console.error('Cari adres hatası:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Sunucu hatası: ' + error.message
+        });
+    }
+});
+
 module.exports = router;

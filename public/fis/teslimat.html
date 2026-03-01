@@ -365,6 +365,32 @@
                     </div>
                 </div>
 
+                <!-- Müşteri İletişim Bilgileri -->
+                <div id="musteriIletisim" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid #eee;">
+                    <div class="bilgi-grid">
+                        <div class="bilgi-satir">
+                            <span class="bilgi-etiket">Telefon</span>
+                            <span class="bilgi-deger" id="telefonGoster" style="color:#2563eb;">-</span>
+                        </div>
+                        <div class="bilgi-satir">
+                            <span class="bilgi-etiket">Cep Telefonu</span>
+                            <span class="bilgi-deger" id="cepTelGoster" style="color:#2563eb;">-</span>
+                        </div>
+                        <div class="bilgi-satir" style="grid-column: 1 / -1;">
+                            <span class="bilgi-etiket">Adres</span>
+                            <span class="bilgi-deger" id="adresGoster" style="font-size:13px;">-</span>
+                        </div>
+                        <div class="bilgi-satir">
+                            <span class="bilgi-etiket">İlçe / İl</span>
+                            <span class="bilgi-deger" id="ilceIlGoster">-</span>
+                        </div>
+                        <div class="bilgi-satir">
+                            <span class="bilgi-etiket">Not</span>
+                            <span class="bilgi-deger" id="ozelNotGoster" style="font-size:13px; color:#e67e22;">-</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="istatistik-kutu">
                     <div class="istatistik">
                         <div class="istatistik-sayi" id="toplamKalemGoster">0</div>
@@ -611,6 +637,40 @@
                             toplamPaketGoster.textContent = `${durumData.okunan_paket} / ${durumData.toplam_paket}`;
                         }
                     } catch (e) { }
+
+                    // Müşteri adres/telefon bilgilerini al
+                    if (mevcutFatura.cari_kodu) {
+                        try {
+                            const adresResponse = await fetch(`/api/mikro/cari-adres/${encodeURIComponent(mevcutFatura.cari_kodu)}`);
+                            const adresData = await adresResponse.json();
+                            if (adresData.success && adresData.adres) {
+                                const a = adresData.adres;
+                                const tel = a.adr_tel_no1 || a.cari_vdaire_adi || '-';
+                                const cepTel = a.cari_CepTel || a.adr_tel_no2 || '-';
+                                const adresParts = [a.adr_cadde, a.adr_sokak].filter(Boolean);
+                                const adres = adresParts.length > 0 ? adresParts.join(' ') : '-';
+                                const ilceIl = [a.adr_ilce, a.adr_il].filter(Boolean).join(' / ') || '-';
+
+                                document.getElementById('telefonGoster').textContent = tel;
+                                document.getElementById('cepTelGoster').textContent = cepTel;
+                                document.getElementById('adresGoster').textContent = adres;
+                                document.getElementById('ilceIlGoster').textContent = ilceIl;
+                                document.getElementById('ozelNotGoster').textContent = a.adr_ozel_not || '-';
+
+                                // Telefon numaralarını tıklanabilir yap
+                                if (tel !== '-') {
+                                    document.getElementById('telefonGoster').innerHTML = `<a href="tel:${tel}" style="color:#2563eb;text-decoration:none;">${tel}</a>`;
+                                }
+                                if (cepTel !== '-') {
+                                    document.getElementById('cepTelGoster').innerHTML = `<a href="tel:${cepTel}" style="color:#2563eb;text-decoration:none;">${cepTel}</a>`;
+                                }
+
+                                document.getElementById('musteriIletisim').style.display = 'block';
+                            }
+                        } catch (e) {
+                            console.log('Adres bilgisi alinamadi:', e.message);
+                        }
+                    }
 
                     // Alanları güncelle
                     faturaSecimAlani.style.display = 'none';
