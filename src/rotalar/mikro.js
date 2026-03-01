@@ -955,7 +955,7 @@ router.get('/okunan-qrler/:faturaNo', async (req, res) => {
  */
 router.post('/qr-okut', async (req, res) => {
     try {
-        const { fatura_no, qr_kod, kullanici } = req.body;
+        let { fatura_no, qr_kod, kullanici } = req.body;
 
         // 1. Parametre kontrolü
         if (!fatura_no) {
@@ -990,6 +990,8 @@ router.post('/qr-okut', async (req, res) => {
 
         if (qrBilgi.basarili) {
             // GS1 formatında QR kod (Doğtaş gibi)
+            // Normalize edilmiş QR kodu kullan (tarayıcı prefix'leri temizlenmiş)
+            qr_kod = qrBilgi.qrKodHam;
             // malzemeNo 18 hane, son 10 hanesi stok_kod olabilir
             stokKod = qrBilgi.malzemeNo.slice(-10); // Son 10 hane
             paketSira = qrBilgi.paketSira;

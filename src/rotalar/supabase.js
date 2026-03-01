@@ -608,7 +608,7 @@ async function kisiyeOzelEslestir(oturumId, satinalmaKalemId, client) {
  */
 router.post('/qr-okut', async (req, res) => {
     try {
-        const { oturum_id, qr_kod, kullanici } = req.body;
+        let { oturum_id, qr_kod, kullanici } = req.body;
 
         // Parametre kontrolü
         if (!oturum_id) {
@@ -638,6 +638,10 @@ router.post('/qr-okut', async (req, res) => {
 
         // 1. QR kodu parse et ve validate et
         const qrBilgi = qrKodValidasyon(qr_kod);
+        if (qrBilgi.basarili) {
+            // Normalize edilmiş QR kodu kullan (tarayıcı prefix'leri temizlenmiş)
+            qr_kod = qrBilgi.qrKodHam;
+        }
         if (!qrBilgi.basarili) {
             return res.json({
                 success: false,
