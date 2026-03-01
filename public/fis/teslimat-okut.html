@@ -825,9 +825,6 @@
             // Depo sıralaması: 100, 200, 300... (küçükten büyüğe)
             const depoSirali = Object.keys(depoGruplari).map(Number).sort((a, b) => a - b);
 
-            // Tek depo varsa kategori başlığı gösterme
-            const tekDepo = depoSirali.length <= 1;
-
             // Global index (tüm kalemler arası benzersiz olmalı)
             let globalIndex = 0;
 
@@ -857,10 +854,6 @@
                 }).join('');
 
                 const depoAdi = DEPO_ADLARI[depoNo] || `Depo ${depoNo}`;
-
-                if (tekDepo) {
-                    return `<div class="depo-kalemler">${kalemlerHtml}</div>`;
-                }
 
                 return `
                     <div class="depo-grup">
