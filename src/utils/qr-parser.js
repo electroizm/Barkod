@@ -23,6 +23,26 @@ function qrKodParsele(qrKod) {
     }
 
     try {
+        // Bosluklari temizle (tarayici bazen bosluk ekliyor)
+        qrKod = qrKod.replace(/\s/g, '');
+
+        // GS1 Format normalizasyonu:
+        // Tarayici bazen fazladan veri ekliyor (stok kodu, EAN tekrari vs.)
+        // Gercek QR kod her zaman "01" + 14 hane GTIN + "21" ile baslar
+        // Bu pattern'i bulup oradan basliyoruz
+        if (!qrKod.startsWith('01')) {
+            const gs1Match = qrKod.match(/01(\d{14})21/);
+            if (gs1Match) {
+                const startIdx = qrKod.indexOf(gs1Match[0]);
+                qrKod = qrKod.substring(startIdx);
+            } else {
+                return {
+                    basarili: false,
+                    hata: 'Geçerli GS1 formatı bulunamadı (01+GTIN+21 pattern yok)'
+                };
+            }
+        }
+
         // QR kod minimum uzunluk kontrolü
         if (qrKod.length < 50) {
             return {
