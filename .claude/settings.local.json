@@ -1,16 +1,15 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dir \"c:\\\\Users\\\\GUNES\\\\git\\\\Barkod\")",
-      "Bash(npm install:*)",
-      "Bash(curl:*)",
-      "Bash(taskkill:*)",
-      "Bash(netstat:*)",
+      "Bash(grep:*)",
       "Bash(findstr:*)",
-      "Bash(timeout:*)",
-      "Bash(node src/sunucu.js:*)",
-      "Bash(ping:*)",
-      "Bash(node -e:*)"
+      "Bash(node -c:*)",
+      "Bash(node:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npx supabase --version)",
+      "Bash(npx supabase projects list:*)"
     ]
   }
 }
