@@ -721,19 +721,25 @@ router.post('/qr-okut', async (req, res) => {
         const toplamMiktar = toplamMiktarBulMalzemeNo(oturum_id, malzemeNo);
 
         if (!paketOkumasiYapilabilirMi(oturum_id, malzemeNo, paketSira, toplamMiktar)) {
-            const mevcutOkuma = paketOkumaSayisi(oturum_id, malzemeNo, paketSira);
-            return res.json({
-                success: false,
-                message: `${eslesenKalem.malzeme_adi} (${paketSira}/${qrBilgi.paketToplam}) için tüm okumalar tamamlandı!`,
-                hata_tipi: 'PAKET_LIMIT_ASILDI',
-                detay: {
-                    malzeme_no: malzemeNo,
-                    paket_sira: paketSira,
-                    paket_toplam: qrBilgi.paketToplam,
-                    miktar: toplamMiktar,
-                    okunan: mevcutOkuma
-                }
-            });
+            // Cache stale olabilir - DB'den yenileyip tekrar kontrol et
+            await oturumCacheYukle(oturum_id, client, true);
+            const toplamMiktarYeni = toplamMiktarBulMalzemeNo(oturum_id, malzemeNo);
+            if (!paketOkumasiYapilabilirMi(oturum_id, malzemeNo, paketSira, toplamMiktarYeni)) {
+                const mevcutOkuma = paketOkumaSayisi(oturum_id, malzemeNo, paketSira);
+                console.log(`PAKET_LIMIT_ASILDI: malzeme=${malzemeNo}, paket=${paketSira}, miktar=${toplamMiktarYeni}, okunan=${mevcutOkuma}`);
+                return res.json({
+                    success: false,
+                    message: `${eslesenKalem.malzeme_adi} (${paketSira}/${qrBilgi.paketToplam}) için tüm okumalar tamamlandı!`,
+                    hata_tipi: 'PAKET_LIMIT_ASILDI',
+                    detay: {
+                        malzeme_no: malzemeNo,
+                        paket_sira: paketSira,
+                        paket_toplam: qrBilgi.paketToplam,
+                        miktar: toplamMiktarYeni,
+                        okunan: mevcutOkuma
+                    }
+                });
+            }
         }
 
         // 7. Okumayı veritabanına kaydet

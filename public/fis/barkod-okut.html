@@ -999,6 +999,14 @@
                 } else {
                     sonMesajGoster(data.message, 'hata');
                     sesliGeriBildirim('hata');
+
+                    okumalar.unshift({
+                        basarili: false,
+                        mesaj: data.message,
+                        zaman: new Date()
+                    });
+                    sonOkumalariGuncelle();
+                    durumGuncelle();
                 }
             } catch (error) {
                 sonMesajGoster('Bağlantı hatası: ' + error.message, 'hata');
