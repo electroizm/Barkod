@@ -54,7 +54,7 @@ async function faturaCacheYukle(faturaNo, client, zorlaYenile = false) {
 
     // Okunan QR'ları yükle
     const { data: okumalar, error: okumaHata } = await client
-        .from('fatura_okumalari')
+        .from('satis_faturasi_okumalari')
         .select('qr_kod, stok_kod, paket_sira, kalem_id')
         .eq('fatura_no', parseInt(faturaNo));
 
@@ -770,9 +770,9 @@ router.get('/acik-faturalar', async (req, res) => {
         for (const key of Object.keys(faturaGruplari)) {
             const fatura = faturaGruplari[key];
 
-            // fatura_okumalari tablosundan okunan sayısını al
+            // satis_faturasi_okumalari tablosundan okunan sayısını al
             const { count, error: countError } = await client
-                .from('fatura_okumalari')
+                .from('satis_faturasi_okumalari')
                 .select('*', { count: 'exact', head: true })
                 .eq('fatura_no', fatura.evrakno_sira);
 
@@ -856,7 +856,7 @@ router.get('/fatura-durumu/:faturaNo', async (req, res) => {
 
             // Bu kalem için okunan paket sayısını al
             const { count, error: countError } = await client
-                .from('fatura_okumalari')
+                .from('satis_faturasi_okumalari')
                 .select('*', { count: 'exact', head: true })
                 .eq('fatura_no', parseInt(faturaNo))
                 .eq('kalem_id', kalem.id);
@@ -922,7 +922,7 @@ router.get('/okunan-qrler/:faturaNo', async (req, res) => {
         }
 
         const { data, error } = await client
-            .from('fatura_okumalari')
+            .from('satis_faturasi_okumalari')
             .select('qr_kod')
             .eq('fatura_no', parseInt(faturaNo));
 
@@ -1084,7 +1084,7 @@ router.post('/qr-okut', async (req, res) => {
         };
 
         const { error: insertError } = await client
-            .from('fatura_okumalari')
+            .from('satis_faturasi_okumalari')
             .insert(okumaKaydi);
 
         if (insertError) {
@@ -1175,7 +1175,7 @@ router.get('/malzeme-paketler/:faturaNo/:kalemId', async (req, res) => {
 
         // Bu kalem için okunan paketleri al
         const { data: okumalar, error: okumaError } = await client
-            .from('fatura_okumalari')
+            .from('satis_faturasi_okumalari')
             .select('paket_sira')
             .eq('fatura_no', parseInt(faturaNo))
             .eq('kalem_id', parseInt(kalemId));
@@ -1255,7 +1255,7 @@ router.post('/toplu-okut', async (req, res) => {
 
         // Bu kalem için mevcut okumaları al
         const { data: mevcutOkumalar, error: okumaError } = await client
-            .from('fatura_okumalari')
+            .from('satis_faturasi_okumalari')
             .select('paket_sira')
             .eq('fatura_no', parseInt(fatura_no))
             .eq('kalem_id', parseInt(kalem_id));
@@ -1295,7 +1295,7 @@ router.post('/toplu-okut', async (req, res) => {
         }
 
         const { error: insertError } = await client
-            .from('fatura_okumalari')
+            .from('satis_faturasi_okumalari')
             .insert(kayitlar);
 
         if (insertError) {
@@ -1378,7 +1378,7 @@ router.get('/kapatilan-faturalar', async (req, res) => {
             const fatura = faturaGruplari[key];
 
             const { count, error: countError } = await client
-                .from('fatura_okumalari')
+                .from('satis_faturasi_okumalari')
                 .select('*', { count: 'exact', head: true })
                 .eq('fatura_no', fatura.evrakno_sira);
 

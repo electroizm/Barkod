@@ -19,7 +19,7 @@ const oturumCache = new Map();
 
 // Cache yapısı:
 // oturumCache.get('260108-01') = {
-//     kalemler: [...],           // nakliye_yuklemeleri verileri
+//     kalemler: [...],           // nakliye_fisleri verileri
 //     okunanQrler: Set([...]),   // okunan QR kodların hash'leri
 //     paketOkumaSayilari: Map,   // malzeme_no:paket_sira -> okuma sayısı
 //     sonGuncelleme: Date,       // son güncelleme zamanı
@@ -43,7 +43,7 @@ async function oturumCacheYukle(oturumId, client, zorlaYenile = false) {
 
     // Veritabanından yükle
     const { data: kalemler, error: kalemHata } = await client
-        .from('nakliye_yuklemeleri')
+        .from('nakliye_fisleri')
         .select('*')
         .eq('oturum_id', oturumId);
 
@@ -54,7 +54,7 @@ async function oturumCacheYukle(oturumId, client, zorlaYenile = false) {
 
     // Okunan QR'ları ve paket okuma sayılarını yükle
     const { data: okumalar, error: okumaHata } = await client
-        .from('paket_okumalari')
+        .from('nakliye_fisleri_okumalari')
         .select('qr_kod, malzeme_no_qr, paket_sira, nakliye_kalem_id')
         .eq('oturum_id', oturumId);
 
@@ -258,7 +258,7 @@ async function yeniOturumIdOlustur(client) {
 
     // Bugünkü en son oturum_id'yi bul
     const { data, error } = await client
-        .from('nakliye_yuklemeleri')
+        .from('nakliye_fisleri')
         .select('oturum_id')
         .like('oturum_id', `${tarihOneki}-%`)
         .order('oturum_id', { ascending: false })
@@ -319,7 +319,7 @@ router.post('/nakliye-yukle', async (req, res) => {
 
         // Daha önce kaydedilmiş nakliye_no'ları kontrol et
         const { data: mevcutKayitlar, error: kontrolHatasi } = await client
-            .from('nakliye_yuklemeleri')
+            .from('nakliye_fisleri')
             .select('nakliye_no')
             .in('nakliye_no', nakliyeNolari);
 
@@ -390,7 +390,7 @@ router.post('/nakliye-yukle', async (req, res) => {
 
         // Toplu insert
         const { data, error } = await client
-            .from('nakliye_yuklemeleri')
+            .from('nakliye_fisleri')
             .insert(kayitlar)
             .select();
 
@@ -450,7 +450,7 @@ router.get('/oturum/:oturumId', async (req, res) => {
 
         // Oturuma ait kayıtları getir
         const { data, error } = await client
-            .from('nakliye_yuklemeleri')
+            .from('nakliye_fisleri')
             .select('*')
             .eq('oturum_id', oturumId);
 
@@ -513,7 +513,7 @@ router.get('/nakliye-listesi', async (req, res) => {
         }
 
         const { data, error } = await client
-            .from('nakliye_yuklemeleri')
+            .from('nakliye_fisleri')
             .select('*')
             .order('created_at', { ascending: false })
             .limit(100);
@@ -547,7 +547,7 @@ router.get('/nakliye-listesi', async (req, res) => {
 async function standartUrunEslestir(oturumId, malzemeNo, client) {
     // Aynı oturumdaki, aynı malzeme_no'lu satırları bul
     const { data: satirlar, error } = await client
-        .from('nakliye_yuklemeleri')
+        .from('nakliye_fisleri')
         .select('*')
         .eq('oturum_id', oturumId)
         .eq('malzeme_no', malzemeNo)
@@ -564,7 +564,7 @@ async function standartUrunEslestir(oturumId, malzemeNo, client) {
 
         // Bu satıra yapılmış okuma sayısı
         const { count } = await client
-            .from('paket_okumalari')
+            .from('nakliye_fisleri_okumalari')
             .select('*', { count: 'exact', head: true })
             .eq('nakliye_kalem_id', satir.id);
 
@@ -587,7 +587,7 @@ async function standartUrunEslestir(oturumId, malzemeNo, client) {
 async function kisiyeOzelEslestir(oturumId, satinalmaKalemId, client) {
     // Direkt eşleştir - tek satır olmalı
     const { data, error } = await client
-        .from('nakliye_yuklemeleri')
+        .from('nakliye_fisleri')
         .select('*')
         .eq('oturum_id', oturumId)
         .eq('satinalma_kalem_id', satinalmaKalemId)
@@ -757,7 +757,7 @@ router.post('/qr-okut', async (req, res) => {
         };
 
         const { data: yeniOkuma, error: okumaHatasi } = await client
-            .from('paket_okumalari')
+            .from('nakliye_fisleri_okumalari')
             .insert(okumaKaydi)
             .select()
             .single();
@@ -767,7 +767,7 @@ router.post('/qr-okut', async (req, res) => {
             if (okumaHatasi.code === '23505') {
                 // Bu QR başka oturumda mı yoksa aynı oturumda mı okunmuş kontrol et
                 const { data: mevcutOkuma } = await client
-                    .from('paket_okumalari')
+                    .from('nakliye_fisleri_okumalari')
                     .select('oturum_id')
                     .eq('qr_kod', qr_kod)
                     .single();
@@ -864,7 +864,7 @@ router.get('/okuma-durumu/:oturumId', async (req, res) => {
 
         // Oturuma ait tüm kalemleri getir
         const { data: kalemler, error: kalemHatasi } = await client
-            .from('nakliye_yuklemeleri')
+            .from('nakliye_fisleri')
             .select('*')
             .eq('oturum_id', oturumId)
             .order('id', { ascending: true });
@@ -896,7 +896,7 @@ router.get('/okuma-durumu/:oturumId', async (req, res) => {
 
             // Bu kaleme yapılmış okuma sayısı
             const { count: okunanPaket } = await client
-                .from('paket_okumalari')
+                .from('nakliye_fisleri_okumalari')
                 .select('*', { count: 'exact', head: true })
                 .eq('nakliye_kalem_id', kalem.id);
 
@@ -970,7 +970,7 @@ router.get('/malzeme-paketler/:oturumId/:kalemId', async (req, res) => {
 
         // Kalem bilgisini getir
         const { data: kalem, error: kalemHata } = await client
-            .from('nakliye_yuklemeleri')
+            .from('nakliye_fisleri')
             .select('*')
             .eq('id', kalemId)
             .eq('oturum_id', oturumId)
@@ -985,7 +985,7 @@ router.get('/malzeme-paketler/:oturumId/:kalemId', async (req, res) => {
 
         // Bu kaleme ait okumaları paket_sira'ya göre grupla
         const { data: okumalar, error: okumaHata } = await client
-            .from('paket_okumalari')
+            .from('nakliye_fisleri_okumalari')
             .select('paket_sira, malzeme_no_qr')
             .eq('nakliye_kalem_id', kalemId);
 
@@ -1055,7 +1055,7 @@ router.post('/toplu-okut', async (req, res) => {
 
         // Kalem bilgisini al
         const { data: kalem, error: kalemError } = await client
-            .from('nakliye_yuklemeleri')
+            .from('nakliye_fisleri')
             .select('*')
             .eq('id', parseInt(kalem_id))
             .eq('oturum_id', oturum_id)
@@ -1073,7 +1073,7 @@ router.post('/toplu-okut', async (req, res) => {
 
         // Bu kaleme ait mevcut okumaları al
         const { data: mevcutOkumalar, error: okumaError } = await client
-            .from('paket_okumalari')
+            .from('nakliye_fisleri_okumalari')
             .select('paket_sira')
             .eq('nakliye_kalem_id', parseInt(kalem_id));
 
@@ -1114,7 +1114,7 @@ router.post('/toplu-okut', async (req, res) => {
         }
 
         const { error: insertError } = await client
-            .from('paket_okumalari')
+            .from('nakliye_fisleri_okumalari')
             .insert(kayitlar);
 
         if (insertError) {
@@ -1172,7 +1172,7 @@ router.get('/son-okumalar/:oturumId', async (req, res) => {
 
         // Son okumaları getir (kalem bilgileriyle birlikte)
         const { data: okumalar, error } = await client
-            .from('paket_okumalari')
+            .from('nakliye_fisleri_okumalari')
             .select(`
                 id,
                 paket_sira,
@@ -1180,7 +1180,7 @@ router.get('/son-okumalar/:oturumId', async (req, res) => {
                 okuma_zamani,
                 okuyan_kullanici,
                 nakliye_kalem_id,
-                nakliye_yuklemeleri (
+                nakliye_fisleri (
                     malzeme_no,
                     malzeme_adi
                 )
@@ -1198,8 +1198,8 @@ router.get('/son-okumalar/:oturumId', async (req, res) => {
 
         const sonuclar = (okumalar || []).map(o => ({
             id: o.id,
-            malzeme_adi: o.nakliye_yuklemeleri?.malzeme_adi || 'Bilinmiyor',
-            malzeme_no: o.nakliye_yuklemeleri?.malzeme_no || '',
+            malzeme_adi: o.nakliye_fisleri?.malzeme_adi || 'Bilinmiyor',
+            malzeme_no: o.nakliye_fisleri?.malzeme_no || '',
             paket_sira: o.paket_sira,
             paket_toplam: o.paket_toplam,
             okuma_zamani: o.okuma_zamani,
@@ -1246,7 +1246,7 @@ router.get('/okunan-qrler/:oturumId', async (req, res) => {
 
         // Bu oturuma ait tüm okunan QR kodları getir
         const { data, error } = await client
-            .from('paket_okumalari')
+            .from('nakliye_fisleri_okumalari')
             .select('qr_kod')
             .eq('oturum_id', oturumId);
 
@@ -1291,7 +1291,7 @@ router.get('/acik-oturumlar', async (req, res) => {
 
         // Tüm oturumları ve okuma sayılarını getir
         const { data: oturumlar, error: oturumHata } = await client
-            .from('nakliye_yuklemeleri')
+            .from('nakliye_fisleri')
             .select('oturum_id, plaka, created_at, paket_sayisi')
             .order('created_at', { ascending: false });
 
@@ -1320,7 +1320,7 @@ router.get('/acik-oturumlar', async (req, res) => {
         const acikOturumlar = [];
         for (const oturumId of Object.keys(oturumGruplari)) {
             const { count, error: countError } = await client
-                .from('paket_okumalari')
+                .from('nakliye_fisleri_okumalari')
                 .select('*', { count: 'exact', head: true })
                 .eq('oturum_id', oturumId);
 
@@ -1372,7 +1372,7 @@ router.get('/kapatilan-oturumlar', async (req, res) => {
 
         // Tüm oturumları ve paket sayılarını getir
         const { data: oturumlar, error: oturumHata } = await client
-            .from('nakliye_yuklemeleri')
+            .from('nakliye_fisleri')
             .select('oturum_id, plaka, created_at, paket_sayisi')
             .order('created_at', { ascending: false });
 
@@ -1401,7 +1401,7 @@ router.get('/kapatilan-oturumlar', async (req, res) => {
         const kapatilanOturumlar = [];
         for (const oturumId of Object.keys(oturumGruplari)) {
             const { count, error: countError } = await client
-                .from('paket_okumalari')
+                .from('nakliye_fisleri_okumalari')
                 .select('*', { count: 'exact', head: true })
                 .eq('oturum_id', oturumId);
 
