@@ -1096,8 +1096,8 @@ router.post('/toplu-okut', async (req, res) => {
                 kayitlar.push({
                     oturum_id: oturum_id,
                     nakliye_kalem_id: parseInt(kalem_id),
-                    qr_kod: `MANUEL_TOPLU_${kalem.malzeme_no}_P${i}_${j + 1}`,
-                    qr_hash: qrKodHash(`MANUEL_TOPLU_${kalem.malzeme_no}_P${i}_${j + 1}`),
+                    qr_kod: `MANUEL_TOPLU_${oturum_id}_${kalem.id}_P${i}_${mevcutOkuma + j + 1}`,
+                    qr_hash: qrKodHash(`MANUEL_TOPLU_${oturum_id}_${kalem.id}_P${i}_${mevcutOkuma + j + 1}`),
                     paket_toplam: birimPaket,
                     paket_sira: i,
                     malzeme_no_qr: kalem.malzeme_no,
