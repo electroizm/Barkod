@@ -1071,11 +1071,12 @@ router.post('/toplu-okut', async (req, res) => {
         const miktar = parseFloat((kalem.miktar || '1').replace(',', '.')) || 1;
         const birimPaket = parseInt(kalem.paket_sayisi) || 1;
 
-        // Bu kaleme ait mevcut okumaları al
+        // Bu kaleme ait mevcut okumaları al (sadece bu oturum için)
         const { data: mevcutOkumalar, error: okumaError } = await client
             .from('nakliye_fisleri_okumalari')
             .select('paket_sira')
-            .eq('nakliye_kalem_id', parseInt(kalem_id));
+            .eq('nakliye_kalem_id', parseInt(kalem_id))
+            .eq('oturum_id', oturum_id);
 
         // Paket bazında okuma sayılarını hesapla
         const paketOkumalari = {};
@@ -1086,6 +1087,9 @@ router.post('/toplu-okut', async (req, res) => {
             });
         }
 
+        // Benzersiz batch ID: zaman damgası + rastgele suffix
+        const batchId = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+
         // Eksik okumaları bul
         const kayitlar = [];
         for (let i = 1; i <= birimPaket; i++) {
@@ -1093,11 +1097,12 @@ router.post('/toplu-okut', async (req, res) => {
             const eksikOkuma = Math.ceil(miktar) - mevcutOkuma;
 
             for (let j = 0; j < eksikOkuma; j++) {
+                const qrKod = `MANUEL_TOPLU_${oturum_id}_${kalem.id}_P${i}_${batchId}_${j}`;
                 kayitlar.push({
                     oturum_id: oturum_id,
                     nakliye_kalem_id: parseInt(kalem_id),
-                    qr_kod: `MANUEL_TOPLU_${oturum_id}_${kalem.id}_P${i}_${mevcutOkuma + j + 1}`,
-                    qr_hash: qrKodHash(`MANUEL_TOPLU_${oturum_id}_${kalem.id}_P${i}_${mevcutOkuma + j + 1}`),
+                    qr_kod: qrKod,
+                    qr_hash: qrKodHash(qrKod),
                     paket_toplam: birimPaket,
                     paket_sira: i,
                     malzeme_no_qr: kalem.malzeme_no,

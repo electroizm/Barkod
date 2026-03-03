@@ -1267,17 +1267,21 @@ router.post('/toplu-okut', async (req, res) => {
             okumaSayilari[ps] = (okumaSayilari[ps] || 0) + 1;
         });
 
+        // Benzersiz batch ID: zaman damgası + rastgele suffix
+        const batchId = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+
         // Eksik okumalari bul: her paket_sira icin miktarInt kadar okuma olmali
         const kayitlar = [];
         for (let ps = 1; ps <= paketSayisi; ps++) {
             const mevcut = okumaSayilari[ps] || 0;
             const eksik = miktarInt - mevcut;
             for (let k = 0; k < eksik; k++) {
+                const qrKod = `MANUEL_TOPLU_${fatura_no}_${kalem.id}_P${ps}_${batchId}_${k}`;
                 kayitlar.push({
                     fatura_no: parseInt(fatura_no),
                     kalem_id: parseInt(kalem_id),
-                    qr_kod: `MANUEL_TOPLU_${fatura_no}_${kalem.id}_P${ps}_U${mevcut + k + 1}`,
-                    qr_hash: qrKodHash(`MANUEL_TOPLU_${fatura_no}_${kalem.id}_P${ps}_U${mevcut + k + 1}`),
+                    qr_kod: qrKod,
+                    qr_hash: qrKodHash(qrKod),
                     stok_kod: kalem.stok_kod,
                     paket_sira: ps,
                     paket_toplam: paketSayisi,
