@@ -152,12 +152,13 @@
         .ara-btn {
             margin-top: 10px;
             width: 100%;
-            padding: 12px;
-            font-size: 16px;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 500;
             background-color: #9b59b6;
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
         }
         .ara-btn:hover {
@@ -166,12 +167,13 @@
         .acik-fatura-btn {
             margin-top: 10px;
             width: 100%;
-            padding: 12px;
-            font-size: 14px;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 500;
             background-color: #f39c12;
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
         }
         .acik-fatura-btn:hover {
@@ -180,30 +182,17 @@
         .kapatilan-fatura-btn {
             margin-top: 10px;
             width: 100%;
-            padding: 12px;
-            font-size: 14px;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 500;
             background-color: #95a5a6;
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
         }
         .kapatilan-fatura-btn:hover {
             background-color: #7f8c8d;
-        }
-        .mikro-yukle-btn {
-            margin-top: 10px;
-            width: 100%;
-            padding: 12px;
-            font-size: 14px;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-        .mikro-yukle-btn:hover {
-            background-color: #2980b9;
         }
         /* Modal */
         .fatura-overlay {
@@ -310,8 +299,6 @@
             <button type="button" class="ara-btn" id="faturaAraBtn">Fatura Ara</button>
             <button type="button" class="acik-fatura-btn" id="acikFaturalarBtn">Açık Faturaları Göster</button>
             <button type="button" class="kapatilan-fatura-btn" id="kapatilanFaturalarBtn">Kapatılan Faturaları Göster</button>
-            <button type="button" class="mikro-yukle-btn" id="mikroYukleBtn">Mikro Fatura Yükleme</button>
-            <div id="yuklemeSonuc"></div>
         </div>
 
         <!-- Açık Faturalar Modal -->
@@ -436,8 +423,6 @@
         const kapatilanFaturaOverlay = document.getElementById('kapatilanFaturaOverlay');
         const kapatilanFaturaListesi = document.getElementById('kapatilanFaturaListesi');
         const kapatilanModalKapat = document.getElementById('kapatilanModalKapat');
-        const mikroYukleBtn = document.getElementById('mikroYukleBtn');
-        const yuklemeSonuc = document.getElementById('yuklemeSonuc');
 
         let mevcutFatura = null;
         let faturaKalemleri = [];
@@ -570,32 +555,6 @@
         kapatilanFaturaOverlay.addEventListener('click', function(e) {
             if (e.target === kapatilanFaturaOverlay) {
                 kapatilanFaturaOverlay.classList.remove('goster');
-            }
-        });
-
-        // Mikro fatura yükleme butonu
-        mikroYukleBtn.addEventListener('click', async function() {
-            mikroYukleBtn.disabled = true;
-            mikroYukleBtn.textContent = 'Yükleniyor...';
-            yuklemeSonuc.innerHTML = '';
-
-            try {
-                const response = await fetch('/api/mikro/fatura-yukle', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const data = await response.json();
-
-                if (data.success) {
-                    yuklemeSonuc.innerHTML = `<div class="basari-mesaj">${data.message}</div>`;
-                } else {
-                    yuklemeSonuc.innerHTML = `<div class="hata-kutu">${data.message}</div>`;
-                }
-            } catch (error) {
-                yuklemeSonuc.innerHTML = `<div class="hata-kutu">Hata: ${error.message}</div>`;
-            } finally {
-                mikroYukleBtn.disabled = false;
-                mikroYukleBtn.textContent = 'Mikro Fatura Yükleme';
             }
         });
 
