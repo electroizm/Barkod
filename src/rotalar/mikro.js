@@ -1345,10 +1345,15 @@ router.get('/kapatilan-faturalar', async (req, res) => {
             });
         }
 
-        // Tüm faturaları grupla
+        // Son 2 günün faturalarını getir
+        const ikiGunOnce = new Date();
+        ikiGunOnce.setDate(ikiGunOnce.getDate() - 2);
+        const tarihFiltre = ikiGunOnce.toISOString().split('T')[0];
+
         const { data: faturalar, error } = await client
             .from('satis_faturasi')
             .select('evrakno_seri, evrakno_sira, tarih, cari_adi, miktar, paket_sayisi')
+            .gte('tarih', tarihFiltre)
             .order('evrakno_sira', { ascending: false });
 
         if (error) {
