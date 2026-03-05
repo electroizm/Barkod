@@ -1622,10 +1622,14 @@ router.delete('/hediye-grup-sil/:stokKod', async (req, res) => {
  */
 router.post('/hediye-eslestir', async (req, res) => {
     try {
-        const { evrakno_sira, kullanici } = req.body;
+        const { evrakno_sira, kullanici, stok_kodlar } = req.body;
 
         if (!evrakno_sira) {
             return res.json({ success: false, message: 'Evrak numarası gerekli' });
+        }
+
+        if (!stok_kodlar || !Array.isArray(stok_kodlar) || stok_kodlar.length === 0) {
+            return res.json({ success: false, message: 'Eşleştirilecek ürün seçilmedi' });
         }
 
         const client = await getSupabaseClient();
@@ -1646,11 +1650,12 @@ router.post('/hediye-eslestir', async (req, res) => {
             });
         }
 
-        // 2. Bekleyen okumaları al
+        // 2. Bekleyen okumaları al (sadece seçili stok kodlar)
         const { data: bekleyenler, error: bekleyenError } = await client
             .from('hediye_bekleyen_okumalar')
             .select('*')
-            .eq('durum', 'bekliyor');
+            .eq('durum', 'bekliyor')
+            .in('stok_kod', stok_kodlar);
 
         if (bekleyenError || !bekleyenler || bekleyenler.length === 0) {
             return res.json({

@@ -100,13 +100,24 @@
         }
         .bekleyen-item {
             display: flex;
-            justify-content: space-between;
             align-items: center;
             padding: 12px;
             background: #f8f9fa;
             border: 1px solid #e0e0e0;
             border-radius: 8px;
             margin-bottom: 8px;
+        }
+        .bekleyen-item.secili {
+            background: #e8f5e9;
+            border-color: #27ae60;
+        }
+        .bekleyen-checkbox {
+            width: 22px;
+            height: 22px;
+            min-width: 22px;
+            margin-right: 10px;
+            cursor: pointer;
+            accent-color: #27ae60;
         }
         .bekleyen-bilgi {
             flex: 1;
@@ -469,7 +480,8 @@
 
                 bekleyenListe.innerHTML = data.gruplar.map(grup => {
                     const paketBilgi = grup.paketler.map(p => `P${p.paket_sira}`).join(', ');
-                    return `<div class="bekleyen-item">
+                    return `<div class="bekleyen-item" data-stok-kod="${grup.stok_kod}">
+                        <input type="checkbox" class="bekleyen-checkbox" data-stok-kod="${grup.stok_kod}">
                         <div class="bekleyen-bilgi">
                             <div class="bekleyen-adi">${grup.malzeme_adi || grup.stok_kod}</div>
                             <div class="bekleyen-detay">${grup.stok_kod} | ${grup.paketler.length} paket (${paketBilgi})</div>
@@ -478,6 +490,13 @@
                         <button type="button" class="sil-btn" data-stok-kod="${grup.stok_kod}">Sil</button>
                     </div>`;
                 }).join('');
+
+                // Checkbox tiklama - satir highlight
+                bekleyenListe.querySelectorAll('.bekleyen-checkbox').forEach(cb => {
+                    cb.addEventListener('change', function() {
+                        this.closest('.bekleyen-item').classList.toggle('secili', this.checked);
+                    });
+                });
 
                 // Sil butonlari
                 bekleyenListe.querySelectorAll('.sil-btn').forEach(btn => {
@@ -517,6 +536,14 @@
                 return;
             }
 
+            // Secili stok kodlarini topla
+            const seciliCheckboxlar = bekleyenListe.querySelectorAll('.bekleyen-checkbox:checked');
+            if (seciliCheckboxlar.length === 0) {
+                mesajGoster('Eslestirmek icin en az bir urun secin', 'hata');
+                return;
+            }
+            const stokKodlar = [...seciliCheckboxlar].map(cb => cb.dataset.stokKod);
+
             eslestirBtn.disabled = true;
             eslestirBtn.textContent = 'Eslestiriliyor...';
 
@@ -526,7 +553,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         evrakno_sira: evrakNo,
-                        kullanici: kullaniciAdi
+                        kullanici: kullaniciAdi,
+                        stok_kodlar: stokKodlar
                     })
                 });
                 const data = await response.json();
