@@ -1528,6 +1528,41 @@ router.get('/hediye-bekleyenler', async (req, res) => {
 });
 
 /**
+ * POST /api/mikro/hediye-depo-kaydet
+ * Bekleyen okuma için depo bilgisini kaydet
+ */
+router.post('/hediye-depo-kaydet', async (req, res) => {
+    try {
+        const { id, depo } = req.body;
+
+        if (!id || !depo) {
+            return res.json({ success: false, message: 'ID ve depo gerekli' });
+        }
+
+        const client = await getSupabaseClient();
+        if (!client) {
+            return res.json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
+        }
+
+        const { error } = await client
+            .from('hediye_bekleyen_okumalar')
+            .update({ depo: parseInt(depo) })
+            .eq('id', id);
+
+        if (error) {
+            console.error('Depo kaydetme hatası:', error);
+            return res.json({ success: false, message: 'Kayıt hatası: ' + error.message });
+        }
+
+        return res.json({ success: true, message: `Depo ${depo} kaydedildi` });
+
+    } catch (error) {
+        console.error('Depo kaydetme hatası:', error);
+        return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
+    }
+});
+
+/**
  * DELETE /api/mikro/hediye-okuma/:id
  * Bekleyen okumayı sil
  */
@@ -1596,24 +1631,19 @@ router.delete('/hediye-grup-sil/:stokKod', async (req, res) => {
 /**
  * POST /api/mikro/hediye-eslestir
  * Evrak no ile eşleştir ve satis_faturasi_okumalari'na aktar
- * secili_okumalar: [{id, depo}] formatında
+ * secili_idler: [id1, id2, ...] formatında - depo bilgisi hediye_bekleyen_okumalar tablosundan okunur
+ * Eşleştirme: stok_kod + cikis_depo_no == depo kontrolü
  */
 router.post('/hediye-eslestir', async (req, res) => {
     try {
-        const { evrakno_sira, kullanici, secili_okumalar } = req.body;
+        const { evrakno_sira, kullanici, secili_idler } = req.body;
 
         if (!evrakno_sira) {
             return res.json({ success: false, message: 'Evrak numarası gerekli' });
         }
 
-        if (!secili_okumalar || !Array.isArray(secili_okumalar) || secili_okumalar.length === 0) {
+        if (!secili_idler || !Array.isArray(secili_idler) || secili_idler.length === 0) {
             return res.json({ success: false, message: 'Eşleştirilecek ürün seçilmedi' });
-        }
-
-        // Depo kontrolü
-        const deposuzlar = secili_okumalar.filter(o => !o.depo);
-        if (deposuzlar.length > 0) {
-            return res.json({ success: false, message: 'Tüm seçili ürünler için depo seçimi yapın' });
         }
 
         const client = await getSupabaseClient();
@@ -1621,7 +1651,31 @@ router.post('/hediye-eslestir', async (req, res) => {
             return res.json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
         }
 
-        // 1. Fatura kalemlerini al
+        // 1. Seçili bekleyen okumaları al (ID bazlı)
+        const { data: bekleyenler, error: bekleyenError } = await client
+            .from('hediye_bekleyen_okumalar')
+            .select('*')
+            .eq('durum', 'bekliyor')
+            .in('id', secili_idler);
+
+        if (bekleyenError || !bekleyenler || bekleyenler.length === 0) {
+            return res.json({
+                success: false,
+                message: 'Bekleyen okuma bulunamadı'
+            });
+        }
+
+        // Depo kontrolü - tüm seçili okumalarda depo kaydedilmiş mi?
+        const deposuzlar = bekleyenler.filter(b => !b.depo);
+        if (deposuzlar.length > 0) {
+            const adlar = deposuzlar.map(b => b.malzeme_adi || b.stok_kod);
+            return res.json({
+                success: false,
+                message: `Depo kaydedilmemiş ürünler var: ${adlar.join(', ')}. Önce depo seçip kaydedin.`
+            });
+        }
+
+        // 2. Fatura kalemlerini al
         const { data: kalemler, error: kalemError } = await client
             .from('satis_faturasi')
             .select('*')
@@ -1634,50 +1688,39 @@ router.post('/hediye-eslestir', async (req, res) => {
             });
         }
 
-        // 2. Seçili bekleyen okumaları al (ID bazlı)
-        const seciliIdler = secili_okumalar.map(o => o.id);
-        const depoMap = {};
-        secili_okumalar.forEach(o => { depoMap[o.id] = parseInt(o.depo); });
-
-        const { data: bekleyenler, error: bekleyenError } = await client
-            .from('hediye_bekleyen_okumalar')
-            .select('*')
-            .eq('durum', 'bekliyor')
-            .in('id', seciliIdler);
-
-        if (bekleyenError || !bekleyenler || bekleyenler.length === 0) {
-            return res.json({
-                success: false,
-                message: 'Bekleyen okuma bulunamadı'
-            });
-        }
-
-        // 3. Her okumayı fatura kalemiyle eşleştir
+        // 3. Her okumayı fatura kalemiyle eşleştir (stok_kod + cikis_depo_no)
         const eslesen = [];
         const eslesmeyen = [];
         const batchId = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 
         for (const bekleyen of bekleyenler) {
             const stokKod = bekleyen.stok_kod;
+            const bekleyenDepo = parseInt(bekleyen.depo);
+
             const kalem = kalemler.find(k => {
                 if (!k.stok_kod) return false;
                 const dbKod = k.stok_kod.trim();
                 const hediyeKod = stokKod.trim();
-                return dbKod === hediyeKod ||
+                const stokEslesme = dbKod === hediyeKod ||
                     dbKod.startsWith(hediyeKod) ||
                     hediyeKod.startsWith(dbKod) ||
                     dbKod.substring(0, 10) === hediyeKod.substring(0, 10);
+
+                // cikis_depo_no kontrolü
+                const depoEslesme = !k.cikis_depo_no || parseInt(k.cikis_depo_no) === bekleyenDepo;
+
+                return stokEslesme && depoEslesme;
             });
 
             if (kalem) {
-                eslesen.push({ bekleyen, kalem, depo: depoMap[bekleyen.id] });
+                eslesen.push({ bekleyen, kalem });
             } else {
                 eslesmeyen.push(bekleyen);
             }
         }
 
         if (eslesen.length === 0) {
-            const eslesemeyenAdlar = [...new Set(eslesmeyen.map(e => e.malzeme_adi || e.stok_kod))];
+            const eslesemeyenAdlar = [...new Set(eslesmeyen.map(e => `${e.malzeme_adi || e.stok_kod} (Depo:${e.depo})`))];
             return res.json({
                 success: false,
                 message: `Bu faturada eşleşen ürün bulunamadı. Bekleyen ürünler: ${eslesemeyenAdlar.join(', ')}`
@@ -1693,7 +1736,7 @@ router.post('/hediye-eslestir', async (req, res) => {
             stok_kod: e.kalem.stok_kod,
             paket_sira: e.bekleyen.paket_sira,
             paket_toplam: e.bekleyen.paket_sayisi,
-            depo: e.depo,
+            depo: parseInt(e.bekleyen.depo),
             kullanici: kullanici || e.bekleyen.kullanici || 'bilinmiyor',
             created_at: new Date().toISOString()
         }));

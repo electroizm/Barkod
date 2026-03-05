@@ -99,8 +99,6 @@
             border-bottom: 2px solid #27ae60;
         }
         .bekleyen-item {
-            display: flex;
-            align-items: center;
             padding: 12px;
             background: #f8f9fa;
             border: 1px solid #e0e0e0;
@@ -111,6 +109,10 @@
             background: #e8f5e9;
             border-color: #27ae60;
         }
+        .bekleyen-ust {
+            display: flex;
+            align-items: center;
+        }
         .bekleyen-checkbox {
             width: 22px;
             height: 22px;
@@ -119,52 +121,61 @@
             cursor: pointer;
             accent-color: #27ae60;
         }
-        .bekleyen-bilgi {
-            flex: 1;
-        }
         .bekleyen-adi {
+            flex: 1;
             font-weight: 500;
             color: #2c3e50;
             font-size: 14px;
-            word-break: break-all;
-            overflow: hidden;
-            max-height: 40px;
+        }
+        .bekleyen-alt {
+            display: flex;
+            align-items: center;
+            margin-top: 6px;
+            padding-left: 32px;
+            gap: 8px;
         }
         .bekleyen-detay {
+            flex: 1;
             font-size: 12px;
             color: #888;
-            margin-top: 2px;
-            word-break: break-all;
-            overflow: hidden;
-            max-height: 36px;
-        }
-        .bekleyen-durum {
-            font-size: 12px;
-            color: #f39c12;
-            font-weight: 500;
         }
         .depo-select {
-            padding: 6px 8px;
-            font-size: 13px;
+            padding: 5px 6px;
+            font-size: 12px;
             border: 1px solid #ddd;
-            border-radius: 6px;
+            border-radius: 5px;
             background: white;
-            margin-left: 8px;
-            min-width: 70px;
+            min-width: 60px;
         }
         .depo-select:focus {
             border-color: #27ae60;
             outline: none;
         }
+        .depo-select.kaydedildi {
+            border-color: #27ae60;
+            background: #e8f5e9;
+        }
+        .kaydet-btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .kaydet-btn:hover {
+            background: #219a52;
+        }
         .sil-btn {
             background: #e74c3c;
             color: white;
             border: none;
-            border-radius: 6px;
-            padding: 6px 12px;
-            font-size: 13px;
+            border-radius: 5px;
+            padding: 5px 10px;
+            font-size: 12px;
             cursor: pointer;
-            margin-left: 8px;
             white-space: nowrap;
         }
         .sil-btn:hover {
@@ -492,19 +503,23 @@
                 eslestirAlani.style.display = 'block';
 
                 bekleyenListe.innerHTML = data.okumalar.map(okuma => {
+                    const depoKaydedildi = okuma.depo ? ' kaydedildi' : '';
                     return `<div class="bekleyen-item" data-id="${okuma.id}">
-                        <input type="checkbox" class="bekleyen-checkbox" data-id="${okuma.id}">
-                        <div class="bekleyen-bilgi">
+                        <div class="bekleyen-ust">
+                            <input type="checkbox" class="bekleyen-checkbox" data-id="${okuma.id}">
                             <div class="bekleyen-adi">${okuma.malzeme_adi || okuma.stok_kod}</div>
-                            <div class="bekleyen-detay">${okuma.stok_kod} | P${okuma.paket_sira}/${okuma.paket_sayisi}</div>
                         </div>
-                        <select class="depo-select" data-id="${okuma.id}">
-                            <option value="">Depo</option>
-                            <option value="100">100</option>
-                            <option value="200">200</option>
-                            <option value="300">300</option>
-                        </select>
-                        <button type="button" class="sil-btn" data-id="${okuma.id}">Sil</button>
+                        <div class="bekleyen-alt">
+                            <div class="bekleyen-detay">${okuma.stok_kod} | P${okuma.paket_sira}/${okuma.paket_sayisi}</div>
+                            <select class="depo-select${depoKaydedildi}" data-id="${okuma.id}">
+                                <option value="">Depo</option>
+                                <option value="100"${okuma.depo == 100 ? ' selected' : ''}>100</option>
+                                <option value="200"${okuma.depo == 200 ? ' selected' : ''}>200</option>
+                                <option value="300"${okuma.depo == 300 ? ' selected' : ''}>300</option>
+                            </select>
+                            <button type="button" class="kaydet-btn" data-id="${okuma.id}">Kaydet</button>
+                            <button type="button" class="sil-btn" data-id="${okuma.id}">Sil</button>
+                        </div>
                     </div>`;
                 }).join('');
 
@@ -512,6 +527,35 @@
                 bekleyenListe.querySelectorAll('.bekleyen-checkbox').forEach(cb => {
                     cb.addEventListener('change', function() {
                         this.closest('.bekleyen-item').classList.toggle('secili', this.checked);
+                    });
+                });
+
+                // Kaydet butonlari (depo kaydet)
+                bekleyenListe.querySelectorAll('.kaydet-btn').forEach(btn => {
+                    btn.addEventListener('click', async function() {
+                        const id = this.dataset.id;
+                        const depoSelect = bekleyenListe.querySelector(`.depo-select[data-id="${id}"]`);
+                        const depo = depoSelect ? depoSelect.value : '';
+                        if (!depo) {
+                            mesajGoster('Depo secimi yapin', 'hata');
+                            return;
+                        }
+                        try {
+                            const response = await fetch(`/api/mikro/hediye-depo-kaydet`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ id: parseInt(id), depo: parseInt(depo) })
+                            });
+                            const data = await response.json();
+                            if (data.success) {
+                                mesajGoster(data.message, 'basari');
+                                depoSelect.classList.add('kaydedildi');
+                            } else {
+                                mesajGoster(data.message, 'hata');
+                            }
+                        } catch (e) {
+                            mesajGoster('Kaydetme hatasi: ' + e.message, 'hata');
+                        }
                     });
                 });
 
@@ -551,27 +595,14 @@
                 return;
             }
 
-            // Secili okumalari topla (id + depo)
+            // Secili okumalari topla
             const seciliCheckboxlar = bekleyenListe.querySelectorAll('.bekleyen-checkbox:checked');
             if (seciliCheckboxlar.length === 0) {
                 mesajGoster('Eslestirmek icin en az bir urun secin', 'hata');
                 return;
             }
 
-            const seciliOkumalar = [];
-            let deposuz = false;
-            seciliCheckboxlar.forEach(cb => {
-                const id = parseInt(cb.dataset.id);
-                const depoSelect = bekleyenListe.querySelector(`.depo-select[data-id="${cb.dataset.id}"]`);
-                const depo = depoSelect ? depoSelect.value : '';
-                if (!depo) deposuz = true;
-                seciliOkumalar.push({ id, depo });
-            });
-
-            if (deposuz) {
-                mesajGoster('Tum secili urunler icin depo secimi yapin', 'hata');
-                return;
-            }
+            const seciliIdler = [...seciliCheckboxlar].map(cb => parseInt(cb.dataset.id));
 
             eslestirBtn.disabled = true;
             eslestirBtn.textContent = 'Eslestiriliyor...';
@@ -583,7 +614,7 @@
                     body: JSON.stringify({
                         evrakno_sira: evrakNo,
                         kullanici: kullaniciAdi,
-                        secili_okumalar: seciliOkumalar
+                        secili_idler: seciliIdler
                     })
                 });
                 const data = await response.json();
