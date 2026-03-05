@@ -1298,12 +1298,19 @@ router.post('/hediye-barkod-bilgi', async (req, res) => {
         let stokKod, paketSira, paketToplam, normalizedQr;
 
         if (qrBilgi.basarili) {
+            // GS1 formatında QR kod
             normalizedQr = qrBilgi.qrKodHam;
             stokKod = qrBilgi.malzemeNo.slice(-10);
             paketSira = qrBilgi.paketSira;
             paketToplam = qrBilgi.paketToplam;
         } else {
-            return res.json({ success: false, message: 'QR kod parse edilemedi: ' + qrBilgi.hata });
+            // GS1 değilse basit format dene: STOK_KOD|PAKET_SIRA|TOPLAM veya sadece STOK_KOD
+            const qrParcalari = qr_kod.split('|');
+            stokKod = qrParcalari[0]?.trim() || qr_kod.trim();
+            paketSira = parseInt(qrParcalari[1]) || 1;
+            paketToplam = parseInt(qrParcalari[2]) || 1;
+            normalizedQr = qr_kod;
+            console.log(`Hediye: Basit QR format - stok=${stokKod}, paket=${paketSira}/${paketToplam}`);
         }
 
         // Doğtaş API'den paket bilgisi al
@@ -1652,12 +1659,17 @@ router.post('/hediye-eslestir', async (req, res) => {
 
         for (const stokKod of Object.keys(bekleyenGrup)) {
             // satis_faturasi'nda bu stok_kod var mı?
-            // stok_kod son 10 hane olabileceği için endsWith kontrolü de yap
-            const kalem = kalemler.find(k =>
-                k.stok_kod === stokKod ||
-                (k.stok_kod && k.stok_kod.endsWith(stokKod)) ||
-                (k.stok_kod && stokKod.endsWith(k.stok_kod))
-            );
+            // DB'deki stok_kod "3200421048 0" (suffix'li), hediye'deki "3200421048" (10 hane)
+            // startsWith ve ilk 10 karakter karşılaştırması yap
+            const kalem = kalemler.find(k => {
+                if (!k.stok_kod) return false;
+                const dbKod = k.stok_kod.trim();
+                const hediyeKod = stokKod.trim();
+                return dbKod === hediyeKod ||
+                    dbKod.startsWith(hediyeKod) ||
+                    hediyeKod.startsWith(dbKod) ||
+                    dbKod.substring(0, 10) === hediyeKod.substring(0, 10);
+            });
 
             if (kalem) {
                 for (const bekleyen of bekleyenGrup[stokKod]) {
