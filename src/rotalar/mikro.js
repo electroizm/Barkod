@@ -1496,7 +1496,7 @@ router.post('/hediye-manuel-okuma', async (req, res) => {
 
 /**
  * GET /api/mikro/hediye-bekleyenler
- * Bekleyen okumaları listele (stok_kod bazında gruplu)
+ * Bekleyen okumaları tek tek listele
  */
 router.get('/hediye-bekleyenler', async (req, res) => {
     try {
@@ -1515,32 +1515,9 @@ router.get('/hediye-bekleyenler', async (req, res) => {
             return res.json({ success: false, message: 'Sorgu hatası: ' + error.message });
         }
 
-        // Stok_kod bazında grupla
-        const gruplar = {};
-        for (const kayit of (data || [])) {
-            const key = kayit.stok_kod;
-            if (!gruplar[key]) {
-                gruplar[key] = {
-                    stok_kod: kayit.stok_kod,
-                    malzeme_adi: kayit.malzeme_adi,
-                    product_desc: kayit.product_desc,
-                    paket_sayisi: kayit.paket_sayisi,
-                    paketler: [],
-                    ilk_tarih: kayit.created_at
-                };
-            }
-            gruplar[key].paketler.push({
-                id: kayit.id,
-                paket_sira: kayit.paket_sira,
-                qr_kod: kayit.qr_kod,
-                kullanici: kayit.kullanici,
-                created_at: kayit.created_at
-            });
-        }
-
         return res.json({
             success: true,
-            gruplar: Object.values(gruplar),
+            okumalar: data || [],
             toplam: (data || []).length
         });
 
@@ -1619,17 +1596,24 @@ router.delete('/hediye-grup-sil/:stokKod', async (req, res) => {
 /**
  * POST /api/mikro/hediye-eslestir
  * Evrak no ile eşleştir ve satis_faturasi_okumalari'na aktar
+ * secili_okumalar: [{id, depo}] formatında
  */
 router.post('/hediye-eslestir', async (req, res) => {
     try {
-        const { evrakno_sira, kullanici, stok_kodlar } = req.body;
+        const { evrakno_sira, kullanici, secili_okumalar } = req.body;
 
         if (!evrakno_sira) {
             return res.json({ success: false, message: 'Evrak numarası gerekli' });
         }
 
-        if (!stok_kodlar || !Array.isArray(stok_kodlar) || stok_kodlar.length === 0) {
+        if (!secili_okumalar || !Array.isArray(secili_okumalar) || secili_okumalar.length === 0) {
             return res.json({ success: false, message: 'Eşleştirilecek ürün seçilmedi' });
+        }
+
+        // Depo kontrolü
+        const deposuzlar = secili_okumalar.filter(o => !o.depo);
+        if (deposuzlar.length > 0) {
+            return res.json({ success: false, message: 'Tüm seçili ürünler için depo seçimi yapın' });
         }
 
         const client = await getSupabaseClient();
@@ -1650,12 +1634,16 @@ router.post('/hediye-eslestir', async (req, res) => {
             });
         }
 
-        // 2. Bekleyen okumaları al (sadece seçili stok kodlar)
+        // 2. Seçili bekleyen okumaları al (ID bazlı)
+        const seciliIdler = secili_okumalar.map(o => o.id);
+        const depoMap = {};
+        secili_okumalar.forEach(o => { depoMap[o.id] = parseInt(o.depo); });
+
         const { data: bekleyenler, error: bekleyenError } = await client
             .from('hediye_bekleyen_okumalar')
             .select('*')
             .eq('durum', 'bekliyor')
-            .in('stok_kod', stok_kodlar);
+            .in('id', seciliIdler);
 
         if (bekleyenError || !bekleyenler || bekleyenler.length === 0) {
             return res.json({
@@ -1664,22 +1652,13 @@ router.post('/hediye-eslestir', async (req, res) => {
             });
         }
 
-        // 3. Stok_kod ile eşleştir
+        // 3. Her okumayı fatura kalemiyle eşleştir
         const eslesen = [];
         const eslesmeyen = [];
         const batchId = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 
-        // Stok_kod bazında grupla
-        const bekleyenGrup = {};
-        for (const b of bekleyenler) {
-            if (!bekleyenGrup[b.stok_kod]) bekleyenGrup[b.stok_kod] = [];
-            bekleyenGrup[b.stok_kod].push(b);
-        }
-
-        for (const stokKod of Object.keys(bekleyenGrup)) {
-            // satis_faturasi'nda bu stok_kod var mı?
-            // DB'deki stok_kod "3200421048 0" (suffix'li), hediye'deki "3200421048" (10 hane)
-            // startsWith ve ilk 10 karakter karşılaştırması yap
+        for (const bekleyen of bekleyenler) {
+            const stokKod = bekleyen.stok_kod;
             const kalem = kalemler.find(k => {
                 if (!k.stok_kod) return false;
                 const dbKod = k.stok_kod.trim();
@@ -1691,13 +1670,9 @@ router.post('/hediye-eslestir', async (req, res) => {
             });
 
             if (kalem) {
-                for (const bekleyen of bekleyenGrup[stokKod]) {
-                    eslesen.push({ bekleyen, kalem });
-                }
+                eslesen.push({ bekleyen, kalem, depo: depoMap[bekleyen.id] });
             } else {
-                for (const bekleyen of bekleyenGrup[stokKod]) {
-                    eslesmeyen.push(bekleyen);
-                }
+                eslesmeyen.push(bekleyen);
             }
         }
 
@@ -1718,6 +1693,7 @@ router.post('/hediye-eslestir', async (req, res) => {
             stok_kod: e.kalem.stok_kod,
             paket_sira: e.bekleyen.paket_sira,
             paket_toplam: e.bekleyen.paket_sayisi,
+            depo: e.depo,
             kullanici: kullanici || e.bekleyen.kullanici || 'bilinmiyor',
             created_at: new Date().toISOString()
         }));

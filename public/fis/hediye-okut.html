@@ -143,6 +143,19 @@
             color: #f39c12;
             font-weight: 500;
         }
+        .depo-select {
+            padding: 6px 8px;
+            font-size: 13px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: white;
+            margin-left: 8px;
+            min-width: 70px;
+        }
+        .depo-select:focus {
+            border-color: #27ae60;
+            outline: none;
+        }
         .sil-btn {
             background: #e74c3c;
             color: white;
@@ -151,7 +164,7 @@
             padding: 6px 12px;
             font-size: 13px;
             cursor: pointer;
-            margin-left: 10px;
+            margin-left: 8px;
             white-space: nowrap;
         }
         .sil-btn:hover {
@@ -468,7 +481,7 @@
                 const response = await fetch('/api/mikro/hediye-bekleyenler');
                 const data = await response.json();
 
-                if (!data.success || data.gruplar.length === 0) {
+                if (!data.success || data.okumalar.length === 0) {
                     bekleyenListe.innerHTML = '<div class="bos-mesaj">Bekleyen okuma yok.</div>';
                     bekleyenSayisi.textContent = '';
                     eslestirAlani.style.display = 'none';
@@ -478,16 +491,20 @@
                 bekleyenSayisi.textContent = `(${data.toplam} paket)`;
                 eslestirAlani.style.display = 'block';
 
-                bekleyenListe.innerHTML = data.gruplar.map(grup => {
-                    const paketBilgi = grup.paketler.map(p => `P${p.paket_sira}`).join(', ');
-                    return `<div class="bekleyen-item" data-stok-kod="${grup.stok_kod}">
-                        <input type="checkbox" class="bekleyen-checkbox" data-stok-kod="${grup.stok_kod}">
+                bekleyenListe.innerHTML = data.okumalar.map(okuma => {
+                    return `<div class="bekleyen-item" data-id="${okuma.id}">
+                        <input type="checkbox" class="bekleyen-checkbox" data-id="${okuma.id}">
                         <div class="bekleyen-bilgi">
-                            <div class="bekleyen-adi">${grup.malzeme_adi || grup.stok_kod}</div>
-                            <div class="bekleyen-detay">${grup.stok_kod} | ${grup.paketler.length} paket (${paketBilgi})</div>
-                            <div class="bekleyen-durum">Bekliyor</div>
+                            <div class="bekleyen-adi">${okuma.malzeme_adi || okuma.stok_kod}</div>
+                            <div class="bekleyen-detay">${okuma.stok_kod} | P${okuma.paket_sira}/${okuma.paket_sayisi}</div>
                         </div>
-                        <button type="button" class="sil-btn" data-stok-kod="${grup.stok_kod}">Sil</button>
+                        <select class="depo-select" data-id="${okuma.id}">
+                            <option value="">Depo</option>
+                            <option value="100">100</option>
+                            <option value="200">200</option>
+                            <option value="300">300</option>
+                        </select>
+                        <button type="button" class="sil-btn" data-id="${okuma.id}">Sil</button>
                     </div>`;
                 }).join('');
 
@@ -498,14 +515,12 @@
                     });
                 });
 
-                // Sil butonlari
+                // Sil butonlari (tek kayit sil)
                 bekleyenListe.querySelectorAll('.sil-btn').forEach(btn => {
                     btn.addEventListener('click', async function() {
-                        const stokKod = this.dataset.stokKod;
-                        if (!confirm(`${stokKod} icin tum bekleyen okumalar silinecek. Emin misiniz?`)) return;
-
+                        const id = this.dataset.id;
                         try {
-                            const response = await fetch(`/api/mikro/hediye-grup-sil/${encodeURIComponent(stokKod)}`, {
+                            const response = await fetch(`/api/mikro/hediye-okuma/${id}`, {
                                 method: 'DELETE'
                             });
                             const data = await response.json();
@@ -536,13 +551,27 @@
                 return;
             }
 
-            // Secili stok kodlarini topla
+            // Secili okumalari topla (id + depo)
             const seciliCheckboxlar = bekleyenListe.querySelectorAll('.bekleyen-checkbox:checked');
             if (seciliCheckboxlar.length === 0) {
                 mesajGoster('Eslestirmek icin en az bir urun secin', 'hata');
                 return;
             }
-            const stokKodlar = [...seciliCheckboxlar].map(cb => cb.dataset.stokKod);
+
+            const seciliOkumalar = [];
+            let deposuz = false;
+            seciliCheckboxlar.forEach(cb => {
+                const id = parseInt(cb.dataset.id);
+                const depoSelect = bekleyenListe.querySelector(`.depo-select[data-id="${cb.dataset.id}"]`);
+                const depo = depoSelect ? depoSelect.value : '';
+                if (!depo) deposuz = true;
+                seciliOkumalar.push({ id, depo });
+            });
+
+            if (deposuz) {
+                mesajGoster('Tum secili urunler icin depo secimi yapin', 'hata');
+                return;
+            }
 
             eslestirBtn.disabled = true;
             eslestirBtn.textContent = 'Eslestiriliyor...';
@@ -554,7 +583,7 @@
                     body: JSON.stringify({
                         evrakno_sira: evrakNo,
                         kullanici: kullaniciAdi,
-                        stok_kodlar: stokKodlar
+                        secili_okumalar: seciliOkumalar
                     })
                 });
                 const data = await response.json();
