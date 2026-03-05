@@ -1298,19 +1298,33 @@ router.post('/hediye-barkod-bilgi', async (req, res) => {
         let stokKod, paketSira, paketToplam, normalizedQr;
 
         if (qrBilgi.basarili) {
-            // GS1 formatında QR kod
+            // GS1 tam parse başarılı
             normalizedQr = qrBilgi.qrKodHam;
             stokKod = qrBilgi.malzemeNo.slice(-10);
             paketSira = qrBilgi.paketSira;
             paketToplam = qrBilgi.paketToplam;
         } else {
-            // GS1 değilse basit format dene: STOK_KOD|PAKET_SIRA|TOPLAM veya sadece STOK_KOD
-            const qrParcalari = qr_kod.split('|');
-            stokKod = qrParcalari[0]?.trim() || qr_kod.trim();
-            paketSira = parseInt(qrParcalari[1]) || 1;
-            paketToplam = parseInt(qrParcalari[2]) || 1;
-            normalizedQr = qr_kod;
-            console.log(`Hediye: Basit QR format - stok=${stokKod}, paket=${paketSira}/${paketToplam}`);
+            // GS1 tam parse başarısız - kısmi bilgi çıkarmayı dene
+            // QR'ın sonundaki 99 + 18 hane pattern'inden malzeme_no çıkar
+            const malzemeMatch = qr_kod.replace(/\s/g, '').match(/99(\d{18})$/);
+            if (malzemeMatch) {
+                stokKod = malzemeMatch[1].slice(-10); // Son 10 hane = stok_kod
+                normalizedQr = qr_kod;
+                // 91XX = paket toplam, 92XX = paket sıra
+                const paket91 = qr_kod.match(/91(\d{2})/);
+                const paket92 = qr_kod.match(/92(\d{2})/);
+                paketToplam = paket91 ? parseInt(paket91[1], 10) : 1;
+                paketSira = paket92 ? parseInt(paket92[1], 10) : 1;
+                console.log(`Hediye: Kısmi GS1 parse - stok=${stokKod}, paket=${paketSira}/${paketToplam}`);
+            } else {
+                // Hiç GS1 değil - basit format: STOK_KOD|PAKET_SIRA|TOPLAM
+                const qrParcalari = qr_kod.split('|');
+                stokKod = qrParcalari[0]?.trim() || qr_kod.trim();
+                paketSira = parseInt(qrParcalari[1]) || 1;
+                paketToplam = parseInt(qrParcalari[2]) || 1;
+                normalizedQr = qr_kod;
+                console.log(`Hediye: Basit QR format - stok=${stokKod}, paket=${paketSira}/${paketToplam}`);
+            }
         }
 
         // Doğtaş API'den paket bilgisi al
