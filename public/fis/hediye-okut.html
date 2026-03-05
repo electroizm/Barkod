@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hediye Okutma - Barkod Takip</title>
+    <link rel="stylesheet" href="/css/stil.css">
+    <style>
+        .tab-container {
+            display: flex;
+            gap: 0;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #ddd;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            background: #f5f5f5;
+            color: #666;
+            transition: all 0.2s;
+        }
+        .tab-btn.aktif {
+            background: #27ae60;
+            color: white;
+        }
+        .tab-icerik {
+            display: none;
+        }
+        .tab-icerik.aktif {
+            display: block;
+        }
+        .sonuc-mesaj {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            text-align: center;
+            font-weight: 500;
+        }
+        .sonuc-mesaj.basari {
+            background: #d4edda;
+            color: #155724;
+        }
+        .sonuc-mesaj.hata {
+            background: #fdecea;
+            color: #c0392b;
+        }
+        .arama-input {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            outline: none;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+        .arama-input:focus {
+            border-color: #27ae60;
+        }
+        .arama-sonuc {
+            max-height: 250px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+        .arama-item {
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .arama-item:hover {
+            background: #e8f5e9;
+            border-color: #27ae60;
+        }
+        .arama-item-adi {
+            font-weight: 500;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+        .arama-item-kod {
+            font-size: 12px;
+            color: #888;
+            margin-top: 2px;
+        }
+        .bekleyen-baslik {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 20px 0 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #27ae60;
+        }
+        .bekleyen-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .bekleyen-bilgi {
+            flex: 1;
+        }
+        .bekleyen-adi {
+            font-weight: 500;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+        .bekleyen-detay {
+            font-size: 12px;
+            color: #888;
+            margin-top: 2px;
+        }
+        .bekleyen-durum {
+            font-size: 12px;
+            color: #f39c12;
+            font-weight: 500;
+        }
+        .sil-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 13px;
+            cursor: pointer;
+            margin-left: 10px;
+            white-space: nowrap;
+        }
+        .sil-btn:hover {
+            background: #c0392b;
+        }
+        .eslestir-alan {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f0f7ff;
+            border-radius: 8px;
+            border: 1px solid #b3d4fc;
+        }
+        .eslestir-baslik {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .eslestir-input-row {
+            display: flex;
+            gap: 10px;
+        }
+        .eslestir-input {
+            flex: 1;
+            padding: 14px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            outline: none;
+        }
+        .eslestir-input:focus {
+            border-color: #3498db;
+        }
+        .eslestir-btn {
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: 500;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .eslestir-btn:hover {
+            background: #2980b9;
+        }
+        .eslestir-btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+        .bos-mesaj {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+            font-size: 14px;
+        }
+        .yukleniyor-kucuk {
+            text-align: center;
+            padding: 15px;
+            color: #666;
+        }
+        .okuma-alani {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="kapsayici">
+        <a href="/fis/teslimat.html" class="geri-buton">Geri</a>
+
+        <h1 class="baslik">Hediye Okutma</h1>
+        <span id="kullaniciBilgi" style="display:none;"></span>
+
+        <!-- Sonuç mesajı -->
+        <div id="sonucMesaj" style="display:none;"></div>
+
+        <!-- Tab butonları -->
+        <div class="tab-container">
+            <button type="button" class="tab-btn aktif" data-tab="barkod">Barkod Okutma</button>
+            <button type="button" class="tab-btn" data-tab="manuel">Manuel Okutma</button>
+        </div>
+
+        <!-- Barkod Okutma Tab -->
+        <div class="tab-icerik aktif" id="tab-barkod">
+            <div class="okuma-alani" id="barkodOkuyucuAlani"></div>
+        </div>
+
+        <!-- Manuel Okutma Tab -->
+        <div class="tab-icerik" id="tab-manuel">
+            <input type="text" class="arama-input" id="aramaInput"
+                   placeholder="Malzeme adi veya stok kodu ile arayin..." autofocus>
+            <div class="arama-sonuc" id="aramaSonuc"></div>
+        </div>
+
+        <!-- Bekleyen Okumalar -->
+        <div class="bekleyen-baslik">
+            Bekleyen Okumalar <span id="bekleyenSayisi"></span>
+        </div>
+        <div id="bekleyenListe"></div>
+
+        <!-- Eslestirme Alani -->
+        <div class="eslestir-alan" id="eslestirAlani" style="display:none;">
+            <div class="eslestir-baslik">Fatura ile Eslestir</div>
+            <div class="eslestir-input-row">
+                <input type="text" class="eslestir-input" id="evrakNoInput"
+                       placeholder="Evrak No girin">
+                <button type="button" class="eslestir-btn" id="eslestirBtn">Eslestir</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/ortak.js"></script>
+    <script src="/js/barkod-okuyucu.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script>
+        // Elementler
+        const sonucMesaj = document.getElementById('sonucMesaj');
+        const aramaInput = document.getElementById('aramaInput');
+        const aramaSonuc = document.getElementById('aramaSonuc');
+        const bekleyenListe = document.getElementById('bekleyenListe');
+        const bekleyenSayisi = document.getElementById('bekleyenSayisi');
+        const eslestirAlani = document.getElementById('eslestirAlani');
+        const evrakNoInput = document.getElementById('evrakNoInput');
+        const eslestirBtn = document.getElementById('eslestirBtn');
+
+        let kullaniciAdi = 'bilinmiyor';
+
+        // Kullanici bilgisini al
+        oturumKontrolEt().then(k => {
+            if (k) kullaniciAdi = k.kullaniciAdi;
+        });
+
+        // ==========================================
+        // TAB YONETIMI
+        // ==========================================
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('aktif'));
+                document.querySelectorAll('.tab-icerik').forEach(t => t.classList.remove('aktif'));
+                this.classList.add('aktif');
+                document.getElementById('tab-' + this.dataset.tab).classList.add('aktif');
+            });
+        });
+
+        // ==========================================
+        // BARKOD OKUTMA
+        // ==========================================
+        const okuyucu = new BarkodOkuyucu('#barkodOkuyucuAlani', {
+            otomatikOkuma: true,
+            kameraAktif: true,
+            okumaSonrasi: barkodOkut
+        });
+
+        async function barkodOkut(qrKod) {
+            if (!qrKod || !qrKod.trim()) return;
+            qrKod = qrKod.trim();
+
+            mesajGoster('Barkod okunuyor...', '');
+
+            try {
+                // 1. QR bilgisini al
+                const bilgiResponse = await fetch('/api/mikro/hediye-barkod-bilgi', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ qr_kod: qrKod })
+                });
+                const bilgi = await bilgiResponse.json();
+
+                if (!bilgi.success) {
+                    mesajGoster(bilgi.message, 'hata');
+                    return;
+                }
+
+                // 2. Paketi kaydet
+                const kayitResponse = await fetch('/api/mikro/hediye-okuma-kaydet', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        stok_kod: bilgi.stok_kod,
+                        malzeme_adi: bilgi.malzeme_adi,
+                        product_desc: bilgi.product_desc,
+                        paket_sayisi: bilgi.paket_sayisi,
+                        paket_sira: bilgi.paket_sira,
+                        qr_kod: bilgi.qr_kod_normalized || qrKod,
+                        kullanici: kullaniciAdi
+                    })
+                });
+                const kayit = await kayitResponse.json();
+
+                if (kayit.success) {
+                    mesajGoster(`${bilgi.malzeme_adi} P${bilgi.paket_sira}/${bilgi.paket_sayisi}`, 'basari');
+                    bekleyenleriYukle();
+                } else {
+                    mesajGoster(kayit.message, 'hata');
+                }
+
+            } catch (error) {
+                mesajGoster('Baglanti hatasi: ' + error.message, 'hata');
+            }
+        }
+
+        // ==========================================
+        // MANUEL OKUTMA (ARAMA)
+        // ==========================================
+        let aramaZamanlayici = null;
+
+        aramaInput.addEventListener('input', function() {
+            clearTimeout(aramaZamanlayici);
+            aramaZamanlayici = setTimeout(() => {
+                urunAra(this.value.trim());
+            }, 300);
+        });
+
+        async function urunAra(sorgu) {
+            if (!sorgu || sorgu.length < 2) {
+                aramaSonuc.innerHTML = '<div class="bos-mesaj">En az 2 karakter yazin.</div>';
+                return;
+            }
+
+            aramaSonuc.innerHTML = '<div class="yukleniyor-kucuk">Araniyor...</div>';
+
+            try {
+                const response = await fetch(`/api/stok/ara?q=${encodeURIComponent(sorgu)}`);
+                const data = await response.json();
+
+                if (!data.success || data.sonuclar.length === 0) {
+                    aramaSonuc.innerHTML = '<div class="bos-mesaj">Sonuc bulunamadi.</div>';
+                    return;
+                }
+
+                aramaSonuc.innerHTML = data.sonuclar.slice(0, 20).map(kayit => {
+                    const malzemeAdi = kayit['Malzeme Adi'] || kayit['Malzeme Ad\u0131'] || '-';
+                    const stokKod = Object.values(kayit)[0] || '';
+                    return `<div class="arama-item" data-stok-kod="${stokKod}" data-malzeme-adi="${malzemeAdi}">
+                        <div class="arama-item-adi">${malzemeAdi}</div>
+                        <div class="arama-item-kod">${stokKod}</div>
+                    </div>`;
+                }).join('');
+
+                // Tikla = sec
+                aramaSonuc.querySelectorAll('.arama-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        const stokKod = this.dataset.stokKod;
+                        const malzemeAdi = this.dataset.malzemeAdi;
+                        manuelOkut(stokKod, malzemeAdi);
+                    });
+                });
+
+            } catch (error) {
+                aramaSonuc.innerHTML = '<div class="bos-mesaj">Hata: ' + error.message + '</div>';
+            }
+        }
+
+        async function manuelOkut(stokKod, malzemeAdi) {
+            mesajGoster('Paket bilgisi aliniyor...', '');
+
+            try {
+                // Dogtas API'den paket bilgisi
+                let paketSayisi = 1;
+                let productDesc = null;
+
+                try {
+                    const productCode = stokKod.substring(0, 10);
+                    const dogtasResponse = await fetch('/api/dogtas/urun-paketleri', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ stokKodlari: [productCode] })
+                    });
+                    const dogtasData = await dogtasResponse.json();
+
+                    if (dogtasData.success && dogtasData.sonuclar && dogtasData.sonuclar.length > 0) {
+                        const sonuc = dogtasData.sonuclar[0];
+                        if (sonuc.basarili && sonuc.veri) {
+                            paketSayisi = sonuc.veri.paketSayisi || 1;
+                            productDesc = sonuc.veri.productDesc;
+                        }
+                    }
+                } catch (e) { /* fallback 1 paket */ }
+
+                // Manuel okuma kaydet
+                const response = await fetch('/api/mikro/hediye-manuel-okuma', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        stok_kod: stokKod,
+                        malzeme_adi: malzemeAdi,
+                        product_desc: productDesc,
+                        paket_sayisi: paketSayisi,
+                        kullanici: kullaniciAdi
+                    })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    mesajGoster(data.message, 'basari');
+                    aramaInput.value = '';
+                    aramaSonuc.innerHTML = '';
+                    bekleyenleriYukle();
+                } else {
+                    mesajGoster(data.message, 'hata');
+                }
+
+            } catch (error) {
+                mesajGoster('Hata: ' + error.message, 'hata');
+            }
+        }
+
+        // ==========================================
+        // BEKLEYEN OKUMALAR
+        // ==========================================
+        async function bekleyenleriYukle() {
+            try {
+                const response = await fetch('/api/mikro/hediye-bekleyenler');
+                const data = await response.json();
+
+                if (!data.success || data.gruplar.length === 0) {
+                    bekleyenListe.innerHTML = '<div class="bos-mesaj">Bekleyen okuma yok.</div>';
+                    bekleyenSayisi.textContent = '';
+                    eslestirAlani.style.display = 'none';
+                    return;
+                }
+
+                bekleyenSayisi.textContent = `(${data.toplam} paket)`;
+                eslestirAlani.style.display = 'block';
+
+                bekleyenListe.innerHTML = data.gruplar.map(grup => {
+                    const paketBilgi = grup.paketler.map(p => `P${p.paket_sira}`).join(', ');
+                    return `<div class="bekleyen-item">
+                        <div class="bekleyen-bilgi">
+                            <div class="bekleyen-adi">${grup.malzeme_adi || grup.stok_kod}</div>
+                            <div class="bekleyen-detay">${grup.stok_kod} | ${grup.paketler.length} paket (${paketBilgi})</div>
+                            <div class="bekleyen-durum">Bekliyor</div>
+                        </div>
+                        <button type="button" class="sil-btn" data-stok-kod="${grup.stok_kod}">Sil</button>
+                    </div>`;
+                }).join('');
+
+                // Sil butonlari
+                bekleyenListe.querySelectorAll('.sil-btn').forEach(btn => {
+                    btn.addEventListener('click', async function() {
+                        const stokKod = this.dataset.stokKod;
+                        if (!confirm(`${stokKod} icin tum bekleyen okumalar silinecek. Emin misiniz?`)) return;
+
+                        try {
+                            const response = await fetch(`/api/mikro/hediye-grup-sil/${encodeURIComponent(stokKod)}`, {
+                                method: 'DELETE'
+                            });
+                            const data = await response.json();
+                            if (data.success) {
+                                mesajGoster(data.message, 'basari');
+                                bekleyenleriYukle();
+                            } else {
+                                mesajGoster(data.message, 'hata');
+                            }
+                        } catch (e) {
+                            mesajGoster('Silme hatasi: ' + e.message, 'hata');
+                        }
+                    });
+                });
+
+            } catch (error) {
+                bekleyenListe.innerHTML = '<div class="bos-mesaj">Yukleme hatasi.</div>';
+            }
+        }
+
+        // ==========================================
+        // ESLESTIRME
+        // ==========================================
+        eslestirBtn.addEventListener('click', async function() {
+            const evrakNo = evrakNoInput.value.trim();
+            if (!evrakNo) {
+                mesajGoster('Evrak numarasi girin', 'hata');
+                return;
+            }
+
+            eslestirBtn.disabled = true;
+            eslestirBtn.textContent = 'Eslestiriliyor...';
+
+            try {
+                const response = await fetch('/api/mikro/hediye-eslestir', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        evrakno_sira: evrakNo,
+                        kullanici: kullaniciAdi
+                    })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    mesajGoster(data.message, 'basari');
+                    evrakNoInput.value = '';
+                    bekleyenleriYukle();
+                } else {
+                    mesajGoster(data.message, 'hata');
+                }
+
+            } catch (error) {
+                mesajGoster('Hata: ' + error.message, 'hata');
+            } finally {
+                eslestirBtn.disabled = false;
+                eslestirBtn.textContent = 'Eslestir';
+            }
+        });
+
+        // Enter ile eslestir
+        evrakNoInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') eslestirBtn.click();
+        });
+
+        // ==========================================
+        // YARDIMCI
+        // ==========================================
+        function mesajGoster(mesaj, tip) {
+            sonucMesaj.textContent = mesaj;
+            sonucMesaj.className = 'sonuc-mesaj' + (tip ? ' ' + tip : '');
+            sonucMesaj.style.display = 'block';
+
+            if (tip === 'basari' || tip === 'hata') {
+                setTimeout(() => { sonucMesaj.style.display = 'none'; }, 4000);
+            }
+        }
+
+        // Sayfa yuklendiginde bekleyenleri yukle
+        bekleyenleriYukle();
+    </script>
+</body>
+</html>

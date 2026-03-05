@@ -1277,4 +1277,461 @@ router.get('/cari-adres/:cariKod', async (req, res) => {
     }
 });
 
+// ==========================================
+// HEDIYE ÜRÜN ENDPOINT'LERİ
+// ==========================================
+
+/**
+ * POST /api/mikro/hediye-barkod-bilgi
+ * QR'dan parse edilen stok_kod için Doğtaş API'den bilgi çek
+ */
+router.post('/hediye-barkod-bilgi', async (req, res) => {
+    try {
+        const { qr_kod } = req.body;
+
+        if (!qr_kod) {
+            return res.json({ success: false, message: 'QR kod gerekli' });
+        }
+
+        // QR kodu parse et
+        const qrBilgi = qrKodValidasyon(qr_kod);
+        let stokKod, paketSira, paketToplam, normalizedQr;
+
+        if (qrBilgi.basarili) {
+            normalizedQr = qrBilgi.qrKodHam;
+            stokKod = qrBilgi.malzemeNo.slice(-10);
+            paketSira = qrBilgi.paketSira;
+            paketToplam = qrBilgi.paketToplam;
+        } else {
+            return res.json({ success: false, message: 'QR kod parse edilemedi: ' + qrBilgi.hata });
+        }
+
+        // Doğtaş API'den paket bilgisi al
+        let malzemeAdi = stokKod;
+        let productDesc = null;
+        let paketSayisi = paketToplam;
+
+        try {
+            const dogtasResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/api/dogtas/urun-paketleri`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stokKodlari: [stokKod] })
+            });
+            const dogtasData = await dogtasResponse.json();
+
+            if (dogtasData.success && dogtasData.sonuclar && dogtasData.sonuclar.length > 0) {
+                const sonuc = dogtasData.sonuclar[0];
+                if (sonuc.basarili && sonuc.veri) {
+                    productDesc = sonuc.veri.productDesc;
+                    paketSayisi = sonuc.veri.paketSayisi || paketToplam;
+                }
+            }
+        } catch (apiError) {
+            console.error('Doğtaş API hatası (hediye):', apiError.message);
+        }
+
+        // Stok arama ile malzeme adını bul
+        try {
+            const stokResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/api/stok/ara?q=${encodeURIComponent(stokKod)}`);
+            const stokData = await stokResponse.json();
+            if (stokData.success && stokData.sonuclar && stokData.sonuclar.length > 0) {
+                malzemeAdi = stokData.sonuclar[0]['Malzeme Adı'] || stokKod;
+            }
+        } catch (e) { /* fallback to stokKod */ }
+
+        return res.json({
+            success: true,
+            stok_kod: stokKod,
+            malzeme_adi: malzemeAdi,
+            product_desc: productDesc,
+            paket_sayisi: paketSayisi,
+            paket_sira: paketSira,
+            paket_toplam: paketToplam,
+            qr_kod_normalized: normalizedQr
+        });
+
+    } catch (error) {
+        console.error('Hediye barkod bilgi hatası:', error);
+        return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
+    }
+});
+
+/**
+ * POST /api/mikro/hediye-okuma-kaydet
+ * Barkod okutma sonrası her paketi kaydet
+ */
+router.post('/hediye-okuma-kaydet', async (req, res) => {
+    try {
+        const { stok_kod, malzeme_adi, product_desc, paket_sayisi, paket_sira, qr_kod, kullanici } = req.body;
+
+        if (!stok_kod || !paket_sira) {
+            return res.json({ success: false, message: 'Stok kodu ve paket sırası gerekli' });
+        }
+
+        const client = await getSupabaseClient();
+        if (!client) {
+            return res.json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
+        }
+
+        // Duplicate QR kontrolü
+        if (qr_kod) {
+            const { data: existing } = await client
+                .from('hediye_bekleyen_okumalar')
+                .select('id')
+                .eq('qr_kod', qr_kod)
+                .eq('durum', 'bekliyor')
+                .limit(1);
+
+            if (existing && existing.length > 0) {
+                return res.json({ success: false, message: 'Bu QR kod zaten okutulmuş!' });
+            }
+        }
+
+        const { data, error } = await client
+            .from('hediye_bekleyen_okumalar')
+            .insert({
+                stok_kod,
+                malzeme_adi: malzeme_adi || stok_kod,
+                product_desc: product_desc || null,
+                paket_sayisi: paket_sayisi || 1,
+                paket_sira,
+                qr_kod: qr_kod || null,
+                kullanici: kullanici || 'bilinmiyor',
+                durum: 'bekliyor'
+            })
+            .select();
+
+        if (error) {
+            console.error('Hediye okuma kayıt hatası:', error);
+            return res.json({ success: false, message: 'Kayıt hatası: ' + error.message });
+        }
+
+        return res.json({
+            success: true,
+            message: `${malzeme_adi || stok_kod} P${paket_sira} kaydedildi`,
+            kayit: data?.[0]
+        });
+
+    } catch (error) {
+        console.error('Hediye okuma hatası:', error);
+        return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
+    }
+});
+
+/**
+ * POST /api/mikro/hediye-manuel-okuma
+ * Manuel ürün seçimi sonrası tüm paketleri tek seferde kaydet
+ */
+router.post('/hediye-manuel-okuma', async (req, res) => {
+    try {
+        const { stok_kod, malzeme_adi, product_desc, paket_sayisi, kullanici } = req.body;
+
+        if (!stok_kod) {
+            return res.json({ success: false, message: 'Stok kodu gerekli' });
+        }
+
+        const client = await getSupabaseClient();
+        if (!client) {
+            return res.json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
+        }
+
+        const batchId = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+        const paketAdet = parseInt(paket_sayisi) || 1;
+        const kayitlar = [];
+
+        for (let ps = 1; ps <= paketAdet; ps++) {
+            kayitlar.push({
+                stok_kod,
+                malzeme_adi: malzeme_adi || stok_kod,
+                product_desc: product_desc || null,
+                paket_sayisi: paketAdet,
+                paket_sira: ps,
+                qr_kod: `MANUEL_HEDIYE_${stok_kod}_P${ps}_${batchId}`,
+                kullanici: kullanici || 'bilinmiyor',
+                durum: 'bekliyor'
+            });
+        }
+
+        const { error } = await client
+            .from('hediye_bekleyen_okumalar')
+            .insert(kayitlar);
+
+        if (error) {
+            console.error('Hediye manuel okuma hatası:', error);
+            return res.json({ success: false, message: 'Kayıt hatası: ' + error.message });
+        }
+
+        return res.json({
+            success: true,
+            message: `${malzeme_adi || stok_kod} - ${paketAdet} paket eklendi`,
+            eklenen_paket: paketAdet
+        });
+
+    } catch (error) {
+        console.error('Hediye manuel okuma hatası:', error);
+        return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
+    }
+});
+
+/**
+ * GET /api/mikro/hediye-bekleyenler
+ * Bekleyen okumaları listele (stok_kod bazında gruplu)
+ */
+router.get('/hediye-bekleyenler', async (req, res) => {
+    try {
+        const client = await getSupabaseClient();
+        if (!client) {
+            return res.json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
+        }
+
+        const { data, error } = await client
+            .from('hediye_bekleyen_okumalar')
+            .select('*')
+            .eq('durum', 'bekliyor')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            return res.json({ success: false, message: 'Sorgu hatası: ' + error.message });
+        }
+
+        // Stok_kod bazında grupla
+        const gruplar = {};
+        for (const kayit of (data || [])) {
+            const key = kayit.stok_kod;
+            if (!gruplar[key]) {
+                gruplar[key] = {
+                    stok_kod: kayit.stok_kod,
+                    malzeme_adi: kayit.malzeme_adi,
+                    product_desc: kayit.product_desc,
+                    paket_sayisi: kayit.paket_sayisi,
+                    paketler: [],
+                    ilk_tarih: kayit.created_at
+                };
+            }
+            gruplar[key].paketler.push({
+                id: kayit.id,
+                paket_sira: kayit.paket_sira,
+                qr_kod: kayit.qr_kod,
+                kullanici: kayit.kullanici,
+                created_at: kayit.created_at
+            });
+        }
+
+        return res.json({
+            success: true,
+            gruplar: Object.values(gruplar),
+            toplam: (data || []).length
+        });
+
+    } catch (error) {
+        console.error('Hediye bekleyenler hatası:', error);
+        return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
+    }
+});
+
+/**
+ * DELETE /api/mikro/hediye-okuma/:id
+ * Bekleyen okumayı sil
+ */
+router.delete('/hediye-okuma/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const client = await getSupabaseClient();
+        if (!client) {
+            return res.json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
+        }
+
+        const { error } = await client
+            .from('hediye_bekleyen_okumalar')
+            .delete()
+            .eq('id', parseInt(id))
+            .eq('durum', 'bekliyor');
+
+        if (error) {
+            return res.json({ success: false, message: 'Silme hatası: ' + error.message });
+        }
+
+        return res.json({ success: true, message: 'Okuma silindi' });
+
+    } catch (error) {
+        console.error('Hediye okuma silme hatası:', error);
+        return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
+    }
+});
+
+/**
+ * DELETE /api/mikro/hediye-grup-sil/:stokKod
+ * Bir ürünün tüm bekleyen okumalarını sil
+ */
+router.delete('/hediye-grup-sil/:stokKod', async (req, res) => {
+    try {
+        const { stokKod } = req.params;
+
+        const client = await getSupabaseClient();
+        if (!client) {
+            return res.json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
+        }
+
+        const { data, error } = await client
+            .from('hediye_bekleyen_okumalar')
+            .delete()
+            .eq('stok_kod', stokKod)
+            .eq('durum', 'bekliyor')
+            .select();
+
+        if (error) {
+            return res.json({ success: false, message: 'Silme hatası: ' + error.message });
+        }
+
+        return res.json({
+            success: true,
+            message: `${(data || []).length} okuma silindi`
+        });
+
+    } catch (error) {
+        console.error('Hediye grup silme hatası:', error);
+        return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
+    }
+});
+
+/**
+ * POST /api/mikro/hediye-eslestir
+ * Evrak no ile eşleştir ve satis_faturasi_okumalari'na aktar
+ */
+router.post('/hediye-eslestir', async (req, res) => {
+    try {
+        const { evrakno_sira, kullanici } = req.body;
+
+        if (!evrakno_sira) {
+            return res.json({ success: false, message: 'Evrak numarası gerekli' });
+        }
+
+        const client = await getSupabaseClient();
+        if (!client) {
+            return res.json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
+        }
+
+        // 1. Fatura kalemlerini al
+        const { data: kalemler, error: kalemError } = await client
+            .from('satis_faturasi')
+            .select('*')
+            .eq('evrakno_sira', parseInt(evrakno_sira));
+
+        if (kalemError || !kalemler || kalemler.length === 0) {
+            return res.json({
+                success: false,
+                message: `Evrak no ${evrakno_sira} için fatura bulunamadı. Faturanın Supabase'e aktarıldığından emin olun.`
+            });
+        }
+
+        // 2. Bekleyen okumaları al
+        const { data: bekleyenler, error: bekleyenError } = await client
+            .from('hediye_bekleyen_okumalar')
+            .select('*')
+            .eq('durum', 'bekliyor');
+
+        if (bekleyenError || !bekleyenler || bekleyenler.length === 0) {
+            return res.json({
+                success: false,
+                message: 'Bekleyen okuma bulunamadı'
+            });
+        }
+
+        // 3. Stok_kod ile eşleştir
+        const eslesen = [];
+        const eslesmeyen = [];
+        const batchId = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+
+        // Stok_kod bazında grupla
+        const bekleyenGrup = {};
+        for (const b of bekleyenler) {
+            if (!bekleyenGrup[b.stok_kod]) bekleyenGrup[b.stok_kod] = [];
+            bekleyenGrup[b.stok_kod].push(b);
+        }
+
+        for (const stokKod of Object.keys(bekleyenGrup)) {
+            // satis_faturasi'nda bu stok_kod var mı?
+            // stok_kod son 10 hane olabileceği için endsWith kontrolü de yap
+            const kalem = kalemler.find(k =>
+                k.stok_kod === stokKod ||
+                (k.stok_kod && k.stok_kod.endsWith(stokKod)) ||
+                (k.stok_kod && stokKod.endsWith(k.stok_kod))
+            );
+
+            if (kalem) {
+                for (const bekleyen of bekleyenGrup[stokKod]) {
+                    eslesen.push({ bekleyen, kalem });
+                }
+            } else {
+                for (const bekleyen of bekleyenGrup[stokKod]) {
+                    eslesmeyen.push(bekleyen);
+                }
+            }
+        }
+
+        if (eslesen.length === 0) {
+            const eslesemeyenAdlar = [...new Set(eslesmeyen.map(e => e.malzeme_adi || e.stok_kod))];
+            return res.json({
+                success: false,
+                message: `Bu faturada eşleşen ürün bulunamadı. Bekleyen ürünler: ${eslesemeyenAdlar.join(', ')}`
+            });
+        }
+
+        // 4. satis_faturasi_okumalari'na aktar
+        const okumaKayitlari = eslesen.map((e, index) => ({
+            fatura_no: parseInt(evrakno_sira),
+            kalem_id: e.kalem.id,
+            qr_kod: e.bekleyen.qr_kod || `HEDIYE_ESLESTIR_${evrakno_sira}_${e.kalem.id}_P${e.bekleyen.paket_sira}_${batchId}_${index}`,
+            qr_hash: qrKodHash(e.bekleyen.qr_kod || `HEDIYE_${e.kalem.id}_P${e.bekleyen.paket_sira}`),
+            stok_kod: e.kalem.stok_kod,
+            paket_sira: e.bekleyen.paket_sira,
+            paket_toplam: e.bekleyen.paket_sayisi,
+            kullanici: kullanici || e.bekleyen.kullanici || 'bilinmiyor',
+            created_at: new Date().toISOString()
+        }));
+
+        const { error: insertError } = await client
+            .from('satis_faturasi_okumalari')
+            .insert(okumaKayitlari);
+
+        if (insertError) {
+            console.error('Hediye eşleştirme insert hatası:', insertError);
+            return res.json({ success: false, message: 'Okuma kayıt hatası: ' + insertError.message });
+        }
+
+        // 5. hediye_bekleyen_okumalar'ı güncelle
+        const eslesenIdler = eslesen.map(e => e.bekleyen.id);
+        const { error: updateError } = await client
+            .from('hediye_bekleyen_okumalar')
+            .update({
+                durum: 'eslesti',
+                evrakno_sira: parseInt(evrakno_sira)
+            })
+            .in('id', eslesenIdler);
+
+        if (updateError) {
+            console.error('Hediye durum güncelleme hatası:', updateError);
+        }
+
+        // Fatura cache'ini temizle (yeni okumalar eklendi)
+        faturaCache.delete(evrakno_sira.toString());
+
+        const eslesemeyenAdlar = [...new Set(eslesmeyen.map(e => e.malzeme_adi || e.stok_kod))];
+
+        return res.json({
+            success: true,
+            message: `${eslesen.length} paket eşleştirildi ve faturaya aktarıldı` +
+                (eslesmeyen.length > 0 ? `. ${eslesmeyen.length} paket eşleşemedi: ${eslesemeyenAdlar.join(', ')}` : ''),
+            eslesen_sayisi: eslesen.length,
+            eslesmeyen_sayisi: eslesmeyen.length,
+            eslesmeyen_urunler: eslesemeyenAdlar
+        });
+
+    } catch (error) {
+        console.error('Hediye eşleştirme hatası:', error);
+        return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
+    }
+});
+
 module.exports = router;
