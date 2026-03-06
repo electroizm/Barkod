@@ -245,7 +245,7 @@
 </head>
 <body>
     <div class="kapsayici">
-        <a href="/fis/teslimat.html" class="geri-buton">Geri</a>
+        <a href="/anasayfa.html" class="geri-buton">Geri</a>
 
         <h1 class="baslik">Barkod Ön Kayıt</h1>
         <span id="kullaniciBilgi" style="display:none;"></span>
@@ -279,12 +279,10 @@
 
         <!-- Eslestirme Alani -->
         <div class="eslestir-alan" id="eslestirAlani" style="display:none;">
-            <div class="eslestir-baslik">Satış Faturası ile Eşlestir</div>
-            <div class="eslestir-input-row">
-                <input type="text" class="eslestir-input" id="evrakNoInput"
-                       placeholder="Evrak No girin">
-                <button type="button" class="eslestir-btn" id="eslestirBtn">Eslestir</button>
-            </div>
+            <div class="eslestir-baslik">Satış Faturası ile Eşleştir</div>
+            <input type="text" class="eslestir-input" id="evrakNoInput"
+                   placeholder="Evrak No girin" style="width:100%; margin-bottom:10px;">
+            <button type="button" class="eslestir-btn" id="eslestirBtn" style="width:100%;">PRG Teslimat Fişi - Eşleştir</button>
         </div>
     </div>
 
@@ -332,7 +330,7 @@
 
         async function barkodOkut(qrKod) {
             if (!qrKod || !qrKod.trim()) return;
-            qrKod = qrKod.trim();
+            qrKod = qrKod.replace(/[\x00-\x1F\x7F]/g, '').trim();
 
             mesajGoster('Barkod okunuyor...', '');
 
@@ -513,9 +511,9 @@
                             <div class="bekleyen-detay">${okuma.stok_kod} | P${okuma.paket_sira}/${okuma.paket_sayisi}</div>
                             <select class="depo-select${depoKaydedildi}" data-id="${okuma.id}">
                                 <option value="">Depo</option>
-                                <option value="100"${okuma.depo == 100 ? ' selected' : ''}>100</option>
-                                <option value="200"${okuma.depo == 200 ? ' selected' : ''}>200</option>
-                                <option value="300"${okuma.depo == 300 ? ' selected' : ''}>300</option>
+                                <option value="100"${okuma.depo == 100 ? ' selected' : ''}>100 - DEPO</option>
+                                <option value="200"${okuma.depo == 200 ? ' selected' : ''}>200 - SUBE</option>
+                                <option value="300"${okuma.depo == 300 ? ' selected' : ''}>300 - EXC</option>
                             </select>
                             <button type="button" class="kaydet-btn" data-id="${okuma.id}">Kaydet</button>
                             <button type="button" class="sil-btn" data-id="${okuma.id}">Sil</button>
