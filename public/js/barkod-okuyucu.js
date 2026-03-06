@@ -195,6 +195,22 @@ class BarkodOkuyucu {
             return;
         }
 
+        // GS1 çift okuma tespiti: tarayıcı aynı barkodu 300ms içinde 2 kere basarsa
+        // birleşik string oluşur (ör: 288 char = 144+144). İlk geçerli GS1 barkodu al.
+        if (barkod.length > 100 && barkod.startsWith('01')) {
+            // İkinci '01' + 14 hane GTIN + '21' pattern'ini ara (ilk 16 karakterden sonra)
+            const ikinciBaslangic = barkod.indexOf('01', 16);
+            if (ikinciBaslangic > 0) {
+                const ilkParca = barkod.substring(0, ikinciBaslangic);
+                const ikinciParca = barkod.substring(ikinciBaslangic);
+                // İki parça aynıysa çift okuma - sadece birini al
+                if (ilkParca === ikinciParca) {
+                    console.log('Barkod okuyucu - çift okuma tespit edildi, tek barkod alınıyor');
+                    barkod = ilkParca;
+                }
+            }
+        }
+
         console.log('Barkod okuyucu - ham değer:', this.input.value);
         console.log('Barkod okuyucu - temizlenmiş:', barkod);
         console.log('Barkod okuyucu - uzunluk:', barkod.length);

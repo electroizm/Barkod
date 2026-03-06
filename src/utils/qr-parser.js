@@ -26,6 +26,18 @@ function qrKodParsele(qrKod) {
         // Bosluklari temizle (tarayici bazen bosluk ekliyor)
         qrKod = qrKod.replace(/\s/g, '');
 
+        // Cift okuma tespiti: tarayici ayni barkodu 2 kere basarsa birlesen string olusur
+        if (qrKod.length > 100 && qrKod.startsWith('01')) {
+            const ikinciBaslangic = qrKod.indexOf('01', 16);
+            if (ikinciBaslangic > 0) {
+                const ilkParca = qrKod.substring(0, ikinciBaslangic);
+                const ikinciParca = qrKod.substring(ikinciBaslangic);
+                if (ilkParca === ikinciParca) {
+                    qrKod = ilkParca;
+                }
+            }
+        }
+
         // GS1 Format normalizasyonu:
         // Tarayici bazen fazladan veri ekliyor (stok kodu, EAN tekrari vs.)
         // Gercek QR kod her zaman "01" + 14 hane GTIN + "21" ile baslar
