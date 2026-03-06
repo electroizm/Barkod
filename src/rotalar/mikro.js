@@ -1726,6 +1726,9 @@ router.post('/on-kayit-eslestir', async (req, res) => {
 
         if (insertError) {
             console.error('Ön kayıt eşleştirme insert hatası:', insertError);
+            if (insertError.code === '23505') {
+                return res.json({ success: false, message: 'Eşleşecek Ürün Bulunamadı. Eşleştirme Yapılmış Olabilir.' });
+            }
             return res.json({ success: false, message: 'Okuma kayıt hatası: ' + insertError.message });
         }
 
