@@ -1523,17 +1523,22 @@ router.post('/on-kayit-depo-kaydet', async (req, res) => {
             return res.json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
         }
 
-        const { error } = await client
+        const { data: updated, error } = await client
             .from('on_kayit_okumalar')
             .update({ depo: parseInt(depo) })
-            .eq('id', id);
+            .eq('id', id)
+            .select('malzeme_adi, stok_kod')
+            .single();
 
         if (error) {
             console.error('Depo kaydetme hatası:', error);
             return res.json({ success: false, message: 'Kayıt hatası: ' + error.message });
         }
 
-        return res.json({ success: true, message: `Depo ${depo} kaydedildi` });
+        const DEPO_ADLARI = { 100: 'DEPO', 200: 'SUBE', 300: 'EXC' };
+        const depoAdi = DEPO_ADLARI[depo] || depo;
+        const urunAdi = updated?.malzeme_adi || updated?.stok_kod || '';
+        return res.json({ success: true, message: `${urunAdi} / ${depo} - ${depoAdi} olarak kaydedildi.` });
 
     } catch (error) {
         console.error('Depo kaydetme hatası:', error);

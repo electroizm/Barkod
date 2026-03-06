@@ -267,7 +267,7 @@
         <!-- Manuel Okutma Tab -->
         <div class="tab-icerik" id="tab-manuel">
             <input type="text" class="arama-input" id="aramaInput"
-                   placeholder="Malzeme adi veya stok kodu ile arayin..." autofocus>
+                   placeholder="Malzeme adı veya stok kodu ile arayın..." autofocus>
             <div class="arama-sonuc" id="aramaSonuc"></div>
         </div>
 
@@ -372,7 +372,7 @@
                 }
 
             } catch (error) {
-                mesajGoster('Baglanti hatasi: ' + error.message, 'hata');
+                mesajGoster('Bağlantı hatası: ' + error.message, 'hata');
             }
         }
 
@@ -390,11 +390,11 @@
 
         async function urunAra(sorgu) {
             if (!sorgu || sorgu.length < 2) {
-                aramaSonuc.innerHTML = '<div class="bos-mesaj">En az 2 karakter yazin.</div>';
+                aramaSonuc.innerHTML = '<div class="bos-mesaj">En az 2 karakter yazın.</div>';
                 return;
             }
 
-            aramaSonuc.innerHTML = '<div class="yukleniyor-kucuk">Araniyor...</div>';
+            aramaSonuc.innerHTML = '<div class="yukleniyor-kucuk">Aranıyor...</div>';
 
             try {
                 const response = await fetch(`/api/stok/ara?q=${encodeURIComponent(sorgu)}`);
@@ -429,7 +429,7 @@
         }
 
         async function manuelOkut(stokKod, malzemeAdi) {
-            mesajGoster('Paket bilgisi aliniyor...', '');
+            mesajGoster('Paket bilgisi alınıyor...', '');
 
             try {
                 // Dogtas API'den paket bilgisi
@@ -579,7 +579,7 @@
                 });
 
             } catch (error) {
-                bekleyenListe.innerHTML = '<div class="bos-mesaj">Yukleme hatasi.</div>';
+                bekleyenListe.innerHTML = '<div class="bos-mesaj">Yükleme hatası.</div>';
             }
         }
 
@@ -589,21 +589,21 @@
         eslestirBtn.addEventListener('click', async function() {
             const evrakNo = evrakNoInput.value.trim();
             if (!evrakNo) {
-                mesajGoster('Evrak numarasi girin', 'hata');
+                mesajGoster('Evrak numarası girin', 'hata');
                 return;
             }
 
             // Secili okumalari topla
             const seciliCheckboxlar = bekleyenListe.querySelectorAll('.bekleyen-checkbox:checked');
             if (seciliCheckboxlar.length === 0) {
-                mesajGoster('Eslestirmek icin en az bir urun secin', 'hata');
+                mesajGoster('Eşleştirmek için en az bir ürün seçin', 'hata');
                 return;
             }
 
             const seciliIdler = [...seciliCheckboxlar].map(cb => parseInt(cb.dataset.id));
 
             eslestirBtn.disabled = true;
-            eslestirBtn.textContent = 'Eslestiriliyor...';
+            eslestirBtn.textContent = 'Eşleştiriliyor...';
 
             try {
                 const response = await fetch('/api/mikro/on-kayit-eslestir', {
@@ -629,11 +629,11 @@
                 mesajGoster('Hata: ' + error.message, 'hata');
             } finally {
                 eslestirBtn.disabled = false;
-                eslestirBtn.textContent = 'Eslestir';
+                eslestirBtn.textContent = 'Eşleştir';
             }
         });
 
-        // Enter ile eslestir
+        // Enter ile eşleştir
         evrakNoInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') eslestirBtn.click();
         });
@@ -641,13 +641,15 @@
         // ==========================================
         // YARDIMCI
         // ==========================================
+        let mesajZamanlayici = null;
         function mesajGoster(mesaj, tip) {
+            if (mesajZamanlayici) clearTimeout(mesajZamanlayici);
             sonucMesaj.textContent = mesaj;
             sonucMesaj.className = 'sonuc-mesaj' + (tip ? ' ' + tip : '');
             sonucMesaj.style.display = 'block';
 
             if (tip === 'basari') {
-                setTimeout(() => { sonucMesaj.style.display = 'none'; }, 4000);
+                mesajZamanlayici = setTimeout(() => { sonucMesaj.style.display = 'none'; }, 4000);
             }
         }
 
