@@ -279,7 +279,7 @@
 
         <!-- Eslestirme Alani -->
         <div class="eslestir-alan" id="eslestirAlani" style="display:none;">
-            <div class="eslestir-baslik">Fatura ile Eslestir</div>
+            <div class="eslestir-baslik">Satış Faturası ile Eşlestir</div>
             <div class="eslestir-input-row">
                 <input type="text" class="eslestir-input" id="evrakNoInput"
                        placeholder="Evrak No girin">
@@ -338,7 +338,7 @@
 
             try {
                 // 1. QR bilgisini al
-                const bilgiResponse = await fetch('/api/mikro/hediye-barkod-bilgi', {
+                const bilgiResponse = await fetch('/api/mikro/on-kayit-barkod-bilgi', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ qr_kod: qrKod })
@@ -351,7 +351,7 @@
                 }
 
                 // 2. Paketi kaydet
-                const kayitResponse = await fetch('/api/mikro/hediye-okuma-kaydet', {
+                const kayitResponse = await fetch('/api/mikro/on-kayit-okuma-kaydet', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -457,7 +457,7 @@
                 } catch (e) { /* fallback 1 paket */ }
 
                 // Manuel okuma kaydet
-                const response = await fetch('/api/mikro/hediye-manuel-okuma', {
+                const response = await fetch('/api/mikro/on-kayit-manuel-okuma', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -489,7 +489,7 @@
         // ==========================================
         async function bekleyenleriYukle() {
             try {
-                const response = await fetch('/api/mikro/hediye-bekleyenler');
+                const response = await fetch('/api/mikro/on-kayit-bekleyenler');
                 const data = await response.json();
 
                 if (!data.success || data.okumalar.length === 0) {
@@ -541,7 +541,7 @@
                             return;
                         }
                         try {
-                            const response = await fetch(`/api/mikro/hediye-depo-kaydet`, {
+                            const response = await fetch(`/api/mikro/on-kayit-depo-kaydet`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ id: parseInt(id), depo: parseInt(depo) })
@@ -564,7 +564,7 @@
                     btn.addEventListener('click', async function() {
                         const id = this.dataset.id;
                         try {
-                            const response = await fetch(`/api/mikro/hediye-okuma/${id}`, {
+                            const response = await fetch(`/api/mikro/on-kayit-okuma/${id}`, {
                                 method: 'DELETE'
                             });
                             const data = await response.json();
@@ -608,7 +608,7 @@
             eslestirBtn.textContent = 'Eslestiriliyor...';
 
             try {
-                const response = await fetch('/api/mikro/hediye-eslestir', {
+                const response = await fetch('/api/mikro/on-kayit-eslestir', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

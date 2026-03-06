@@ -1278,14 +1278,15 @@ router.get('/cari-adres/:cariKod', async (req, res) => {
 });
 
 // ==========================================
-// HEDIYE ÜRÜN ENDPOINT'LERİ
+// BARKOD ÖN KAYIT ENDPOINT'LERİ
 // ==========================================
 
 /**
- * POST /api/mikro/hediye-barkod-bilgi
+ * POST /api/mikro/on-kayit-barkod-bilgi
  * QR'dan parse edilen stok_kod için Doğtaş API'den bilgi çek
+ * Sadece GS1 formatındaki barkodları kabul eder
  */
-router.post('/hediye-barkod-bilgi', async (req, res) => {
+router.post('/on-kayit-barkod-bilgi', async (req, res) => {
     try {
         const { qr_kod } = req.body;
 
@@ -1293,39 +1294,17 @@ router.post('/hediye-barkod-bilgi', async (req, res) => {
             return res.json({ success: false, message: 'QR kod gerekli' });
         }
 
-        // QR kodu parse et
+        // QR kodu parse et - sadece GS1 format kabul edilir
         const qrBilgi = qrKodValidasyon(qr_kod);
-        let stokKod, paketSira, paketToplam, normalizedQr;
 
-        if (qrBilgi.basarili) {
-            // GS1 tam parse başarılı
-            normalizedQr = qrBilgi.qrKodHam;
-            stokKod = qrBilgi.malzemeNo.slice(-10);
-            paketSira = qrBilgi.paketSira;
-            paketToplam = qrBilgi.paketToplam;
-        } else {
-            // GS1 tam parse başarısız - kısmi bilgi çıkarmayı dene
-            // QR'ın sonundaki 99 + 18 hane pattern'inden malzeme_no çıkar
-            const malzemeMatch = qr_kod.replace(/\s/g, '').match(/99(\d{18})$/);
-            if (malzemeMatch) {
-                stokKod = malzemeMatch[1].slice(-10); // Son 10 hane = stok_kod
-                normalizedQr = qr_kod;
-                // 91XX = paket toplam, 92XX = paket sıra
-                const paket91 = qr_kod.match(/91(\d{2})/);
-                const paket92 = qr_kod.match(/92(\d{2})/);
-                paketToplam = paket91 ? parseInt(paket91[1], 10) : 1;
-                paketSira = paket92 ? parseInt(paket92[1], 10) : 1;
-                console.log(`Hediye: Kısmi GS1 parse - stok=${stokKod}, paket=${paketSira}/${paketToplam}`);
-            } else {
-                // Hiç GS1 değil - basit format: STOK_KOD|PAKET_SIRA|TOPLAM
-                const qrParcalari = qr_kod.split('|');
-                stokKod = qrParcalari[0]?.trim() || qr_kod.trim();
-                paketSira = parseInt(qrParcalari[1]) || 1;
-                paketToplam = parseInt(qrParcalari[2]) || 1;
-                normalizedQr = qr_kod;
-                console.log(`Hediye: Basit QR format - stok=${stokKod}, paket=${paketSira}/${paketToplam}`);
-            }
+        if (!qrBilgi.basarili) {
+            return res.json({ success: false, message: 'Geçersiz barkod formatı: ' + (qrBilgi.hata || 'GS1 formatı bulunamadı') });
         }
+
+        const normalizedQr = qrBilgi.qrKodHam;
+        const stokKod = qrBilgi.malzemeNo.slice(-10);
+        const paketSira = qrBilgi.paketSira;
+        const paketToplam = qrBilgi.paketToplam;
 
         // Doğtaş API'den paket bilgisi al
         let malzemeAdi = stokKod;
@@ -1348,7 +1327,7 @@ router.post('/hediye-barkod-bilgi', async (req, res) => {
                 }
             }
         } catch (apiError) {
-            console.error('Doğtaş API hatası (hediye):', apiError.message);
+            console.error('Doğtaş API hatası (ön kayıt):', apiError.message);
         }
 
         // Stok arama ile malzeme adını bul
@@ -1372,16 +1351,16 @@ router.post('/hediye-barkod-bilgi', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Hediye barkod bilgi hatası:', error);
+        console.error('Ön kayıt barkod bilgi hatası:', error);
         return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
     }
 });
 
 /**
- * POST /api/mikro/hediye-okuma-kaydet
- * Barkod okutma sonrası her paketi kaydet
+ * POST /api/mikro/on-kayit-okuma-kaydet
+ * Ön kayıt: Barkod okutma sonrası her paketi kaydet
  */
-router.post('/hediye-okuma-kaydet', async (req, res) => {
+router.post('/on-kayit-okuma-kaydet', async (req, res) => {
     try {
         const { stok_kod, malzeme_adi, product_desc, paket_sayisi, paket_sira, qr_kod, kullanici } = req.body;
 
@@ -1397,7 +1376,7 @@ router.post('/hediye-okuma-kaydet', async (req, res) => {
         // Duplicate QR kontrolü
         if (qr_kod) {
             const { data: existing } = await client
-                .from('hediye_bekleyen_okumalar')
+                .from('on_kayit_okumalar')
                 .select('id')
                 .eq('qr_kod', qr_kod)
                 .eq('durum', 'bekliyor')
@@ -1409,7 +1388,7 @@ router.post('/hediye-okuma-kaydet', async (req, res) => {
         }
 
         const { data, error } = await client
-            .from('hediye_bekleyen_okumalar')
+            .from('on_kayit_okumalar')
             .insert({
                 stok_kod,
                 malzeme_adi: malzeme_adi || stok_kod,
@@ -1423,7 +1402,7 @@ router.post('/hediye-okuma-kaydet', async (req, res) => {
             .select();
 
         if (error) {
-            console.error('Hediye okuma kayıt hatası:', error);
+            console.error('Ön kayıt okuma kayıt hatası:', error);
             return res.json({ success: false, message: 'Kayıt hatası: ' + error.message });
         }
 
@@ -1434,16 +1413,16 @@ router.post('/hediye-okuma-kaydet', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Hediye okuma hatası:', error);
+        console.error('Ön kayıt okuma hatası:', error);
         return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
     }
 });
 
 /**
- * POST /api/mikro/hediye-manuel-okuma
- * Manuel ürün seçimi sonrası tüm paketleri tek seferde kaydet
+ * POST /api/mikro/on-kayit-manuel-okuma
+ * Ön kayıt: Manuel ürün seçimi sonrası tüm paketleri tek seferde kaydet
  */
-router.post('/hediye-manuel-okuma', async (req, res) => {
+router.post('/on-kayit-manuel-okuma', async (req, res) => {
     try {
         const { stok_kod, malzeme_adi, product_desc, paket_sayisi, kullanici } = req.body;
 
@@ -1467,18 +1446,18 @@ router.post('/hediye-manuel-okuma', async (req, res) => {
                 product_desc: product_desc || null,
                 paket_sayisi: paketAdet,
                 paket_sira: ps,
-                qr_kod: `MANUEL_HEDIYE_${stok_kod}_P${ps}_${batchId}`,
+                qr_kod: `MANUEL_ONKAYIT_${stok_kod}_P${ps}_${batchId}`,
                 kullanici: kullanici || 'bilinmiyor',
                 durum: 'bekliyor'
             });
         }
 
         const { error } = await client
-            .from('hediye_bekleyen_okumalar')
+            .from('on_kayit_okumalar')
             .insert(kayitlar);
 
         if (error) {
-            console.error('Hediye manuel okuma hatası:', error);
+            console.error('Ön kayıt manuel okuma hatası:', error);
             return res.json({ success: false, message: 'Kayıt hatası: ' + error.message });
         }
 
@@ -1489,16 +1468,16 @@ router.post('/hediye-manuel-okuma', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Hediye manuel okuma hatası:', error);
+        console.error('Ön kayıt manuel okuma hatası:', error);
         return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
     }
 });
 
 /**
- * GET /api/mikro/hediye-bekleyenler
- * Bekleyen okumaları tek tek listele
+ * GET /api/mikro/on-kayit-bekleyenler
+ * Ön kayıt: Bekleyen okumaları tek tek listele
  */
-router.get('/hediye-bekleyenler', async (req, res) => {
+router.get('/on-kayit-bekleyenler', async (req, res) => {
     try {
         const client = await getSupabaseClient();
         if (!client) {
@@ -1506,7 +1485,7 @@ router.get('/hediye-bekleyenler', async (req, res) => {
         }
 
         const { data, error } = await client
-            .from('hediye_bekleyen_okumalar')
+            .from('on_kayit_okumalar')
             .select('*')
             .eq('durum', 'bekliyor')
             .order('created_at', { ascending: false });
@@ -1522,16 +1501,16 @@ router.get('/hediye-bekleyenler', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Hediye bekleyenler hatası:', error);
+        console.error('Ön kayıt bekleyenler hatası:', error);
         return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
     }
 });
 
 /**
- * POST /api/mikro/hediye-depo-kaydet
- * Bekleyen okuma için depo bilgisini kaydet
+ * POST /api/mikro/on-kayit-depo-kaydet
+ * Ön kayıt: Bekleyen okuma için depo bilgisini kaydet
  */
-router.post('/hediye-depo-kaydet', async (req, res) => {
+router.post('/on-kayit-depo-kaydet', async (req, res) => {
     try {
         const { id, depo } = req.body;
 
@@ -1545,7 +1524,7 @@ router.post('/hediye-depo-kaydet', async (req, res) => {
         }
 
         const { error } = await client
-            .from('hediye_bekleyen_okumalar')
+            .from('on_kayit_okumalar')
             .update({ depo: parseInt(depo) })
             .eq('id', id);
 
@@ -1563,10 +1542,10 @@ router.post('/hediye-depo-kaydet', async (req, res) => {
 });
 
 /**
- * DELETE /api/mikro/hediye-okuma/:id
+ * DELETE /api/mikro/on-kayit-okuma/:id
  * Bekleyen okumayı sil
  */
-router.delete('/hediye-okuma/:id', async (req, res) => {
+router.delete('/on-kayit-okuma/:id', async (req, res) => {
     try {
         const { id } = req.params;
 
@@ -1576,7 +1555,7 @@ router.delete('/hediye-okuma/:id', async (req, res) => {
         }
 
         const { error } = await client
-            .from('hediye_bekleyen_okumalar')
+            .from('on_kayit_okumalar')
             .delete()
             .eq('id', parseInt(id))
             .eq('durum', 'bekliyor');
@@ -1588,16 +1567,16 @@ router.delete('/hediye-okuma/:id', async (req, res) => {
         return res.json({ success: true, message: 'Okuma silindi' });
 
     } catch (error) {
-        console.error('Hediye okuma silme hatası:', error);
+        console.error('Ön kayıt okuma silme hatası:', error);
         return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
     }
 });
 
 /**
- * DELETE /api/mikro/hediye-grup-sil/:stokKod
+ * DELETE /api/mikro/on-kayit-grup-sil/:stokKod
  * Bir ürünün tüm bekleyen okumalarını sil
  */
-router.delete('/hediye-grup-sil/:stokKod', async (req, res) => {
+router.delete('/on-kayit-grup-sil/:stokKod', async (req, res) => {
     try {
         const { stokKod } = req.params;
 
@@ -1607,7 +1586,7 @@ router.delete('/hediye-grup-sil/:stokKod', async (req, res) => {
         }
 
         const { data, error } = await client
-            .from('hediye_bekleyen_okumalar')
+            .from('on_kayit_okumalar')
             .delete()
             .eq('stok_kod', stokKod)
             .eq('durum', 'bekliyor')
@@ -1623,18 +1602,18 @@ router.delete('/hediye-grup-sil/:stokKod', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Hediye grup silme hatası:', error);
+        console.error('Ön kayıt grup silme hatası:', error);
         return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
     }
 });
 
 /**
- * POST /api/mikro/hediye-eslestir
+ * POST /api/mikro/on-kayit-eslestir
  * Evrak no ile eşleştir ve satis_faturasi_okumalari'na aktar
- * secili_idler: [id1, id2, ...] formatında - depo bilgisi hediye_bekleyen_okumalar tablosundan okunur
+ * secili_idler: [id1, id2, ...] formatında - depo bilgisi on_kayit_okumalar tablosundan okunur
  * Eşleştirme: stok_kod + cikis_depo_no == depo kontrolü
  */
-router.post('/hediye-eslestir', async (req, res) => {
+router.post('/on-kayit-eslestir', async (req, res) => {
     try {
         const { evrakno_sira, kullanici, secili_idler } = req.body;
 
@@ -1653,7 +1632,7 @@ router.post('/hediye-eslestir', async (req, res) => {
 
         // 1. Seçili bekleyen okumaları al (ID bazlı)
         const { data: bekleyenler, error: bekleyenError } = await client
-            .from('hediye_bekleyen_okumalar')
+            .from('on_kayit_okumalar')
             .select('*')
             .eq('durum', 'bekliyor')
             .in('id', secili_idler);
@@ -1700,11 +1679,11 @@ router.post('/hediye-eslestir', async (req, res) => {
             const kalem = kalemler.find(k => {
                 if (!k.stok_kod) return false;
                 const dbKod = k.stok_kod.trim();
-                const hediyeKod = stokKod.trim();
-                const stokEslesme = dbKod === hediyeKod ||
-                    dbKod.startsWith(hediyeKod) ||
-                    hediyeKod.startsWith(dbKod) ||
-                    dbKod.substring(0, 10) === hediyeKod.substring(0, 10);
+                const onKayitKod = stokKod.trim();
+                const stokEslesme = dbKod === onKayitKod ||
+                    dbKod.startsWith(onKayitKod) ||
+                    onKayitKod.startsWith(dbKod) ||
+                    dbKod.substring(0, 10) === onKayitKod.substring(0, 10);
 
                 // cikis_depo_no kontrolü
                 const depoEslesme = !k.cikis_depo_no || parseInt(k.cikis_depo_no) === bekleyenDepo;
@@ -1731,8 +1710,8 @@ router.post('/hediye-eslestir', async (req, res) => {
         const okumaKayitlari = eslesen.map((e, index) => ({
             fatura_no: parseInt(evrakno_sira),
             kalem_id: e.kalem.id,
-            qr_kod: e.bekleyen.qr_kod || `HEDIYE_ESLESTIR_${evrakno_sira}_${e.kalem.id}_P${e.bekleyen.paket_sira}_${batchId}_${index}`,
-            qr_hash: qrKodHash(e.bekleyen.qr_kod || `HEDIYE_${e.kalem.id}_P${e.bekleyen.paket_sira}`),
+            qr_kod: e.bekleyen.qr_kod || `ONKAYIT_ESLESTIR_${evrakno_sira}_${e.kalem.id}_P${e.bekleyen.paket_sira}_${batchId}_${index}`,
+            qr_hash: qrKodHash(e.bekleyen.qr_kod || `ONKAYIT_${e.kalem.id}_P${e.bekleyen.paket_sira}`),
             stok_kod: e.kalem.stok_kod,
             paket_sira: e.bekleyen.paket_sira,
             paket_toplam: e.bekleyen.paket_sayisi,
@@ -1746,14 +1725,14 @@ router.post('/hediye-eslestir', async (req, res) => {
             .insert(okumaKayitlari);
 
         if (insertError) {
-            console.error('Hediye eşleştirme insert hatası:', insertError);
+            console.error('Ön kayıt eşleştirme insert hatası:', insertError);
             return res.json({ success: false, message: 'Okuma kayıt hatası: ' + insertError.message });
         }
 
-        // 5. hediye_bekleyen_okumalar'ı güncelle
+        // 5. on_kayit_okumalar'ı güncelle
         const eslesenIdler = eslesen.map(e => e.bekleyen.id);
         const { error: updateError } = await client
-            .from('hediye_bekleyen_okumalar')
+            .from('on_kayit_okumalar')
             .update({
                 durum: 'eslesti',
                 evrakno_sira: parseInt(evrakno_sira)
@@ -1761,7 +1740,7 @@ router.post('/hediye-eslestir', async (req, res) => {
             .in('id', eslesenIdler);
 
         if (updateError) {
-            console.error('Hediye durum güncelleme hatası:', updateError);
+            console.error('Ön kayıt durum güncelleme hatası:', updateError);
         }
 
         // Fatura cache'ini temizle (yeni okumalar eklendi)
@@ -1779,7 +1758,7 @@ router.post('/hediye-eslestir', async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Hediye eşleştirme hatası:', error);
+        console.error('Ön kayıt eşleştirme hatası:', error);
         return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
     }
 });
