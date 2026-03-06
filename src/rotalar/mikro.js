@@ -1699,10 +1699,10 @@ router.post('/on-kayit-eslestir', async (req, res) => {
         }
 
         if (eslesen.length === 0) {
-            const eslesemeyenAdlar = [...new Set(eslesmeyen.map(e => `${e.malzeme_adi || e.stok_kod} (Depo:${e.depo})`))];
+            const eslesemeyenAdlar = [...new Set(eslesmeyen.map(e => e.malzeme_adi || e.stok_kod))];
             return res.json({
                 success: false,
-                message: `Bu faturada eşleşen ürün bulunamadı. Bekleyen ürünler: ${eslesemeyenAdlar.join(', ')}`
+                message: `${eslesemeyenAdlar.join(', ')} - Doğru Depo seçimini yapmanız gerekiyor.`
             });
         }
 

@@ -646,7 +646,7 @@
             sonucMesaj.className = 'sonuc-mesaj' + (tip ? ' ' + tip : '');
             sonucMesaj.style.display = 'block';
 
-            if (tip === 'basari' || tip === 'hata') {
+            if (tip === 'basari') {
                 setTimeout(() => { sonucMesaj.style.display = 'none'; }, 4000);
             }
         }
