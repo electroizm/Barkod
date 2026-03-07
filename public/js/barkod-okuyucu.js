@@ -16,7 +16,9 @@ class BarkodOkuyucu {
         this.ayarlar = {
             otomatikOkuma: true,
             kameraAktif: true,
-            okumaSonrasi: null, // callback fonksiyon
+            gs1Dogrulama: false, // GS1 format doğrulama (true = sadece geçerli GS1 kabul)
+            okumaSonrasi: null,  // başarılı okuma callback
+            hataGosterici: null, // hata mesajı callback (GS1 doğrulama hatası)
             ...ayarlar
         };
 
@@ -188,41 +190,109 @@ class BarkodOkuyucu {
     }
 
     barkodOku() {
-        // Barkoddan görünmez karakterleri temizle (GS1 separator vb.)
-        let barkod = this.input.value.replace(/[\x00-\x1F\x7F]/g, '').trim();
+        const hamDeger = this.input.value;
+        this.input.value = '';
+        this.input.focus();
+        this.barkodIsle(hamDeger);
+    }
 
-        if (!barkod) {
-            return;
-        }
+    // ═══════════════════════════════════════════
+    // Merkezi Barkod İşleme (tüm giriş yolları buradan geçer)
+    // ═══════════════════════════════════════════
 
-        // GS1 çift okuma tespiti: tarayıcı aynı barkodu 300ms içinde 2 kere basarsa
-        // birleşik string oluşur (ör: 288 char = 144+144). İlk geçerli GS1 barkodu al.
-        if (barkod.length > 100 && barkod.startsWith('01')) {
-            // İkinci '01' + 14 hane GTIN + '21' pattern'ini ara (ilk 16 karakterden sonra)
-            const ikinciBaslangic = barkod.indexOf('01', 16);
-            if (ikinciBaslangic > 0) {
-                const ilkParca = barkod.substring(0, ikinciBaslangic);
-                const ikinciParca = barkod.substring(ikinciBaslangic);
-                // İki parça aynıysa çift okuma - sadece birini al
+    barkodIsle(hamBarkod) {
+        // 1. Görünmez karakterleri temizle (GS1 separator vb.)
+        let barkod = (hamBarkod || '').replace(/[\x00-\x1F\x7F]/g, '').trim();
+        if (!barkod) return;
+
+        // 2. Çift okuma tespiti: tarayıcı aynı barkodu 2 kere basarsa birleşik string oluşur
+        if (barkod.length > 200 && barkod.startsWith('01')) {
+            let searchPos = 16;
+            while (searchPos < barkod.length - 50) {
+                const pos = barkod.indexOf('01', searchPos);
+                if (pos === -1) break;
+                const ilkParca = barkod.substring(0, pos);
+                const ikinciParca = barkod.substring(pos);
                 if (ilkParca === ikinciParca) {
                     console.log('Barkod okuyucu - çift okuma tespit edildi, tek barkod alınıyor');
                     barkod = ilkParca;
+                    break;
                 }
+                searchPos = pos + 1;
             }
         }
 
-        console.log('Barkod okuyucu - ham değer:', this.input.value);
-        console.log('Barkod okuyucu - temizlenmiş:', barkod);
-        console.log('Barkod okuyucu - uzunluk:', barkod.length);
+        // 3. GS1 format doğrulama (aktifse)
+        if (this.ayarlar.gs1Dogrulama) {
+            const dogrulama = this.gs1Dogrula(barkod);
+            if (!dogrulama.gecerli) {
+                console.warn('GS1 doğrulama HATA:', dogrulama.hata, '| barkod:', barkod.substring(0, 30) + '...');
+                if (this.ayarlar.hataGosterici && typeof this.ayarlar.hataGosterici === 'function') {
+                    this.ayarlar.hataGosterici(dogrulama.hata);
+                }
+                return; // Geçersiz barkod - callback çağrılmaz, Supabase'e gitmez
+            }
+        }
 
-        // Callback fonksiyonu çağır
+        console.log('Barkod okuyucu - temizlenmiş:', barkod, '(' + barkod.length + ' char)');
+
+        // 4. Başarılı okuma - callback çağır
         if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
             this.ayarlar.okumaSonrasi(barkod);
         }
+    }
 
-        // Input'u temizle ve odaklan
-        this.input.value = '';
-        this.input.focus();
+    // ═══════════════════════════════════════════
+    // GS1 Format Doğrulama
+    // ═══════════════════════════════════════════
+
+    gs1Dogrula(barkod) {
+        // 1. Sadece rakam içermeli
+        if (!/^\d+$/.test(barkod)) {
+            return { gecerli: false, hata: 'Barkod sadece rakam içermeli (harf veya özel karakter tespit edildi)' };
+        }
+
+        // 2. Minimum uzunluk
+        if (barkod.length < 50) {
+            return { gecerli: false, hata: 'Barkod çok kısa (' + barkod.length + ' karakter, en az 50 olmalı)' };
+        }
+
+        // 3. 01 + GTIN(14) ile başlamalı
+        if (!barkod.startsWith('01')) {
+            return { gecerli: false, hata: 'GS1 format hatası: "01" GTIN kodu ile başlamıyor' };
+        }
+
+        // 4. 21 (Seri No AI) pozisyon 16'da olmalı
+        if (barkod.substring(16, 18) !== '21') {
+            return { gecerli: false, hata: 'GS1 format hatası: "21" seri numarası kodu bulunamadı' };
+        }
+
+        // 5. Sonda 99 + 18 haneli malzeme numarası olmalı
+        if (!/99\d{18}$/.test(barkod)) {
+            return { gecerli: false, hata: 'GS1 format hatası: "99" malzeme numarası bulunamadı (son 20 hane: 99+18 rakam)' };
+        }
+
+        // 6. 10 + 16 hane + 91 pattern (özel üretim kodu + paket bilgisi)
+        let formatGecerli = false;
+        let searchPos = 18;
+        while (searchPos < barkod.length - 18) {
+            const pos = barkod.indexOf('10', searchPos);
+            if (pos === -1) break;
+            const sonrasi = barkod.substring(pos + 2, pos + 18);
+            if (sonrasi.length === 16 && /^\d{16}$/.test(sonrasi)) {
+                const sonrakiIki = barkod.substring(pos + 18, pos + 20);
+                if (sonrakiIki === '91') {
+                    formatGecerli = true;
+                    break;
+                }
+            }
+            searchPos = pos + 1;
+        }
+        if (!formatGecerli) {
+            return { gecerli: false, hata: 'GS1 format hatası: üretim kodu (10) veya paket bilgisi (91) bulunamadı' };
+        }
+
+        return { gecerli: true };
     }
 
     // ═══════════════════════════════════════════
@@ -319,10 +389,8 @@ class BarkodOkuyucu {
         localStorage.removeItem('qrafter_result');
         localStorage.removeItem('qrafter_time');
 
-        // Callback fonksiyonu çağır
-        if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
-            this.ayarlar.okumaSonrasi(code);
-        }
+        // Merkezi işleme (temizlik + doğrulama + callback)
+        this.barkodIsle(code);
     }
 
     // ═══════════════════════════════════════════
@@ -378,10 +446,7 @@ class BarkodOkuyucu {
                     // QR/Barkod bulundu!
                     console.log('Kamera ile okundu:', decodedText);
                     this.kameraKapat_();
-
-                    if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
-                        this.ayarlar.okumaSonrasi(decodedText);
-                    }
+                    this.barkodIsle(decodedText);
                 },
                 () => {
                     // Her frame'de çağrılır - tarama devam ediyor
@@ -448,12 +513,8 @@ class BarkodOkuyucu {
             const decodedText = await scanner.scanFile(dosya, false);
 
             console.log('Fotoğraftan okundu:', decodedText);
-
-            if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
-                this.ayarlar.okumaSonrasi(decodedText);
-            }
-
             scanner.clear();
+            this.barkodIsle(decodedText);
         } catch (hata) {
             console.error('Fotoğraf okuma hatası:', hata);
             alert('Fotoğrafta QR kod/barkod bulunamadı.\nQR kodun net ve tam göründüğünden emin olun.');

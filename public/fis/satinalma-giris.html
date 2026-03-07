@@ -92,6 +92,8 @@
 
         // Barkod okuyucu bileşenini başlat
         const barkodOkuyucu = new BarkodOkuyucu('#barkodOkuyucu', {
+            gs1Dogrulama: true,
+            hataGosterici: function(hata) { alert(hata); },
             okumaSonrasi: function(barkod) {
                 urunEkle(barkod);
             }

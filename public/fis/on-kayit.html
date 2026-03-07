@@ -325,6 +325,8 @@
         const okuyucu = new BarkodOkuyucu('#barkodOkuyucuAlani', {
             otomatikOkuma: true,
             kameraAktif: true,
+            gs1Dogrulama: true,
+            hataGosterici: (hata) => mesajGoster(hata, 'hata'),
             okumaSonrasi: barkodOkut
         });
 
@@ -629,7 +631,7 @@
                 mesajGoster('Hata: ' + error.message, 'hata');
             } finally {
                 eslestirBtn.disabled = false;
-                eslestirBtn.textContent = 'Eşleştir';
+                eslestirBtn.textContent = 'PRG Teslimat Fişi - Eşleştir';
             }
         });
 

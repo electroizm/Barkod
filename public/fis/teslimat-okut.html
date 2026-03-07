@@ -605,6 +605,8 @@
 
                 // Barkod okuyucu başlat
                 barkodOkuyucu = new BarkodOkuyucu('#barkodOkuyucuAlani', {
+                    gs1Dogrulama: true,
+                    hataGosterici: (hata) => okumaHatali(hata, 'format'),
                     okumaSonrasi: qrOkut
                 });
 

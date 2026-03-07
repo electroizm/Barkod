@@ -90,6 +90,8 @@
         const sonOkunanElement = document.getElementById('sonOkunan');
 
         const barkodOkuyucu = new BarkodOkuyucu('#barkodOkuyucu', {
+            gs1Dogrulama: true,
+            hataGosterici: (hata) => alert(hata),
             okumaSonrasi: function(barkod) {
                 urunEkle(barkod);
             }

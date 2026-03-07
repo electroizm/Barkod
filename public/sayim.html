@@ -123,6 +123,8 @@
         const toplamSayimElement = document.getElementById('toplamSayim');
 
         const barkodOkuyucu = new BarkodOkuyucu('#barkodOkuyucu', {
+            gs1Dogrulama: true,
+            hataGosterici: (hata) => alert(hata),
             okumaSonrasi: function(barkod) {
                 urunSay(barkod);
             }
