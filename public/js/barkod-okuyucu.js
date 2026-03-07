@@ -205,18 +205,28 @@ class BarkodOkuyucu {
         let barkod = (hamBarkod || '').replace(/[\x00-\x1F\x7F]/g, '').trim();
         if (!barkod) return;
 
-        // 2. Çift okuma tespiti: tarayıcı aynı barkodu 2 kere basarsa birleşik string oluşur
+        // 2. Çoklu okuma tespiti: tarayıcı aynı barkodu 2-3-4+ kere basabilir (ör: 149×3=447)
         if (barkod.length > 200 && barkod.startsWith('01')) {
             let searchPos = 16;
             while (searchPos < barkod.length - 50) {
                 const pos = barkod.indexOf('01', searchPos);
                 if (pos === -1) break;
-                const ilkParca = barkod.substring(0, pos);
-                const ikinciParca = barkod.substring(pos);
-                if (ilkParca === ikinciParca) {
-                    console.log('Barkod okuyucu - çift okuma tespit edildi, tek barkod alınıyor');
-                    barkod = ilkParca;
-                    break;
+                const aday = barkod.substring(0, pos);
+                // Bu aday tüm barkodun tekrarlanan parçası mı? (2x, 3x, 4x...)
+                if (barkod.length % aday.length === 0) {
+                    let tamTekrar = true;
+                    for (let i = pos; i < barkod.length; i += aday.length) {
+                        if (barkod.substring(i, i + aday.length) !== aday) {
+                            tamTekrar = false;
+                            break;
+                        }
+                    }
+                    if (tamTekrar) {
+                        const tekrarSayisi = barkod.length / aday.length;
+                        console.log('Barkod okuyucu - ' + tekrarSayisi + 'x çoklu okuma tespit edildi, tek barkod alınıyor');
+                        barkod = aday;
+                        break;
+                    }
                 }
                 searchPos = pos + 1;
             }
@@ -252,9 +262,12 @@ class BarkodOkuyucu {
             return { gecerli: false, hata: 'Barkod sadece rakam içermeli (harf veya özel karakter tespit edildi)' };
         }
 
-        // 2. Minimum uzunluk
+        // 2. Uzunluk kontrolü (min 50, max 200)
         if (barkod.length < 50) {
-            return { gecerli: false, hata: 'Barkod çok kısa (' + barkod.length + ' karakter, en az 50 olmalı)' };
+            return { gecerli: false, hata: 'Barkod çok kısa (' + barkod.length + ' karakter)' };
+        }
+        if (barkod.length > 200) {
+            return { gecerli: false, hata: 'Barkod çok uzun (' + barkod.length + ' karakter) - çoklu okuma olabilir' };
         }
 
         // 3. 01 + GTIN(14) ile başlamalı

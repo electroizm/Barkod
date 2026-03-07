@@ -26,19 +26,25 @@ function qrKodParsele(qrKod) {
         // Bosluklari temizle (tarayici bazen bosluk ekliyor)
         qrKod = qrKod.replace(/\s/g, '');
 
-        // Cift okuma tespiti: tarayici ayni barkodu 2 kere basarsa birlesen string olusur
-        // '01' barkod verisi icinde de gecebilir (ör: paket_sira=01),
-        // bu yuzden tum '01' pozisyonlarini deneyerek eslesen cifti bul
+        // Coklu okuma tespiti: tarayici ayni barkodu 2-3-4+ kere basabilir (ör: 149x3=447)
         if (qrKod.length > 200 && qrKod.startsWith('01')) {
             let searchPos = 16;
             while (searchPos < qrKod.length - 50) {
                 const pos = qrKod.indexOf('01', searchPos);
                 if (pos === -1) break;
-                const ilkParca = qrKod.substring(0, pos);
-                const ikinciParca = qrKod.substring(pos);
-                if (ilkParca === ikinciParca) {
-                    qrKod = ilkParca;
-                    break;
+                const aday = qrKod.substring(0, pos);
+                if (qrKod.length % aday.length === 0) {
+                    let tamTekrar = true;
+                    for (let i = pos; i < qrKod.length; i += aday.length) {
+                        if (qrKod.substring(i, i + aday.length) !== aday) {
+                            tamTekrar = false;
+                            break;
+                        }
+                    }
+                    if (tamTekrar) {
+                        qrKod = aday;
+                        break;
+                    }
                 }
                 searchPos = pos + 1;
             }
