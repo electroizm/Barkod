@@ -32,6 +32,7 @@ const mikroRotalari = require('./rotalar/mikro');
 const stokRotalari = require('./rotalar/stok');
 const cikisRotalari = require('./rotalar/cikis');
 const girisRotalari = require('./rotalar/giris');
+const sevkRotalari = require('./rotalar/sevk');
 
 uygulama.use('/api/yetkilendirme', yetkilendirmeRotalari);
 uygulama.use('/api/dogtas', dogtasRotalari);
@@ -41,6 +42,7 @@ uygulama.use('/api/mikro', mikroRotalari);
 uygulama.use('/api/stok', stokRotalari);
 uygulama.use('/api/cikis', cikisRotalari);
 uygulama.use('/api/giris', girisRotalari);
+uygulama.use('/api/sevk', sevkRotalari);
 
 // Health check - UptimeRobot ping için
 uygulama.get('/api/health', (istek, yanit) => {
