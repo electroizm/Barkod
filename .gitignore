@@ -4,3 +4,11 @@ node_modules/
 *.log
 
 service_account.json
+
+# Dokümanlar ve Markdown dosyaları
+docs/
+*.md
+
+# Editor ve IDE ayarları
+.vscode/
+.claude/

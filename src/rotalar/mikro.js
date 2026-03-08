@@ -1,23 +1,12 @@
 /**
- * Mikro SQL Server Entegrasyonu
- * PRGsheet'ten SQL bağlantı bilgilerini okur ve satış faturalarını Supabase'e aktarır
+ * Satış Faturası Route'ları
+ * Fatura verileri Python sync scripti ile Supabase'e aktarılır
  */
 
 const express = require('express');
 const router = express.Router();
-const sql = require('mssql');
-const { google } = require('googleapis');
 const { createClient } = require('@supabase/supabase-js');
 const { qrKodParsele, qrKodHash, qrKodValidasyon } = require('../utils/qr-parser');
-
-// Google Sheets bilgileri (.env'den)
-const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-const PRGSHEET_NAME = 'PRGsheet';
-
-// SQL Server config cache
-let SQL_CONFIG = null;
-let configYuklendi = false;
 
 // Supabase client
 let supabase = null;
@@ -262,95 +251,6 @@ async function getSupabaseClient() {
 }
 
 /**
- * PRGsheet'ten SQL Server bağlantı bilgilerini yükle
- */
-async function sqlConfigYukle() {
-    if (configYuklendi && SQL_CONFIG) return SQL_CONFIG;
-
-    try {
-        const auth = new google.auth.JWT(
-            GOOGLE_SERVICE_ACCOUNT_EMAIL,
-            null,
-            GOOGLE_PRIVATE_KEY,
-            [
-                'https://www.googleapis.com/auth/spreadsheets.readonly',
-                'https://www.googleapis.com/auth/drive.readonly'
-            ]
-        );
-
-        // Drive API ile PRGsheet'in ID'sini bul
-        const drive = google.drive({ version: 'v3', auth });
-        const driveYanit = await drive.files.list({
-            q: `name='${PRGSHEET_NAME}' and mimeType='application/vnd.google-apps.spreadsheet'`,
-            fields: 'files(id, name)',
-            spaces: 'drive'
-        });
-
-        if (!driveYanit.data.files || driveYanit.data.files.length === 0) {
-            console.error('PRGsheet bulunamadı');
-            return null;
-        }
-
-        const spreadsheetId = driveYanit.data.files[0].id;
-
-        // Sheets API ile Ayar sayfasını oku
-        const sheets = google.sheets({ version: 'v4', auth });
-        const yanit = await sheets.spreadsheets.values.get({
-            spreadsheetId: spreadsheetId,
-            range: 'Ayar'
-        });
-
-        const satirlar = yanit.data.values || [];
-
-        if (satirlar.length <= 1) {
-            console.error('PRGsheet Ayar sayfası boş');
-            return null;
-        }
-
-        // Key/Value sözlüğü oluştur
-        const headers = satirlar[0];
-        let keyIndex = headers.indexOf('Key');
-        let valueIndex = headers.indexOf('Value');
-        if (keyIndex === -1) keyIndex = 1;
-        if (valueIndex === -1) valueIndex = 3;
-
-        const config = {};
-        for (let i = 1; i < satirlar.length; i++) {
-            const satir = satirlar[i];
-            const key = satir[keyIndex]?.trim() || '';
-            const value = satir[valueIndex]?.trim() || '';
-            if (key) {
-                config[key] = value;
-            }
-        }
-
-        // SQL Server config
-        SQL_CONFIG = {
-            server: config['SQL_SERVER'] || '192.168.1.17',
-            port: parseInt(config['SQL_PORT']) || 1433,
-            database: config['SQL_DATABASE'] || 'MikroDB_V14_DOGTAS_12',
-            user: config['SQL_USERNAME'] || 'sa',
-            password: config['SQL_PASSWORD'] || '',
-            options: {
-                encrypt: false,
-                trustServerCertificate: true,
-                enableArithAbort: true
-            },
-            connectionTimeout: 30000,
-            requestTimeout: 60000
-        };
-
-        configYuklendi = true;
-        console.log(`SQL Server config PRGsheet'ten yüklendi: ${SQL_CONFIG.server}:${SQL_CONFIG.port}`);
-        return SQL_CONFIG;
-
-    } catch (hata) {
-        console.error('SQL config yükleme hatası:', hata.message);
-        return null;
-    }
-}
-
-/**
  * GET /api/mikro/fatura/:faturaNo
  * Belirli bir faturanın detaylarını getir
  */
@@ -380,123 +280,10 @@ router.get('/fatura/:faturaNo', async (req, res) => {
         }
 
         if (!data || data.length === 0) {
-            // Supabase'de yok, Mikro'dan çekmeyi dene
-            try {
-                const config = await sqlConfigYukle();
-                if (!config) {
-                    return res.status(404).json({ success: false, message: 'Fatura bulunamadı ve SQL bağlantı bilgileri yüklenemedi' });
-                }
-
-                const pool = await sql.connect(config);
-                const sorgu = `
-                    SELECT
-                        sth.sth_evrakno_seri,
-                        sth.sth_evrakno_sira,
-                        CONVERT(DATE, sth.sth_tarih) AS tarih,
-                        sth.sth_stok_kod,
-                        sth.sth_miktar,
-                        sth.sth_cikis_depo_no,
-                        dbo.fn_StokHarEvrTip(sth.sth_evraktip) AS evrak_adi,
-                        cha.cha_kod AS cari_kodu,
-                        dbo.fn_CarininIsminiBul(cha.cha_cari_cins, cha.cha_kod) AS cari_adi,
-                        bar.bar_serino_veya_bagkodu AS bag_kodu,
-                        sto.sto_isim AS malzeme_adi
-                    FROM dbo.STOK_HAREKETLERI sth WITH (NOLOCK)
-                    LEFT JOIN dbo.CARI_HESAP_HAREKETLERI cha WITH (NOLOCK)
-                        ON sth.sth_evrakno_seri = cha.cha_evrakno_seri
-                        AND sth.sth_evrakno_sira = cha.cha_evrakno_sira
-                        AND cha.cha_evrak_tip = 63
-                    LEFT JOIN dbo.BARKOD_TANIMLARI bar WITH (NOLOCK)
-                        ON sth.sth_stok_kod = bar.bar_stokkodu
-                    LEFT JOIN dbo.STOKLAR sto WITH (NOLOCK)
-                        ON sto.sto_kod = sth.sth_stok_kod
-                        AND (sto.sto_pasif_fl IS NULL OR sto.sto_pasif_fl = 0)
-                    WHERE sth.sth_evraktip = 4
-                        AND (sth.sth_evrakno_sira = @faturaNo OR sth.sth_evrakno_sira = @faturaNoNeg)
-                    ORDER BY sth.sth_stok_kod
-                `;
-
-                const faturaNoInt = parseInt(faturaNo);
-                const result = await pool.request()
-                    .input('faturaNo', sql.Int, faturaNoInt)
-                    .input('faturaNoNeg', sql.Int, -Math.abs(faturaNoInt))
-                    .query(sorgu);
-                const faturalar = result.recordset;
-                await pool.close();
-
-                if (faturalar.length === 0) {
-                    return res.status(404).json({ success: false, message: 'Fatura bulunamadı' });
-                }
-
-                // Doğtaş API'den paket bilgilerini çek
-                const productCodeSet = new Set();
-                for (const f of faturalar) {
-                    if (f.sth_stok_kod) productCodeSet.add(f.sth_stok_kod.substring(0, 10));
-                }
-
-                let paketBilgileri = {};
-                try {
-                    const dogtasResponse = await fetch('http://localhost:3000/api/dogtas/urun-paketleri', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ stokKodlari: Array.from(productCodeSet) })
-                    });
-                    const dogtasData = await dogtasResponse.json();
-                    if (dogtasData.success && dogtasData.sonuclar) {
-                        for (const sonuc of dogtasData.sonuclar) {
-                            if (sonuc.basarili && sonuc.veri) {
-                                paketBilgileri[sonuc.stokKod] = {
-                                    productDesc: sonuc.veri.productDesc,
-                                    paketSayisi: sonuc.veri.paketSayisi
-                                };
-                            }
-                        }
-                    }
-                } catch (apiError) {
-                    console.error('Doğtaş API hatası:', apiError.message);
-                }
-
-                // Supabase'e kaydet
-                for (const f of faturalar) {
-                    const productCode = f.sth_stok_kod ? f.sth_stok_kod.substring(0, 10) : null;
-                    const paketBilgisi = productCode ? paketBilgileri[productCode] : null;
-
-                    await client.from('satis_faturasi').upsert({
-                        evrakno_seri: f.sth_evrakno_seri || '',
-                        evrakno_sira: f.sth_evrakno_sira,
-                        tarih: f.tarih,
-                        stok_kod: f.sth_stok_kod,
-                        miktar: f.sth_miktar,
-                        cikis_depo_no: f.sth_cikis_depo_no,
-                        evrak_adi: f.evrak_adi || 'Satış Faturası',
-                        cari_kodu: f.cari_kodu || '',
-                        cari_adi: f.cari_adi || '',
-                        product_code: productCode,
-                        product_desc: paketBilgisi?.productDesc || null,
-                        paket_sayisi: paketBilgisi?.paketSayisi || 1,
-                        bag_kodu: f.bag_kodu || null,
-                        malzeme_adi: f.malzeme_adi || null
-                    }, { onConflict: 'evrakno_seri,evrakno_sira,stok_kod' });
-                }
-
-                // Kaydedilen faturayı Supabase'den tekrar çek
-                const { data: yeniData } = await client
-                    .from('satis_faturasi')
-                    .select('*')
-                    .eq('evrakno_sira', parseInt(faturaNo))
-                    .order('stok_kod');
-
-                if (!yeniData || yeniData.length === 0) {
-                    return res.status(404).json({ success: false, message: 'Fatura Mikro\'dan çekildi ancak kaydedilemedi' });
-                }
-
-                // Başarıyla import edildi, aşağıda gösterilecek
-                data = yeniData;
-
-            } catch (mikroError) {
-                console.error('Mikro\'dan fatura çekme hatası:', mikroError.message);
-                return res.status(500).json({ success: false, message: 'Mikro bağlantı hatası: ' + mikroError.message });
-            }
+            return res.status(404).json({
+                success: false,
+                message: 'Fatura bulunamadı. Lütfen önce Python sync scriptini çalıştırın.'
+            });
         }
 
         // Toplam miktar ve paket sayısı hesapla
