@@ -71,6 +71,7 @@
         }
         .modal-baslik {
             display: flex;
+            justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
             padding-bottom: 10px;
@@ -173,6 +174,10 @@
             color: #2c3e50;
         }
         .stat-separator { color: #999; }
+        .barkod-alt-satir .progress-container {
+            flex: 1;
+            margin-right: 10px;
+        }
 
         /* Okuma Alanı */
         .okuma-alani {
@@ -486,7 +491,7 @@
             <div class="fis-ozet" id="fisOzet">Fiş: -</div>
 
             <!-- İlerleme -->
-            <div class="progress-container" id="progressContainer">
+            <div class="progress-container gizle" id="progressContainer">
                 <div class="progress-bar">
                     <div class="progress-fill" id="progressFill" style="width: 0%"></div>
                     <span class="progress-text" id="progressText">0%</span>
@@ -794,6 +799,19 @@
                             hataGosterici: (hata) => okumaHatali(hata, 'format'),
                             okumaSonrasi: qrOkut
                         });
+
+                        // İlerleme çubuğunu barkod-alt-satir içine taşı
+                        setTimeout(() => {
+                            const barkodEtiket = document.querySelector('.barkod-etiket');
+                            const progressContainer = document.getElementById('progressContainer');
+                            if (barkodEtiket && progressContainer) {
+                                barkodEtiket.parentNode.insertBefore(progressContainer, barkodEtiket);
+                                barkodEtiket.remove();
+                                progressContainer.classList.remove('gizle');
+                                progressContainer.style.flex = '1';
+                                progressContainer.style.margin = '0';
+                            }
+                        }, 100);
                     } else {
                         barkodOkuyucu.odaklan();
                     }
