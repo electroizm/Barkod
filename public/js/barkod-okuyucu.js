@@ -27,6 +27,18 @@ class BarkodOkuyucu {
         this.kameraAcik = false;
         this.qrScanner = null;
 
+        // Bound listener referansları (destroy'da kaldırmak için)
+        this._boundVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                this.localStorageKontrol();
+            }
+        };
+        this._boundStorageChange = (e) => {
+            if (e.key === 'qrafter_result' && e.newValue) {
+                this.localStorageKontrol();
+            }
+        };
+
         this.olustur();
         this.olaylariDinle();
 
@@ -160,18 +172,10 @@ class BarkodOkuyucu {
         });
 
         // QRafter localStorage bridge: orijinal sekme geri geldiğinde kontrol et
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                this.localStorageKontrol();
-            }
-        });
+        document.addEventListener('visibilitychange', this._boundVisibilityChange);
 
         // Aynı tarayıcıda storage event ile de dinle (farklı sekmeden yazılınca tetiklenir)
-        window.addEventListener('storage', (e) => {
-            if (e.key === 'qrafter_result' && e.newValue) {
-                this.localStorageKontrol();
-            }
-        });
+        window.addEventListener('storage', this._boundStorageChange);
     }
 
     tarayiciGirisTespit(e) {
@@ -552,6 +556,42 @@ class BarkodOkuyucu {
 
     degerAyarla(deger) {
         this.input.value = deger;
+    }
+
+    // ═══════════════════════════════════════════
+    // Temizlik - SPA sayfa geçişlerinde çağrılır
+    // ═══════════════════════════════════════════
+
+    destroy() {
+        // 1. Kamerayı kapat (açıksa)
+        if (this.kameraAcik) {
+            this.kameraKapat_();
+        }
+
+        // 2. Timer'ları temizle
+        clearTimeout(this.girisZamanlayici);
+        this.girisZamanlayici = null;
+
+        // 3. Global event listener'ları kaldır
+        document.removeEventListener('visibilitychange', this._boundVisibilityChange);
+        window.removeEventListener('storage', this._boundStorageChange);
+
+        // 4. DOM referanslarını null'la
+        this.input = null;
+        this.kameraBtn = null;
+        this.appBtn = null;
+        this.fotoBtn = null;
+        this.enterBtn = null;
+        this.fotoInput = null;
+        this.kameraAlani = null;
+        this.kameraOkuyucu = null;
+        this.kameraKapatBtn = null;
+        this.fotoOkuyucu = null;
+        this.konteyner = null;
+
+        // 5. Callback referanslarını temizle
+        this.ayarlar.okumaSonrasi = null;
+        this.ayarlar.hataGosterici = null;
     }
 }
 
