@@ -8,6 +8,70 @@
     <style>
         /* Fiş Seçim Alanı */
         .fis-secim {
+<<<<<<< HEAD
+            margin-bottom: 20px;
+        }
+        .fis-secim label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #555;
+        }
+        .fis-secim input {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            outline: none;
+            box-sizing: border-box;
+        }
+        .fis-secim input:focus {
+            border-color: #9b59b6;
+        }
+        .ara-btn, .acik-fis-btn, .kapatilan-fis-btn {
+            margin-top: 10px;
+            width: 100%;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 500;
+            background-color: #34495e;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .ara-btn:hover, .acik-fis-btn:hover, .kapatilan-fis-btn:hover {
+            background-color: #2c3e50;
+        }
+
+        /* Modal */
+        .fis-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1001;
+        }
+        .fis-overlay.goster {
+            display: flex;
+        }
+        .fis-modal {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-baslik {
+=======
             margin-bottom: 20px;
         }
         .fis-secim label {
@@ -126,6 +190,195 @@
             color: #666;
         }
 
+        /* Fiş Bilgi */
+        .fis-bilgi {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .fis-baslik {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 15px;
+>>>>>>> 2cbf4ec2e09c8b6f7607fa39f5ff43724695d0ed
+            display: flex;
+            align-items: center;
+<<<<<<< HEAD
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .modal-baslik h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #2c3e50;
+        }
+        .modal-kapat {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        .fis-liste {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .fis-item {
+            padding: 12px;
+            background-color: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .fis-item:hover {
+            background-color: #f3e5f5;
+            border-color: #9b59b6;
+        }
+        .fis-item-baslik {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        .fis-item-detay {
+            font-size: 13px;
+            color: #666;
+        }
+        .fis-item-kalan {
+            font-size: 12px;
+            color: #e74c3c;
+            margin-top: 5px;
+=======
+            gap: 10px;
+        }
+        .fis-id {
+            background-color: #9b59b6;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .bilgi-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+        .bilgi-satir {
+            display: flex;
+            flex-direction: column;
+        }
+        .bilgi-etiket {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 2px;
+        }
+        .bilgi-deger {
+            font-size: 15px;
+            font-weight: 500;
+            color: #2c3e50;
+        }
+        .istatistik-kutu {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        .istatistik {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            background-color: #f3e5f5;
+            border-radius: 6px;
+        }
+        .istatistik-sayi {
+            font-size: 24px;
+            font-weight: 700;
+            color: #8e24aa;
+        }
+        .istatistik-etiket {
+            font-size: 12px;
+            color: #666;
+        }
+
+        /* Progress */
+        .progress-container {
+            margin: 0 0 15px 0;
+        }
+        .progress-bar {
+            height: 18px;
+            background-color: #e9ecef;
+            border-radius: 9px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            transition: width 0.3s ease;
+            border-radius: 9px;
+        }
+        .progress-text {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 11px;
+            font-weight: 600;
+            color: #333;
+>>>>>>> 2cbf4ec2e09c8b6f7607fa39f5ff43724695d0ed
+        }
+        .progress-stats {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+            margin-top: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+        .stat-separator { color: #999; }
+
+        /* Okuma Alanı */
+        .okuma-alani {
+            background-color: white;
+            border: 2px dashed #ddd;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .okuma-alani.basarili {
+            border-color: #27ae60;
+            background-color: #f0fff4;
+            animation: flash-success 0.3s;
+        }
+        .okuma-alani.hata {
+            border-color: #e74c3c;
+            background-color: #fef2f2;
+            animation: flash-error 0.3s;
+        }
+        @keyframes flash-success {
+            0%, 100% { background-color: #f0fff4; }
+            50% { background-color: #d4edda; }
+        }
+        @keyframes flash-error {
+            0%, 100% { background-color: #fef2f2; }
+            50% { background-color: #f8d7da; }
+        }
+
+        /* Son Mesaj */
+        .son-mesaj {
+            text-align: center;
+<<<<<<< HEAD
+            padding: 30px;
+            color: #666;
+        }
+
         /* Fiş Özet */
         .fis-ozet {
             background-color: #d4edda;
@@ -218,6 +471,21 @@
             background-color: #f8d7da;
             color: #721c24;
         }
+=======
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+        .son-mesaj.basarili {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .son-mesaj.hata {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+>>>>>>> 2cbf4ec2e09c8b6f7607fa39f5ff43724695d0ed
 
         /* Son Okumalar */
         .son-okumalar { margin-top: 20px; }
@@ -441,6 +709,23 @@
             margin-top: 20px;
         }
 
+<<<<<<< HEAD
+=======
+        /* Fiş Değiştir butonu */
+        .fis-degistir-btn {
+            display: inline-block;
+            margin-bottom: 15px;
+            padding: 8px 16px;
+            font-size: 13px;
+            background-color: #ecf0f1;
+            color: #2c3e50;
+            border: 1px solid #bdc3c7;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .fis-degistir-btn:hover { background-color: #dfe6e9; }
+>>>>>>> 2cbf4ec2e09c8b6f7607fa39f5ff43724695d0ed
     </style>
 </head>
 <body>
@@ -483,8 +768,40 @@
 
         <!-- DURUM 2: Okutma Alanı -->
         <div id="okutmaAlani" style="display: none;">
+<<<<<<< HEAD
             <!-- Fiş Özet -->
             <div class="fis-ozet" id="fisOzet">Fiş: -</div>
+=======
+            <button type="button" class="fis-degistir-btn" id="fisDegistirBtn">Fiş Değiştir</button>
+
+            <!-- Fiş Bilgi -->
+            <div class="fis-bilgi">
+                <div class="fis-baslik">
+                    <span>Fiş:</span>
+                    <span class="fis-id" id="fisNoGoster"></span>
+                </div>
+                <div class="bilgi-grid">
+                    <div class="bilgi-satir">
+                        <span class="bilgi-etiket">Evrak Adı</span>
+                        <span class="bilgi-deger" id="evrakAdiGoster">-</span>
+                    </div>
+                    <div class="bilgi-satir">
+                        <span class="bilgi-etiket">Tarih</span>
+                        <span class="bilgi-deger" id="tarihGoster">-</span>
+                    </div>
+                </div>
+                <div class="istatistik-kutu">
+                    <div class="istatistik">
+                        <div class="istatistik-sayi" id="toplamKalemGoster">0</div>
+                        <div class="istatistik-etiket">Kalem</div>
+                    </div>
+                    <div class="istatistik">
+                        <div class="istatistik-sayi" id="toplamPaketBilgiGoster">0</div>
+                        <div class="istatistik-etiket">Paket</div>
+                    </div>
+                </div>
+            </div>
+>>>>>>> 2cbf4ec2e09c8b6f7607fa39f5ff43724695d0ed
 
             <!-- İlerleme -->
             <div class="progress-container" id="progressContainer">
@@ -553,7 +870,15 @@
         const okutmaAlani = document.getElementById('okutmaAlani');
         const fisNoInput = document.getElementById('fisNoInput');
         const fisAraBtn = document.getElementById('fisAraBtn');
+<<<<<<< HEAD
         const fisOzet = document.getElementById('fisOzet');
+=======
+        const fisNoGoster = document.getElementById('fisNoGoster');
+        const evrakAdiGoster = document.getElementById('evrakAdiGoster');
+        const tarihGoster = document.getElementById('tarihGoster');
+        const toplamKalemGoster = document.getElementById('toplamKalemGoster');
+        const toplamPaketBilgiGoster = document.getElementById('toplamPaketBilgiGoster');
+>>>>>>> 2cbf4ec2e09c8b6f7607fa39f5ff43724695d0ed
         const progressFill = document.getElementById('progressFill');
         const progressText = document.getElementById('progressText');
         const okunanPaketGoster = document.getElementById('okunanPaketGoster');
@@ -577,6 +902,11 @@
         const kapatilanFisListesi = document.getElementById('kapatilanFisListesi');
         const kapatilanModalKapat = document.getElementById('kapatilanModalKapat');
 
+<<<<<<< HEAD
+=======
+        const fisDegistirBtn = document.getElementById('fisDegistirBtn');
+
+>>>>>>> 2cbf4ec2e09c8b6f7607fa39f5ff43724695d0ed
         let mevcutFis = null;
         let fisNo = null;
         let okumalar = [];
@@ -662,6 +992,12 @@
             if (e.key === 'Enter') fisAraBtn.click();
         });
 
+<<<<<<< HEAD
+=======
+        // Fiş değiştir
+        fisDegistirBtn.addEventListener('click', fisDegistir);
+
+>>>>>>> 2cbf4ec2e09c8b6f7607fa39f5ff43724695d0ed
         function fisDegistir() {
             okutmaAlani.style.display = 'none';
             fisSecimAlani.style.display = 'block';
@@ -774,8 +1110,19 @@
                     mevcutFis = data.fis;
                     fisNo = no;
 
+<<<<<<< HEAD
                     // Kompakt özet
                     fisOzet.textContent = `Fiş: ${mevcutFis.evrakno_sira} - ${mevcutFis.evrak_adi || '-'}`;
+=======
+                    // Bilgileri göster
+                    fisNoGoster.textContent = mevcutFis.evrakno_seri
+                        ? `${mevcutFis.evrakno_seri}-${Math.abs(mevcutFis.evrakno_sira)}`
+                        : Math.abs(mevcutFis.evrakno_sira);
+                    evrakAdiGoster.textContent = mevcutFis.evrak_adi || '-';
+                    tarihGoster.textContent = mevcutFis.tarih ? new Date(mevcutFis.tarih).toLocaleDateString('tr-TR') : '-';
+                    toplamKalemGoster.textContent = mevcutFis.toplam_kalem;
+                    toplamPaketBilgiGoster.textContent = mevcutFis.toplam_paket;
+>>>>>>> 2cbf4ec2e09c8b6f7607fa39f5ff43724695d0ed
 
                     // Durum 2'ye geç
                     fisSecimAlani.style.display = 'none';
@@ -905,11 +1252,14 @@
                 const data = await response.json();
 
                 if (data.success) {
+<<<<<<< HEAD
                     // Fiş özet güncelle
                     if (data.fis) {
                         fisOzet.textContent = `Fiş: ${data.fis.evrakno_sira} - ${data.fis.evrak_adi || '-'}`;
                     }
 
+=======
+>>>>>>> 2cbf4ec2e09c8b6f7607fa39f5ff43724695d0ed
                     const yuzde = data.tamamlanma_yuzdesi;
                     progressFill.style.width = yuzde + '%';
                     progressText.textContent = yuzde + '%';
@@ -917,6 +1267,10 @@
                     okunanPaketGoster.textContent = data.okunan_paket;
                     kalanPaketGoster.textContent = data.kalan_paket;
                     toplamPaketGoster.textContent = data.toplam_paket;
+<<<<<<< HEAD
+=======
+                    toplamPaketBilgiGoster.textContent = `${data.okunan_paket} / ${data.toplam_paket}`;
+>>>>>>> 2cbf4ec2e09c8b6f7607fa39f5ff43724695d0ed
 
                     malzemeListesiGuncelle(data.kalemler);
 
