@@ -49,12 +49,12 @@ uygulama.get('/api/health', (istek, yanit) => {
     yanit.json({ durum: 'aktif', zaman: new Date().toISOString() });
 });
 
-// Ana sayfa yönlendirmesi
+// Ana sayfa yönlendirmesi (SPA route'larina yonlendir)
 uygulama.get('/', (istek, yanit) => {
     if (istek.session.kullanici) {
-        yanit.redirect('/anasayfa.html');
+        yanit.redirect('/anasayfa');
     } else {
-        yanit.redirect('/giris.html');
+        yanit.redirect('/giris');
     }
 });
 
