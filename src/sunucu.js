@@ -70,6 +70,21 @@ uygulama.get('/api/oturum-kontrol', (istek, yanit) => {
     }
 });
 
+// SPA catch-all: Tanimli SPA route'lari icin index.html serve et
+const spaRotalar = ['/giris', '/anasayfa', '/cikis-islemleri', '/giris-islemleri'];
+uygulama.get('*', (istek, yanit) => {
+    // API istekleri haric
+    if (istek.path.startsWith('/api/')) {
+        return yanit.status(404).json({ hata: 'API endpoint bulunamadi' });
+    }
+    // Bilinen SPA route'larina index.html don
+    if (spaRotalar.includes(istek.path)) {
+        return yanit.sendFile(path.join(__dirname, '../public/index.html'));
+    }
+    // Diger (bilinmeyen) yollar
+    yanit.status(404).send('Sayfa bulunamad\u0131');
+});
+
 // Sunucuyu başlat
 uygulama.listen(PORT, () => {
     console.log(`Sunucu http://localhost:${PORT} adresinde çalışıyor`);

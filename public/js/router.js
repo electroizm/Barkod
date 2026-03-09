@@ -72,6 +72,13 @@ class Router {
     async git(yol) {
         if (yol === this.aktifYol) return;
 
+        // Eslesen rota yoksa normal navigasyona dus (MPA fallback)
+        const eslesen = this._yolEslestir(yol);
+        if (!eslesen) {
+            window.location.href = yol;
+            return;
+        }
+
         // Once ayril callback'leri cagir
         for (const cb of this._onceAyrilCallbacks) {
             const devam = await cb(this.aktifYol, yol);
@@ -196,6 +203,10 @@ class Router {
         // # ile baslayan linkler (anchor)
         const href = link.getAttribute('href');
         if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+
+        // SPA route eslesmesi kontrol et, eslesmezse normal navigasyona izin ver
+        const eslesen = this._yolEslestir(href);
+        if (!eslesen) return;
 
         // SPA navigasyon
         e.preventDefault();
