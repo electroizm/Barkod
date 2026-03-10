@@ -225,6 +225,8 @@ router.get('/fis/:fisNo', async (req, res) => {
                 evrakno_sira: data[0].evrakno_sira,
                 tarih: data[0].tarih,
                 evrak_adi: data[0].evrak_adi,
+                cikis_depo: data[0].cikis_depo,
+                giris_depo: data[0].giris_depo,
                 toplam_kalem: Math.ceil(toplamMiktar),
                 toplam_miktar: toplamMiktar,
                 toplam_paket: toplamPaket
@@ -305,7 +307,9 @@ router.get('/fis-durumu/:fisNo', async (req, res) => {
                 evrakno_seri: kalemler[0].evrakno_seri,
                 evrakno_sira: kalemler[0].evrakno_sira,
                 tarih: kalemler[0].tarih,
-                evrak_adi: kalemler[0].evrak_adi
+                evrak_adi: kalemler[0].evrak_adi,
+                cikis_depo: kalemler[0].cikis_depo,
+                giris_depo: kalemler[0].giris_depo
             },
             kalemler: kalemlerDetay,
             toplam_paket: toplamPaket,
@@ -666,6 +670,8 @@ router.get('/acik-fisler', async (req, res) => {
                     evrakno_sira: kayit.evrakno_sira,
                     tarih: kayit.tarih,
                     evrak_adi: kayit.evrak_adi,
+                    cikis_depo: kayit.cikis_depo,
+                    giris_depo: kayit.giris_depo,
                     toplam_paket: 0
                 };
             }
@@ -738,6 +744,8 @@ router.get('/kapatilan-fisler', async (req, res) => {
                     evrakno_sira: kayit.evrakno_sira,
                     tarih: kayit.tarih,
                     evrak_adi: kayit.evrak_adi,
+                    cikis_depo: kayit.cikis_depo,
+                    giris_depo: kayit.giris_depo,
                     toplam_paket: 0
                 };
             }

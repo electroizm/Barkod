@@ -10,6 +10,30 @@ const PORT = process.env.PORT || 3000;
 // Büyük nakliye verileri için limit artırıldı (varsayılan 100KB -> 10MB)
 uygulama.use(express.json({ limit: '10mb' }));
 uygulama.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// SPA route listesi (redirect + catch-all icin kullanilir)
+const spaRotalar = ['/giris', '/anasayfa', '/cikis-islemleri', '/giris-islemleri',
+                    '/stok', '/sayim', '/ayarlar', '/fis/nakliye-arama',
+                    '/sevk', '/fis/diger-giris', '/fis/nakliye-okutma',
+                    '/fis/teslimat', '/fis/barkod-okut', '/fis/teslimat-okut', '/fis/on-kayit',
+                    '/fis/diger-cikis'];
+
+// .html guard: SPA redirect + bilinmeyen .html engelleme (express.static'ten ONCE calisir)
+uygulama.use((istek, yanit, sonraki) => {
+    if (istek.path.endsWith('.html') && !istek.path.startsWith('/api/')) {
+        const temizYol = istek.path.slice(0, -5);
+        // Bilinen SPA route → 301 redirect
+        if (spaRotalar.includes(temizYol)) {
+            return yanit.redirect(301, temizYol);
+        }
+        // index.html haric tum .html isteklerini engelle (express.static'e ulasmasini onle)
+        if (istek.path !== '/index.html') {
+            return yanit.status(404).send('Sayfa bulunamad\u0131');
+        }
+    }
+    sonraki();
+});
+
 uygulama.use(express.static(path.join(__dirname, '../public')));
 
 // Oturum yapılandırması
@@ -71,7 +95,6 @@ uygulama.get('/api/oturum-kontrol', (istek, yanit) => {
 });
 
 // SPA catch-all: Tanimli SPA route'lari icin index.html serve et
-const spaRotalar = ['/giris', '/anasayfa', '/cikis-islemleri', '/giris-islemleri'];
 uygulama.get('*', (istek, yanit) => {
     // API istekleri haric
     if (istek.path.startsWith('/api/')) {
