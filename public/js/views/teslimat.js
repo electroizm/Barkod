@@ -52,7 +52,7 @@ window.Views['teslimat'] = (function() {
                             '<span class="bilgi-deger" id="tarihGoster">-</span>' +
                         '</div>' +
                         '<div class="bilgi-satir">' +
-                            '<span class="bilgi-etiket">Evrak Ad\u0131</span>' +
+                            '<span class="bilgi-etiket">Sat\u0131\u015f Temsilcisi</span>' +
                             '<span class="bilgi-deger" id="evrakAdiGoster">-</span>' +
                         '</div>' +
                     '</div>' +
@@ -126,7 +126,7 @@ window.Views['teslimat'] = (function() {
                 el.cariKoduGoster.textContent = mevcutFatura.cari_kodu || '-';
                 el.cariAdiGoster.textContent = mevcutFatura.cari_adi || '-';
                 el.tarihGoster.textContent = mevcutFatura.tarih ? new Date(mevcutFatura.tarih).toLocaleDateString('tr-TR') : '-';
-                el.evrakAdiGoster.textContent = mevcutFatura.evrak_adi || '-';
+                el.evrakAdiGoster.textContent = mevcutFatura.plasiyer_kodu || '-';
                 el.toplamKalemGoster.textContent = mevcutFatura.toplam_kalem;
                 el.toplamPaketGoster.textContent = mevcutFatura.toplam_paket;
 
@@ -238,8 +238,10 @@ window.Views['teslimat'] = (function() {
                     }
                     return '<div class="fatura-item" data-action="faturaSecAcik" data-fatura="' + fatura.evrakno_sira + '">' +
                         '<div class="fatura-item-baslik">' + (fatura.cari_adi || '-') + '</div>' +
-                        '<div class="fatura-item-detay">' + fatura.evrakno_sira + ' | ' + tarih + '</div>' +
-                        '<div class="fatura-item-kalan">' + fatura.kalan_paket + ' paket kald\u0131 (' + fatura.okunan_paket + '/' + fatura.toplam_paket + ')</div>' +
+                        '<div class="fatura-item-alt">' +
+                            '<div class="fatura-item-detay">' + fatura.evrakno_sira + ' | ' + tarih + '</div>' +
+                            '<div class="fatura-item-kalan">' + fatura.kalan_paket + ' paket kald\u0131 (' + fatura.okunan_paket + '/' + fatura.toplam_paket + ')</div>' +
+                        '</div>' +
                         kalemlerHtml +
                     '</div>';
                 }).join('');
@@ -290,8 +292,10 @@ window.Views['teslimat'] = (function() {
                     }
                     return '<div class="fatura-item" data-action="faturaSecKapatilan" data-fatura="' + fatura.evrakno_sira + '">' +
                         '<div class="fatura-item-baslik">' + (fatura.cari_adi || '-') + '</div>' +
-                        '<div class="fatura-item-detay">' + fatura.evrakno_sira + ' | ' + tarih + '</div>' +
-                        '<div class="fatura-item-kalan" style="color:#27ae60;">Tamamland\u0131 (' + fatura.okunan_paket + '/' + fatura.toplam_paket + ')</div>' +
+                        '<div class="fatura-item-alt">' +
+                            '<div class="fatura-item-detay">' + fatura.evrakno_sira + ' | ' + tarih + '</div>' +
+                            '<div class="fatura-item-kalan" style="color:#27ae60;">Tamamland\u0131 (' + fatura.okunan_paket + '/' + fatura.toplam_paket + ')</div>' +
+                        '</div>' +
                         kalemlerHtml +
                     '</div>';
                 }).join('');

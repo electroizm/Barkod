@@ -539,6 +539,22 @@ body {
     margin-top: 5px;
 }
 
+.fatura-item-alt {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.fatura-item-alt .fatura-item-kalan {
+    margin-top: 0;
+    white-space: nowrap;
+}
+
+#acikFaturaListesiInline,
+#kapatilanFaturaListesiInline {
+    margin-top: 10px;
+}
+
 .fatura-item-kalemler {
     margin-top: 6px;
 }
