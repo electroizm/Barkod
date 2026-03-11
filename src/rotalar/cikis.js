@@ -649,7 +649,7 @@ router.get('/acik-fisler', async (req, res) => {
 
         const { data: fisler, error } = await client
             .from('cikis_fisi')
-            .select('evrakno_seri, evrakno_sira, tarih, evrak_adi, miktar, paket_sayisi')
+            .select('evrakno_seri, evrakno_sira, tarih, evrak_adi, miktar, paket_sayisi, malzeme_adi')
             .order('evrakno_sira', { ascending: false });
 
         if (error) {
@@ -665,12 +665,17 @@ router.get('/acik-fisler', async (req, res) => {
                     evrakno_sira: kayit.evrakno_sira,
                     tarih: kayit.tarih,
                     evrak_adi: kayit.evrak_adi,
-                    toplam_paket: 0
+                    toplam_paket: 0,
+                    kalemler: []
                 };
             }
             const miktar = parseFloat(kayit.miktar) || 1;
             const paketSayisi = parseInt(kayit.paket_sayisi) || 1;
             fisGruplari[key].toplam_paket += Math.ceil(miktar * paketSayisi);
+            const kalemStr = Math.ceil(miktar) + ' - ' + (kayit.malzeme_adi || 'Bilinmeyen');
+            if (!fisGruplari[key].kalemler.includes(kalemStr)) {
+                fisGruplari[key].kalemler.push(kalemStr);
+            }
         }
 
         const acikFisler = [];
@@ -720,7 +725,7 @@ router.get('/kapatilan-fisler', async (req, res) => {
 
         const { data: fisler, error } = await client
             .from('cikis_fisi')
-            .select('evrakno_seri, evrakno_sira, tarih, evrak_adi, miktar, paket_sayisi')
+            .select('evrakno_seri, evrakno_sira, tarih, evrak_adi, miktar, paket_sayisi, malzeme_adi')
             .gte('tarih', tarihFiltre)
             .order('evrakno_sira', { ascending: false });
 
@@ -737,12 +742,17 @@ router.get('/kapatilan-fisler', async (req, res) => {
                     evrakno_sira: kayit.evrakno_sira,
                     tarih: kayit.tarih,
                     evrak_adi: kayit.evrak_adi,
-                    toplam_paket: 0
+                    toplam_paket: 0,
+                    kalemler: []
                 };
             }
             const miktar = parseFloat(kayit.miktar) || 1;
             const paketSayisi = parseInt(kayit.paket_sayisi) || 1;
             fisGruplari[key].toplam_paket += Math.ceil(miktar * paketSayisi);
+            const kalemStr = Math.ceil(miktar) + ' - ' + (kayit.malzeme_adi || 'Bilinmeyen');
+            if (!fisGruplari[key].kalemler.includes(kalemStr)) {
+                fisGruplari[key].kalemler.push(kalemStr);
+            }
         }
 
         const kapatilanFisler = [];

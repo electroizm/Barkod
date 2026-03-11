@@ -51,6 +51,8 @@ function FisOkutmaOlustur(y) {
         return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    var spinnerSvg = '<svg class="btn-spinner" width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="3" stroke-opacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10" fill="none" stroke="currentColor" stroke-width="3"/></svg>';
+
     // ═══ HTML Template ═══
     function htmlOlustur() {
         return '' +
@@ -61,30 +63,10 @@ function FisOkutmaOlustur(y) {
                 '<label for="fisNoInput">Fi\u015f No</label>' +
                 '<input type="text" id="fisNoInput" placeholder="\u00d6rn: 185">' +
                 '<button type="button" class="ara-btn" data-action="fisAra">' + y.araButonMetni + '</button>' +
-                '<button type="button" class="acik-fis-btn" data-action="acikFisler">' + y.acikFisButonMetni + '</button>' +
-                '<button type="button" class="kapatilan-fis-btn" data-action="kapatilanFisler">' + y.kapatilanFisButonMetni + '</button>' +
-            '</div>' +
-
-            // Acik Fisler Modal
-            '<div id="acikFisOverlay" class="fis-overlay">' +
-                '<div class="fis-modal">' +
-                    '<div class="modal-baslik">' +
-                        '<h3>' + y.acikFisBaslik + '</h3>' +
-                        '<button type="button" class="modal-kapat" data-action="acikModalKapat">&times;</button>' +
-                    '</div>' +
-                    '<div id="acikFisListesi" class="fis-liste"></div>' +
-                '</div>' +
-            '</div>' +
-
-            // Kapatilan Fisler Modal
-            '<div id="kapatilanFisOverlay" class="fis-overlay">' +
-                '<div class="fis-modal">' +
-                    '<div class="modal-baslik">' +
-                        '<h3>' + y.kapatilanFisBaslik + '</h3>' +
-                        '<button type="button" class="modal-kapat" data-action="kapatilanModalKapat">&times;</button>' +
-                    '</div>' +
-                    '<div id="kapatilanFisListesi" class="fis-liste"></div>' +
-                '</div>' +
+                '<button type="button" id="acikFisBtn" class="acik-fis-btn" data-action="acikFisler">' + y.acikFisButonMetni + '</button>' +
+                '<button type="button" id="kapatilanFisBtn" class="kapatilan-fis-btn" data-action="kapatilanFisler">' + y.kapatilanFisButonMetni + '</button>' +
+                '<div id="acikFisListesiInline" class="fis-liste" style="display:none;margin-top:10px;"></div>' +
+                '<div id="kapatilanFisListesiInline" class="fis-liste" style="display:none;margin-top:10px;"></div>' +
             '</div>' +
 
             // DURUM 2: Okutma
@@ -548,52 +530,96 @@ function FisOkutmaOlustur(y) {
 
     // ═══ Acik / Kapatilan Fisler Modal ═══
     async function acikFisleriGoster() {
-        el.acikFisListesi.innerHTML = '<div class="bos-liste">Y\u00fckleniyor...</div>';
-        el.acikFisOverlay.classList.add('goster');
+        // Toggle: zaten aciksa kapat
+        if (el.acikFisListesiInline.style.display !== 'none') {
+            el.acikFisListesiInline.style.display = 'none';
+            el.acikFisBtn.innerHTML = y.acikFisButonMetni;
+            return;
+        }
+        // Mutual exclusion: kapatilan listeyi kapat
+        el.kapatilanFisListesiInline.style.display = 'none';
+        el.kapatilanFisBtn.innerHTML = y.kapatilanFisButonMetni;
+
+        // Loading state - spinner + text
+        el.acikFisBtn.disabled = true;
+        el.acikFisBtn.innerHTML = spinnerSvg + ' ' + y.acikFisButonMetni;
+        el.acikFisListesiInline.innerHTML = '';
+        el.acikFisListesiInline.style.display = '';
 
         try {
             var response = await fetch(y.apiPrefix + '/acik-fisler');
             var data = await response.json();
 
             if (data.success && data.fisler.length > 0) {
-                el.acikFisListesi.innerHTML = data.fisler.map(function(fis) {
+                el.acikFisListesiInline.innerHTML = data.fisler.map(function(fis) {
                     var tarih = fis.tarih ? new Date(fis.tarih).toLocaleDateString('tr-TR') : '-';
+                    var kalemlerHtml = (fis.kalemler && fis.kalemler.length > 0)
+                        ? fis.kalemler.map(function(k) { return '<span class="kalem-chip">' + escAttr(k) + '</span>'; }).join('')
+                        : '';
                     return '<div class="fis-item" data-action="fisSecimAcik" data-fis="' + fis.evrakno_sira + '">' +
                         '<div class="fis-item-baslik">' + fisBaslikFormatla(fis, y.varsayilanEvrakAdi) + '</div>' +
-                        '<div class="fis-item-detay">' + tarih + '</div>' +
-                        '<div class="fis-item-kalan">' + fis.kalan_paket + ' paket kald\u0131 (' + fis.okunan_paket + '/' + fis.toplam_paket + ')</div>' +
+                        '<div class="fatura-item-alt">' +
+                            '<div class="fis-item-detay">' + tarih + '</div>' +
+                            '<div class="fis-item-kalan">' + fis.kalan_paket + ' paket kald\u0131 (' + fis.okunan_paket + '/' + fis.toplam_paket + ')</div>' +
+                        '</div>' +
+                        kalemlerHtml +
                     '</div>';
                 }).join('');
             } else {
-                el.acikFisListesi.innerHTML = '<div class="bos-liste">A\u00e7\u0131k fi\u015f bulunamad\u0131</div>';
+                el.acikFisListesiInline.innerHTML = '<div class="bos-liste">A\u00e7\u0131k fi\u015f bulunamad\u0131</div>';
             }
         } catch (error) {
-            el.acikFisListesi.innerHTML = '<div class="bos-liste">Hata: ' + error.message + '</div>';
+            el.acikFisListesiInline.innerHTML = '<div class="bos-liste">Hata: ' + error.message + '</div>';
+        } finally {
+            el.acikFisBtn.disabled = false;
+            el.acikFisBtn.innerHTML = y.acikFisButonMetni;
         }
     }
 
     async function kapatilanFisleriGoster() {
-        el.kapatilanFisListesi.innerHTML = '<div class="bos-liste">Y\u00fckleniyor...</div>';
-        el.kapatilanFisOverlay.classList.add('goster');
+        // Toggle: zaten aciksa kapat
+        if (el.kapatilanFisListesiInline.style.display !== 'none') {
+            el.kapatilanFisListesiInline.style.display = 'none';
+            el.kapatilanFisBtn.innerHTML = y.kapatilanFisButonMetni;
+            return;
+        }
+        // Mutual exclusion: acik listeyi kapat
+        el.acikFisListesiInline.style.display = 'none';
+        el.acikFisBtn.innerHTML = y.acikFisButonMetni;
+
+        // Loading state - spinner + text
+        el.kapatilanFisBtn.disabled = true;
+        el.kapatilanFisBtn.innerHTML = spinnerSvg + ' ' + y.kapatilanFisButonMetni;
+        el.kapatilanFisListesiInline.innerHTML = '';
+        el.kapatilanFisListesiInline.style.display = '';
 
         try {
             var response = await fetch(y.apiPrefix + '/kapatilan-fisler');
             var data = await response.json();
 
             if (data.success && data.fisler.length > 0) {
-                el.kapatilanFisListesi.innerHTML = data.fisler.map(function(fis) {
+                el.kapatilanFisListesiInline.innerHTML = data.fisler.map(function(fis) {
                     var tarih = fis.tarih ? new Date(fis.tarih).toLocaleDateString('tr-TR') : '-';
+                    var kalemlerHtml = (fis.kalemler && fis.kalemler.length > 0)
+                        ? fis.kalemler.map(function(k) { return '<span class="kalem-chip">' + escAttr(k) + '</span>'; }).join('')
+                        : '';
                     return '<div class="fis-item" data-action="fisSecimKapatilan" data-fis="' + fis.evrakno_sira + '">' +
                         '<div class="fis-item-baslik">' + fisBaslikFormatla(fis, y.varsayilanEvrakAdi) + '</div>' +
-                        '<div class="fis-item-detay">' + tarih + '</div>' +
-                        '<div class="fis-item-kalan" style="color:#27ae60;">Tamamland\u0131 (' + fis.okunan_paket + '/' + fis.toplam_paket + ')</div>' +
+                        '<div class="fatura-item-alt">' +
+                            '<div class="fis-item-detay">' + tarih + '</div>' +
+                            '<div class="fis-item-kalan" style="color:#27ae60;">Tamamland\u0131 (' + fis.okunan_paket + '/' + fis.toplam_paket + ')</div>' +
+                        '</div>' +
+                        kalemlerHtml +
                     '</div>';
                 }).join('');
             } else {
-                el.kapatilanFisListesi.innerHTML = '<div class="bos-liste">Kapat\u0131lan fi\u015f bulunamad\u0131</div>';
+                el.kapatilanFisListesiInline.innerHTML = '<div class="bos-liste">Kapat\u0131lan fi\u015f bulunamad\u0131</div>';
             }
         } catch (error) {
-            el.kapatilanFisListesi.innerHTML = '<div class="bos-liste">Hata: ' + error.message + '</div>';
+            el.kapatilanFisListesiInline.innerHTML = '<div class="bos-liste">Hata: ' + error.message + '</div>';
+        } finally {
+            el.kapatilanFisBtn.disabled = false;
+            el.kapatilanFisBtn.innerHTML = y.kapatilanFisButonMetni;
         }
     }
 
@@ -665,16 +691,7 @@ function FisOkutmaOlustur(y) {
     // ═══ Event Delegation ═══
     function tikIsle(e) {
         var hedef = e.target.closest('[data-action]');
-
-        if (!hedef) {
-            // Overlay disina tiklama (modal kapat)
-            if (e.target === el.acikFisOverlay) {
-                el.acikFisOverlay.classList.remove('goster');
-            } else if (e.target === el.kapatilanFisOverlay) {
-                el.kapatilanFisOverlay.classList.remove('goster');
-            }
-            return;
-        }
+        if (!hedef) return;
 
         var action = hedef.dataset.action;
 
@@ -690,18 +707,12 @@ function FisOkutmaOlustur(y) {
             case 'kapatilanFisler':
                 kapatilanFisleriGoster();
                 break;
-            case 'acikModalKapat':
-                el.acikFisOverlay.classList.remove('goster');
-                break;
-            case 'kapatilanModalKapat':
-                el.kapatilanFisOverlay.classList.remove('goster');
-                break;
             case 'fisSecimAcik':
-                el.acikFisOverlay.classList.remove('goster');
+                el.acikFisListesiInline.style.display = 'none';
                 fisYukle(hedef.dataset.fis);
                 break;
             case 'fisSecimKapatilan':
-                el.kapatilanFisOverlay.classList.remove('goster');
+                el.kapatilanFisListesiInline.style.display = 'none';
                 fisYukle(hedef.dataset.fis);
                 break;
             case 'fisDegistir':
@@ -747,10 +758,10 @@ function FisOkutmaOlustur(y) {
             malzemeListesiEl:   konteyner.querySelector('#malzemeListesi'),
             hataKutusu:         konteyner.querySelector('#hataKutusu'),
             yukleniyorOverlay:  konteyner.querySelector('#yukleniyorOverlay'),
-            acikFisOverlay:     konteyner.querySelector('#acikFisOverlay'),
-            acikFisListesi:     konteyner.querySelector('#acikFisListesi'),
-            kapatilanFisOverlay: konteyner.querySelector('#kapatilanFisOverlay'),
-            kapatilanFisListesi: konteyner.querySelector('#kapatilanFisListesi')
+            acikFisBtn:              konteyner.querySelector('#acikFisBtn'),
+            acikFisListesiInline:    konteyner.querySelector('#acikFisListesiInline'),
+            kapatilanFisBtn:         konteyner.querySelector('#kapatilanFisBtn'),
+            kapatilanFisListesiInline: konteyner.querySelector('#kapatilanFisListesiInline')
         };
 
         // Event delegation - tek handler tum butonlar icin
