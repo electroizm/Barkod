@@ -336,7 +336,7 @@ router.get('/acik-faturalar', async (req, res) => {
         // Tüm faturaları grupla
         const { data: faturalar, error } = await client
             .from('satis_faturasi')
-            .select('evrakno_seri, evrakno_sira, tarih, cari_adi, miktar, paket_sayisi')
+            .select('evrakno_seri, evrakno_sira, tarih, cari_adi, miktar, paket_sayisi, malzeme_adi, product_desc')
             .order('evrakno_sira', { ascending: false });
 
         if (error) {
@@ -356,13 +356,15 @@ router.get('/acik-faturalar', async (req, res) => {
                     evrakno_sira: kayit.evrakno_sira,
                     tarih: kayit.tarih,
                     cari_adi: kayit.cari_adi,
-                    toplam_paket: 0
+                    toplam_paket: 0,
+                    kalemler: []
                 };
             }
             // Her kalem için miktar * paket_sayisi
             const miktar = parseFloat(kayit.miktar) || 1;
             const paketSayisi = parseInt(kayit.paket_sayisi) || 1;
             faturaGruplari[key].toplam_paket += Math.ceil(miktar * paketSayisi);
+            faturaGruplari[key].kalemler.push(Math.ceil(miktar) + ' - ' + (kayit.malzeme_adi || kayit.product_desc || 'Bilinmeyen'));
         }
 
         // Her fatura için okunan paket sayısını al
@@ -952,7 +954,7 @@ router.get('/kapatilan-faturalar', async (req, res) => {
 
         const { data: faturalar, error } = await client
             .from('satis_faturasi')
-            .select('evrakno_seri, evrakno_sira, tarih, cari_adi, miktar, paket_sayisi')
+            .select('evrakno_seri, evrakno_sira, tarih, cari_adi, miktar, paket_sayisi, malzeme_adi, product_desc')
             .gte('tarih', tarihFiltre)
             .order('evrakno_sira', { ascending: false });
 
@@ -973,12 +975,14 @@ router.get('/kapatilan-faturalar', async (req, res) => {
                     evrakno_sira: kayit.evrakno_sira,
                     tarih: kayit.tarih,
                     cari_adi: kayit.cari_adi,
-                    toplam_paket: 0
+                    toplam_paket: 0,
+                    kalemler: []
                 };
             }
             const miktar = parseFloat(kayit.miktar) || 1;
             const paketSayisi = parseInt(kayit.paket_sayisi) || 1;
             faturaGruplari[key].toplam_paket += Math.ceil(miktar * paketSayisi);
+            faturaGruplari[key].kalemler.push(Math.ceil(miktar) + ' - ' + (kayit.malzeme_adi || kayit.product_desc || 'Bilinmeyen'));
         }
 
         // Her fatura için okunan paket sayısını al

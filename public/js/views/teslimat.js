@@ -21,28 +21,12 @@ window.Views['teslimat'] = (function() {
                 '<label for="faturaNoInput">Fatura No</label>' +
                 '<input type="text" id="faturaNoInput" placeholder="\u00d6rn: 13420">' +
                 '<button type="button" class="ara-btn" data-action="faturaAra">Fatura Ara</button>' +
-                '<button type="button" class="acik-fatura-btn" data-action="acikFaturalar">A\u00e7\u0131k Faturalar</button>' +
-                '<button type="button" class="kapatilan-fatura-btn" data-action="kapatilanFaturalar">Kapat\u0131lan Faturalar</button>' +
-            '</div>' +
-
-            // Acik Faturalar Modal
-            '<div id="acikFaturaOverlay" class="fatura-overlay">' +
-                '<div class="fatura-modal">' +
-                    '<div class="modal-baslik">' +
-                        '<h3>A\u00e7\u0131k Faturalar</h3>' +
-                        '<button type="button" class="modal-kapat" data-action="acikModalKapat">&times;</button>' +
-                    '</div>' +
+                '<button type="button" class="acik-fatura-btn" data-action="acikFaturalar" id="acikFaturaBtn">A\u00e7\u0131k Faturalar</button>' +
+                '<button type="button" class="kapatilan-fatura-btn" data-action="kapatilanFaturalar" id="kapatilanFaturaBtn">Kapat\u0131lan Faturalar</button>' +
+                '<div id="acikFaturaListesiInline" style="display:none;">' +
                     '<div id="acikFaturaListesi" class="fatura-liste"></div>' +
                 '</div>' +
-            '</div>' +
-
-            // Kapatilan Faturalar Modal
-            '<div id="kapatilanFaturaOverlay" class="fatura-overlay">' +
-                '<div class="fatura-modal">' +
-                    '<div class="modal-baslik">' +
-                        '<h3>Kapat\u0131lan Faturalar</h3>' +
-                        '<button type="button" class="modal-kapat" data-action="kapatilanModalKapat">&times;</button>' +
-                    '</div>' +
+                '<div id="kapatilanFaturaListesiInline" style="display:none;">' +
                     '<div id="kapatilanFaturaListesi" class="fatura-liste"></div>' +
                 '</div>' +
             '</div>' +
@@ -197,7 +181,11 @@ window.Views['teslimat'] = (function() {
                 el.faturaSecimAlani.style.display = 'none';
                 el.faturaBilgiAlani.style.display = 'block';
 
-                history.replaceState(null, '', '/fis/teslimat?fatura=' + faturaNo);
+                // pushState: yeni entry olustur (geri butonu /fis/teslimat secim ekranina donebilsin)
+                // Eger URL zaten bu fatura paramini tasiyorsa tekrar push yapma (back'ten donus)
+                if (window.location.search.indexOf('fatura=' + faturaNo) === -1) {
+                    history.pushState(null, '', '/fis/teslimat?fatura=' + faturaNo);
+                }
             } else {
                 hataGoster(data.message || 'Fatura bulunamad\u0131');
                 el.faturaSecimAlani.style.display = 'block';
@@ -212,10 +200,26 @@ window.Views['teslimat'] = (function() {
         }
     }
 
-    // === Acik Faturalar ===
+    // === Acik Faturalar (inline) ===
+    var spinnerSvg = '<svg class="btn-spinner" width="16" height="16" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="3" stroke-opacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10" fill="none" stroke="currentColor" stroke-width="3"/></svg>';
+
     async function acikFaturalariGoster() {
-        el.acikFaturaListesi.innerHTML = '<div class="bos-liste">Y\u00fckleniyor...</div>';
-        el.acikFaturaOverlay.classList.add('goster');
+        // Toggle: aciksa kapat
+        if (el.acikFaturaListesiInline.style.display !== 'none') {
+            el.acikFaturaListesiInline.style.display = 'none';
+            el.acikFaturaBtn.innerHTML = 'A\u00e7\u0131k Faturalar';
+            return;
+        }
+
+        // Kapatilan listeyi kapat (mutual exclusion)
+        el.kapatilanFaturaListesiInline.style.display = 'none';
+        el.kapatilanFaturaBtn.innerHTML = 'Kapat\u0131lan Faturalar';
+
+        // Loading state - spinner + text
+        el.acikFaturaBtn.disabled = true;
+        el.acikFaturaBtn.innerHTML = spinnerSvg + ' A\u00e7\u0131k Faturalar';
+        el.acikFaturaListesi.innerHTML = '';
+        el.acikFaturaListesiInline.style.display = 'block';
 
         try {
             var response = await fetch('/api/mikro/acik-faturalar');
@@ -224,10 +228,19 @@ window.Views['teslimat'] = (function() {
             if (data.success && data.faturalar.length > 0) {
                 el.acikFaturaListesi.innerHTML = data.faturalar.map(function(fatura) {
                     var tarih = fatura.tarih ? new Date(fatura.tarih).toLocaleDateString('tr-TR') : '-';
+                    var kalemlerHtml = '';
+                    if (fatura.kalemler && fatura.kalemler.length > 0) {
+                        kalemlerHtml = '<div class="fatura-item-kalemler">' +
+                            fatura.kalemler.map(function(k) {
+                                return '<div class="kalem-chip">' + k + '</div>';
+                            }).join('') +
+                        '</div>';
+                    }
                     return '<div class="fatura-item" data-action="faturaSecAcik" data-fatura="' + fatura.evrakno_sira + '">' +
                         '<div class="fatura-item-baslik">' + (fatura.cari_adi || '-') + '</div>' +
                         '<div class="fatura-item-detay">' + fatura.evrakno_sira + ' | ' + tarih + '</div>' +
                         '<div class="fatura-item-kalan">' + fatura.kalan_paket + ' paket kald\u0131 (' + fatura.okunan_paket + '/' + fatura.toplam_paket + ')</div>' +
+                        kalemlerHtml +
                     '</div>';
                 }).join('');
             } else {
@@ -235,13 +248,30 @@ window.Views['teslimat'] = (function() {
             }
         } catch (error) {
             el.acikFaturaListesi.innerHTML = '<div class="bos-liste">Hata: ' + error.message + '</div>';
+        } finally {
+            el.acikFaturaBtn.disabled = false;
+            el.acikFaturaBtn.innerHTML = 'A\u00e7\u0131k Faturalar';
         }
     }
 
-    // === Kapatilan Faturalar ===
+    // === Kapatilan Faturalar (inline) ===
     async function kapatilanFaturalariGoster() {
-        el.kapatilanFaturaListesi.innerHTML = '<div class="bos-liste">Y\u00fckleniyor...</div>';
-        el.kapatilanFaturaOverlay.classList.add('goster');
+        // Toggle: aciksa kapat
+        if (el.kapatilanFaturaListesiInline.style.display !== 'none') {
+            el.kapatilanFaturaListesiInline.style.display = 'none';
+            el.kapatilanFaturaBtn.innerHTML = 'Kapat\u0131lan Faturalar';
+            return;
+        }
+
+        // Acik listeyi kapat (mutual exclusion)
+        el.acikFaturaListesiInline.style.display = 'none';
+        el.acikFaturaBtn.innerHTML = 'A\u00e7\u0131k Faturalar';
+
+        // Loading state - spinner + text
+        el.kapatilanFaturaBtn.disabled = true;
+        el.kapatilanFaturaBtn.innerHTML = spinnerSvg + ' Kapat\u0131lan Faturalar';
+        el.kapatilanFaturaListesi.innerHTML = '';
+        el.kapatilanFaturaListesiInline.style.display = 'block';
 
         try {
             var response = await fetch('/api/mikro/kapatilan-faturalar');
@@ -250,10 +280,19 @@ window.Views['teslimat'] = (function() {
             if (data.success && data.faturalar.length > 0) {
                 el.kapatilanFaturaListesi.innerHTML = data.faturalar.map(function(fatura) {
                     var tarih = fatura.tarih ? new Date(fatura.tarih).toLocaleDateString('tr-TR') : '-';
+                    var kalemlerHtml = '';
+                    if (fatura.kalemler && fatura.kalemler.length > 0) {
+                        kalemlerHtml = '<div class="fatura-item-kalemler">' +
+                            fatura.kalemler.map(function(k) {
+                                return '<div class="kalem-chip">' + k + '</div>';
+                            }).join('') +
+                        '</div>';
+                    }
                     return '<div class="fatura-item" data-action="faturaSecKapatilan" data-fatura="' + fatura.evrakno_sira + '">' +
                         '<div class="fatura-item-baslik">' + (fatura.cari_adi || '-') + '</div>' +
                         '<div class="fatura-item-detay">' + fatura.evrakno_sira + ' | ' + tarih + '</div>' +
                         '<div class="fatura-item-kalan" style="color:#27ae60;">Tamamland\u0131 (' + fatura.okunan_paket + '/' + fatura.toplam_paket + ')</div>' +
+                        kalemlerHtml +
                     '</div>';
                 }).join('');
             } else {
@@ -261,6 +300,9 @@ window.Views['teslimat'] = (function() {
             }
         } catch (error) {
             el.kapatilanFaturaListesi.innerHTML = '<div class="bos-liste">Hata: ' + error.message + '</div>';
+        } finally {
+            el.kapatilanFaturaBtn.disabled = false;
+            el.kapatilanFaturaBtn.innerHTML = 'Kapat\u0131lan Faturalar';
         }
     }
 
@@ -283,14 +325,7 @@ window.Views['teslimat'] = (function() {
     function tikIsle(e) {
         var hedef = e.target.closest('[data-action]');
 
-        if (!hedef) {
-            if (e.target === el.acikFaturaOverlay) {
-                el.acikFaturaOverlay.classList.remove('goster');
-            } else if (e.target === el.kapatilanFaturaOverlay) {
-                el.kapatilanFaturaOverlay.classList.remove('goster');
-            }
-            return;
-        }
+        if (!hedef) return;
 
         var action = hedef.dataset.action;
 
@@ -306,18 +341,18 @@ window.Views['teslimat'] = (function() {
             case 'kapatilanFaturalar':
                 kapatilanFaturalariGoster();
                 break;
-            case 'acikModalKapat':
-                el.acikFaturaOverlay.classList.remove('goster');
-                break;
-            case 'kapatilanModalKapat':
-                el.kapatilanFaturaOverlay.classList.remove('goster');
+            case 'acikGizle':
+                el.acikFaturaListesiInline.style.display = 'none';
+                el.acikFaturaBtn.innerHTML = 'A\u00e7\u0131k Faturalar';
                 break;
             case 'faturaSecAcik':
-                el.acikFaturaOverlay.classList.remove('goster');
+                el.acikFaturaListesiInline.style.display = 'none';
+                history.replaceState(null, '', '/fis/teslimat?fatura=' + hedef.dataset.fatura);
                 AppRouter.git('/fis/teslimat-okut?fatura=' + hedef.dataset.fatura);
                 break;
             case 'faturaSecKapatilan':
-                el.kapatilanFaturaOverlay.classList.remove('goster');
+                el.kapatilanFaturaListesiInline.style.display = 'none';
+                history.replaceState(null, '', '/fis/teslimat?fatura=' + hedef.dataset.fatura);
                 AppRouter.git('/fis/teslimat-okut?fatura=' + hedef.dataset.fatura);
                 break;
             case 'okumayaBasla':
@@ -350,9 +385,11 @@ window.Views['teslimat'] = (function() {
             adresGoster:            konteyner.querySelector('#adresGoster'),
             hataKutusu:             konteyner.querySelector('#hataKutusu'),
             yukleniyorOverlay:      konteyner.querySelector('#yukleniyorOverlay'),
-            acikFaturaOverlay:      konteyner.querySelector('#acikFaturaOverlay'),
+            acikFaturaListesiInline: konteyner.querySelector('#acikFaturaListesiInline'),
+            acikFaturaBtn:          konteyner.querySelector('#acikFaturaBtn'),
             acikFaturaListesi:      konteyner.querySelector('#acikFaturaListesi'),
-            kapatilanFaturaOverlay: konteyner.querySelector('#kapatilanFaturaOverlay'),
+            kapatilanFaturaListesiInline: konteyner.querySelector('#kapatilanFaturaListesiInline'),
+            kapatilanFaturaBtn:     konteyner.querySelector('#kapatilanFaturaBtn'),
             kapatilanFaturaListesi: konteyner.querySelector('#kapatilanFaturaListesi')
         };
 

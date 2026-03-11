@@ -59,7 +59,11 @@
                 if (eslesen.ayarlar.anaYol) {
                     geriBtn.onclick = function(e) {
                         e.preventDefault();
-                        router.git(eslesen.ayarlar.anaYol);
+                        if (window.history.length > 2) {
+                            window.history.back();
+                        } else {
+                            router.git(eslesen.ayarlar.anaYol);
+                        }
                     };
                 }
             } else {

@@ -539,6 +539,27 @@ body {
     margin-top: 5px;
 }
 
+.fatura-item-kalemler {
+    margin-top: 6px;
+}
+
+.kalem-chip {
+    display: block;
+    font-size: 15px;
+    color: #334155;
+    padding: 2px 0;
+}
+
+.btn-spinner {
+    animation: btn-spin 0.8s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+@keyframes btn-spin {
+    to { transform: rotate(360deg); }
+}
+
 .bos-liste {
     text-align: center;
     padding: 30px;
