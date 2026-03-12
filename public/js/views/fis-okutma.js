@@ -540,11 +540,18 @@ function FisOkutmaOlustur(y) {
         el.kapatilanFisListesiInline.style.display = 'none';
         el.kapatilanFisBtn.innerHTML = y.kapatilanFisButonMetni;
 
+<<<<<<< HEAD
         // Loading state - spinner + text
         el.acikFisBtn.disabled = true;
         el.acikFisBtn.innerHTML = spinnerSvg + ' ' + y.acikFisButonMetni;
         el.acikFisListesiInline.innerHTML = '';
         el.acikFisListesiInline.style.display = '';
+=======
+        // Spinner
+        el.acikFisBtn.innerHTML = spinnerSvg + ' Y\u00fckleniyor...';
+        el.acikFisListesiInline.innerHTML = '';
+        el.acikFisListesiInline.style.display = 'block';
+>>>>>>> 08e9d8ffd004438c8c0739bc868081b037c3e314
 
         try {
             var response = await fetch(y.apiPrefix + '/acik-fisler');
@@ -571,7 +578,10 @@ function FisOkutmaOlustur(y) {
         } catch (error) {
             el.acikFisListesiInline.innerHTML = '<div class="bos-liste">Hata: ' + error.message + '</div>';
         } finally {
+<<<<<<< HEAD
             el.acikFisBtn.disabled = false;
+=======
+>>>>>>> 08e9d8ffd004438c8c0739bc868081b037c3e314
             el.acikFisBtn.innerHTML = y.acikFisButonMetni;
         }
     }
@@ -587,11 +597,18 @@ function FisOkutmaOlustur(y) {
         el.acikFisListesiInline.style.display = 'none';
         el.acikFisBtn.innerHTML = y.acikFisButonMetni;
 
+<<<<<<< HEAD
         // Loading state - spinner + text
         el.kapatilanFisBtn.disabled = true;
         el.kapatilanFisBtn.innerHTML = spinnerSvg + ' ' + y.kapatilanFisButonMetni;
         el.kapatilanFisListesiInline.innerHTML = '';
         el.kapatilanFisListesiInline.style.display = '';
+=======
+        // Spinner
+        el.kapatilanFisBtn.innerHTML = spinnerSvg + ' Y\u00fckleniyor...';
+        el.kapatilanFisListesiInline.innerHTML = '';
+        el.kapatilanFisListesiInline.style.display = 'block';
+>>>>>>> 08e9d8ffd004438c8c0739bc868081b037c3e314
 
         try {
             var response = await fetch(y.apiPrefix + '/kapatilan-fisler');
@@ -618,7 +635,10 @@ function FisOkutmaOlustur(y) {
         } catch (error) {
             el.kapatilanFisListesiInline.innerHTML = '<div class="bos-liste">Hata: ' + error.message + '</div>';
         } finally {
+<<<<<<< HEAD
             el.kapatilanFisBtn.disabled = false;
+=======
+>>>>>>> 08e9d8ffd004438c8c0739bc868081b037c3e314
             el.kapatilanFisBtn.innerHTML = y.kapatilanFisButonMetni;
         }
     }
