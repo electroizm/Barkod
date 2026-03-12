@@ -65,8 +65,12 @@ function FisOkutmaOlustur(y) {
                 '<button type="button" class="ara-btn" data-action="fisAra">' + y.araButonMetni + '</button>' +
                 '<button type="button" id="acikFisBtn" class="acik-fis-btn" data-action="acikFisler">' + y.acikFisButonMetni + '</button>' +
                 '<button type="button" id="kapatilanFisBtn" class="kapatilan-fis-btn" data-action="kapatilanFisler">' + y.kapatilanFisButonMetni + '</button>' +
-                '<div id="acikFisListesiInline" class="fis-liste" style="display:none;margin-top:10px;"></div>' +
-                '<div id="kapatilanFisListesiInline" class="fis-liste" style="display:none;margin-top:10px;"></div>' +
+                '<div id="acikFisListesiInline" style="display:none;margin-top:10px;">' +
+                    '<div id="acikFisListesi" class="fis-liste"></div>' +
+                '</div>' +
+                '<div id="kapatilanFisListesiInline" style="display:none;margin-top:10px;">' +
+                    '<div id="kapatilanFisListesi" class="fis-liste"></div>' +
+                '</div>' +
             '</div>' +
 
             // DURUM 2: Okutma
@@ -540,25 +544,18 @@ function FisOkutmaOlustur(y) {
         el.kapatilanFisListesiInline.style.display = 'none';
         el.kapatilanFisBtn.innerHTML = y.kapatilanFisButonMetni;
 
-<<<<<<< HEAD
         // Loading state - spinner + text
         el.acikFisBtn.disabled = true;
         el.acikFisBtn.innerHTML = spinnerSvg + ' ' + y.acikFisButonMetni;
-        el.acikFisListesiInline.innerHTML = '';
-        el.acikFisListesiInline.style.display = '';
-=======
-        // Spinner
-        el.acikFisBtn.innerHTML = spinnerSvg + ' Y\u00fckleniyor...';
-        el.acikFisListesiInline.innerHTML = '';
+        el.acikFisListesi.innerHTML = '';
         el.acikFisListesiInline.style.display = 'block';
->>>>>>> 08e9d8ffd004438c8c0739bc868081b037c3e314
 
         try {
             var response = await fetch(y.apiPrefix + '/acik-fisler');
             var data = await response.json();
 
             if (data.success && data.fisler.length > 0) {
-                el.acikFisListesiInline.innerHTML = data.fisler.map(function(fis) {
+                el.acikFisListesi.innerHTML = data.fisler.map(function(fis) {
                     var tarih = fis.tarih ? new Date(fis.tarih).toLocaleDateString('tr-TR') : '-';
                     var kalemlerHtml = (fis.kalemler && fis.kalemler.length > 0)
                         ? fis.kalemler.map(function(k) { return '<span class="kalem-chip">' + escAttr(k) + '</span>'; }).join('')
@@ -573,15 +570,12 @@ function FisOkutmaOlustur(y) {
                     '</div>';
                 }).join('');
             } else {
-                el.acikFisListesiInline.innerHTML = '<div class="bos-liste">A\u00e7\u0131k fi\u015f bulunamad\u0131</div>';
+                el.acikFisListesi.innerHTML = '<div class="bos-liste">A\u00e7\u0131k fi\u015f bulunamad\u0131</div>';
             }
         } catch (error) {
-            el.acikFisListesiInline.innerHTML = '<div class="bos-liste">Hata: ' + error.message + '</div>';
+            el.acikFisListesi.innerHTML = '<div class="bos-liste">Hata: ' + error.message + '</div>';
         } finally {
-<<<<<<< HEAD
             el.acikFisBtn.disabled = false;
-=======
->>>>>>> 08e9d8ffd004438c8c0739bc868081b037c3e314
             el.acikFisBtn.innerHTML = y.acikFisButonMetni;
         }
     }
@@ -597,25 +591,18 @@ function FisOkutmaOlustur(y) {
         el.acikFisListesiInline.style.display = 'none';
         el.acikFisBtn.innerHTML = y.acikFisButonMetni;
 
-<<<<<<< HEAD
         // Loading state - spinner + text
         el.kapatilanFisBtn.disabled = true;
         el.kapatilanFisBtn.innerHTML = spinnerSvg + ' ' + y.kapatilanFisButonMetni;
-        el.kapatilanFisListesiInline.innerHTML = '';
-        el.kapatilanFisListesiInline.style.display = '';
-=======
-        // Spinner
-        el.kapatilanFisBtn.innerHTML = spinnerSvg + ' Y\u00fckleniyor...';
-        el.kapatilanFisListesiInline.innerHTML = '';
+        el.kapatilanFisListesi.innerHTML = '';
         el.kapatilanFisListesiInline.style.display = 'block';
->>>>>>> 08e9d8ffd004438c8c0739bc868081b037c3e314
 
         try {
             var response = await fetch(y.apiPrefix + '/kapatilan-fisler');
             var data = await response.json();
 
             if (data.success && data.fisler.length > 0) {
-                el.kapatilanFisListesiInline.innerHTML = data.fisler.map(function(fis) {
+                el.kapatilanFisListesi.innerHTML = data.fisler.map(function(fis) {
                     var tarih = fis.tarih ? new Date(fis.tarih).toLocaleDateString('tr-TR') : '-';
                     var kalemlerHtml = (fis.kalemler && fis.kalemler.length > 0)
                         ? fis.kalemler.map(function(k) { return '<span class="kalem-chip">' + escAttr(k) + '</span>'; }).join('')
@@ -630,15 +617,12 @@ function FisOkutmaOlustur(y) {
                     '</div>';
                 }).join('');
             } else {
-                el.kapatilanFisListesiInline.innerHTML = '<div class="bos-liste">Kapat\u0131lan fi\u015f bulunamad\u0131</div>';
+                el.kapatilanFisListesi.innerHTML = '<div class="bos-liste">Kapat\u0131lan fi\u015f bulunamad\u0131</div>';
             }
         } catch (error) {
-            el.kapatilanFisListesiInline.innerHTML = '<div class="bos-liste">Hata: ' + error.message + '</div>';
+            el.kapatilanFisListesi.innerHTML = '<div class="bos-liste">Hata: ' + error.message + '</div>';
         } finally {
-<<<<<<< HEAD
             el.kapatilanFisBtn.disabled = false;
-=======
->>>>>>> 08e9d8ffd004438c8c0739bc868081b037c3e314
             el.kapatilanFisBtn.innerHTML = y.kapatilanFisButonMetni;
         }
     }
@@ -780,8 +764,10 @@ function FisOkutmaOlustur(y) {
             yukleniyorOverlay:  konteyner.querySelector('#yukleniyorOverlay'),
             acikFisBtn:              konteyner.querySelector('#acikFisBtn'),
             acikFisListesiInline:    konteyner.querySelector('#acikFisListesiInline'),
+            acikFisListesi:          konteyner.querySelector('#acikFisListesi'),
             kapatilanFisBtn:         konteyner.querySelector('#kapatilanFisBtn'),
-            kapatilanFisListesiInline: konteyner.querySelector('#kapatilanFisListesiInline')
+            kapatilanFisListesiInline: konteyner.querySelector('#kapatilanFisListesiInline'),
+            kapatilanFisListesi:     konteyner.querySelector('#kapatilanFisListesi')
         };
 
         // Event delegation - tek handler tum butonlar icin
