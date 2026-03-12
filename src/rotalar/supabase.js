@@ -708,10 +708,50 @@ router.post('/qr-okut', async (req, res) => {
             if (!eslesenKalem) eslesenKalem = herhangiKalem;
         }
 
-        // 5. Paket toplam kontrolü
+        // 5. Paket sayısı uyumsuzluk düzeltmesi
+        // QR barkod fiziksel etikettir → her zaman doğru kaynaktır
+        // Doğtaş API bazen yanlış paket_sayisi gönderir, QR'dan düzelt
         const dbBirimPaket = parseInt(eslesenKalem.paket_sayisi) || 0;
         if (dbBirimPaket > 0 && qrBilgi.paketToplam !== dbBirimPaket) {
-            console.warn(`Paket sayısı uyumsuzluğu: QR=${qrBilgi.paketToplam}, DB=${dbBirimPaket}`);
+            console.log(`PAKET_SAYISI_DUZELTME: malzeme=${qrBilgi.malzemeNo}, eski=${dbBirimPaket}, yeni=${qrBilgi.paketToplam} (QR kaynaklı)`);
+
+            // 5a. Cache'den aynı malzeme_no'lu kalemleri bul ve her birini güncelle
+            const cache = oturumCache.get(oturum_id);
+            const eslesenKalemler = cache ? cache.kalemler.filter(k => k.malzeme_no === qrBilgi.malzemeNo) : [];
+            let guncellenenSatir = 0;
+            let toplamPaketFark = 0;
+
+            for (const kalem of eslesenKalemler) {
+                const miktar = parseFloat((kalem.miktar || '1').replace(',', '.')) || 1;
+                const eskiPaket = parseInt(kalem.paket_sayisi) || 0;
+                const yeniToplamPaket = Math.round(miktar * qrBilgi.paketToplam);
+
+                const { data: guncelData, error: guncelHata } = await client
+                    .from('nakliye_fisleri')
+                    .update({
+                        paket_sayisi: qrBilgi.paketToplam,
+                        paket_sayisi_toplam: yeniToplamPaket
+                    })
+                    .eq('id', kalem.id)
+                    .select('id');
+
+                if (guncelHata) {
+                    console.error(`Paket sayısı güncelleme hatası (id=${kalem.id}):`, guncelHata);
+                } else if (!guncelData || guncelData.length === 0) {
+                    console.error(`PAKET_SAYISI_DUZELTME: 0 satır güncellendi (id=${kalem.id}) - RLS UPDATE policy eksik olabilir!`);
+                } else {
+                    guncellenenSatir++;
+                    // Cache'i de güncelle
+                    toplamPaketFark += miktar * (qrBilgi.paketToplam - eskiPaket);
+                    kalem.paket_sayisi = qrBilgi.paketToplam;
+                    kalem.paket_sayisi_toplam = yeniToplamPaket;
+                }
+            }
+
+            if (cache && toplamPaketFark !== 0) {
+                cache.toplamPaket += toplamPaketFark;
+            }
+            console.log(`PAKET_SAYISI_DUZELTME: ${guncellenenSatir}/${eslesenKalemler.length} satır güncellendi`);
         }
 
         // 6. PAKET OKUMA LİMİT KONTROLÜ
