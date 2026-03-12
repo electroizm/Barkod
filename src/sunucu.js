@@ -1,3 +1,7 @@
+/**
+ * Barkod Stok Takip Sunucusu
+ * Son Güncelleme: 2026-03-12 14:21 (Deploy Trigger)
+ */
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
