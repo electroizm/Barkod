@@ -116,7 +116,6 @@ async function configYukle() {
         }
 
         const spreadsheetId = driveYanit.data.files[0].id;
-        console.log('PRGsheet bulundu, ID:', spreadsheetId);
 
         // Sheets API ile Ayar sayfasını oku - tüm sütunları al
         const sheets = google.sheets({ version: 'v4', auth });
@@ -167,7 +166,6 @@ async function configYukle() {
         };
 
         configYuklendi = true;
-        console.log('Doğtaş API konfigürasyonu PRGsheet\'ten yüklendi.');
         return true;
     } catch (hata) {
         console.error('PRGsheet config yükleme hatası:', hata.message);
@@ -274,7 +272,6 @@ router.post('/nakliye-ara', async (req, res) => {
         };
 
         const apiUrl = `${DOGTAS_CONFIG.baseUrl}${DOGTAS_CONFIG.nakliyeEndpoint}`;
-        console.log('Nakliye API isteği:', apiUrl, payload);
 
         const response = await fetch(apiUrl, {
             method: 'POST',
@@ -286,13 +283,6 @@ router.post('/nakliye-ara', async (req, res) => {
         });
 
         const data = await response.json();
-
-        // HAM VERİYİ KONSOLA YAZDIR
-        console.log('\n=== NAKLİYE API HAM VERİSİ ===');
-        console.log('Tarih:', new Date().toISOString());
-        console.log('Toplam kayıt:', data.data?.length || 0);
-        console.log(JSON.stringify(data.data, null, 2));
-        console.log('=== HAM VERİ SONU ===\n');
 
         if (data.isSuccess && Array.isArray(data.data)) {
             let sonuclar = data.data;
@@ -312,9 +302,7 @@ router.post('/nakliye-ara', async (req, res) => {
             const { depoYeri, varisDepoYeri } = req.body;
 
             if (varisDepoYeri) {
-                const filtreOncesiAdet = sonuclar.length;
                 sonuclar = sonuclar.filter(item => item.receiver === varisDepoYeri);
-                console.log(`Varış depo filtresi: "${varisDepoYeri}" - ${filtreOncesiAdet} -> ${sonuclar.length} kayıt`);
             }
 
             // storageLocation'a göre filtrele (Biga=0002, İnegöl=0200)
@@ -412,10 +400,6 @@ router.post('/urun-paketleri', async (req, res) => {
             productCodes: stokKodlari
         };
 
-        console.log('\n=== ÜRÜN PAKETLERİ İSTEĞİ ===');
-        console.log('API URL:', apiUrl);
-        console.log('Request Body:', JSON.stringify(requestBody));
-
         try {
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -427,15 +411,6 @@ router.post('/urun-paketleri', async (req, res) => {
             });
 
             const data = await response.json();
-
-            // HAM VERİYİ KONSOLA YAZDIR
-            console.log('\n=== ÜRÜN PAKETLERİ HAM VERİSİ ===');
-            console.log('Tarih:', new Date().toISOString());
-            console.log('HTTP Status:', response.status);
-            console.log('Toplam kayıt:', data.data?.length || 0);
-            console.log('Response:');
-            console.log(JSON.stringify(data, null, 2));
-            console.log('=== HAM VERİ SONU ===\n');
 
             if (data.isSuccess && Array.isArray(data.data)) {
                 // Ürünleri productCode'a göre grupla ve BENZERSIZ materialCode ile paket sayısını hesapla

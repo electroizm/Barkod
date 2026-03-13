@@ -101,8 +101,6 @@ async function oturumCacheYukle(oturumId, client, zorlaYenile = false) {
     };
 
     oturumCache.set(oturumId, cacheData);
-    console.log(`Cache yüklendi: ${oturumId} - ${kalemler?.length || 0} kalem, ${okunanQrler.size} okuma`);
-
     return cacheData;
 }
 
@@ -713,7 +711,6 @@ router.post('/qr-okut', async (req, res) => {
         // Doğtaş API bazen yanlış paket_sayisi gönderir, QR'dan düzelt
         const dbBirimPaket = parseInt(eslesenKalem.paket_sayisi) || 0;
         if (dbBirimPaket > 0 && qrBilgi.paketToplam !== dbBirimPaket) {
-            console.log(`PAKET_SAYISI_DUZELTME: malzeme=${qrBilgi.malzemeNo}, eski=${dbBirimPaket}, yeni=${qrBilgi.paketToplam} (QR kaynaklı)`);
 
             // 5a. Cache'den aynı malzeme_no'lu kalemleri bul ve her birini güncelle
             const cache = oturumCache.get(oturum_id);
@@ -751,7 +748,6 @@ router.post('/qr-okut', async (req, res) => {
             if (cache && toplamPaketFark !== 0) {
                 cache.toplamPaket += toplamPaketFark;
             }
-            console.log(`PAKET_SAYISI_DUZELTME: ${guncellenenSatir}/${eslesenKalemler.length} satır güncellendi`);
         }
 
         // 6. PAKET OKUMA LİMİT KONTROLÜ
@@ -766,7 +762,6 @@ router.post('/qr-okut', async (req, res) => {
             const toplamMiktarYeni = toplamMiktarBulMalzemeNo(oturum_id, malzemeNo);
             if (!paketOkumasiYapilabilirMi(oturum_id, malzemeNo, paketSira, toplamMiktarYeni)) {
                 const mevcutOkuma = paketOkumaSayisi(oturum_id, malzemeNo, paketSira);
-                console.log(`PAKET_LIMIT_ASILDI: malzeme=${malzemeNo}, paket=${paketSira}, miktar=${toplamMiktarYeni}, okunan=${mevcutOkuma}`);
                 return res.json({
                     success: false,
                     message: `${eslesenKalem.malzeme_adi} (${paketSira}/${qrBilgi.paketToplam}) için tüm okumalar tamamlandı!`,

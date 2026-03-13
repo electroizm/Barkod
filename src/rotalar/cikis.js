@@ -97,8 +97,6 @@ async function fisCacheYukle(fisNo, client, zorlaYenile = false) {
     };
 
     fisCache.set(fisNo, cacheData);
-    console.log(`Çıkış fişi cache yüklendi: ${fisNo} - ${kalemler?.length || 0} kalem, ${okunanQrler.size} okuma`);
-
     return cacheData;
 }
 
@@ -135,6 +133,12 @@ function cachedeStokKodBul(fisNo, stokKod) {
     const cache = fisCache.get(fisNo);
     if (!cache) return null;
     return cache.kalemler.find(k => stokKodEslesiyor(k, stokKod));
+}
+
+function cachedeSatinalmaKalemIdBul(fisNo, satinalmaKalemId) {
+    const cache = fisCache.get(fisNo);
+    if (!cache) return null;
+    return cache.kalemler.find(k => k.satinalma_kalem_id === satinalmaKalemId);
 }
 
 function toplamMiktarBulStokKod(fisNo, stokKod) {
@@ -372,46 +376,48 @@ router.post('/qr-okut', async (req, res) => {
             return res.json({ success: false, message: 'Veritabanı bağlantısı kurulamadı', hata_tipi: 'DB_CONNECTION' });
         }
 
-        // QR kodu parse et
+        // 2. QR kodu parse et (sadece GS1 formatı)
         const qrBilgi = qrKodValidasyon(qr_kod);
-
-        let stokKod, paketSira, paketToplam;
-
         if (qrBilgi.basarili) {
             qr_kod = qrBilgi.qrKodHam;
-            stokKod = qrBilgi.malzemeNo.slice(-10);
-            paketSira = qrBilgi.paketSira;
-            paketToplam = qrBilgi.paketToplam;
-        } else {
-            const qrParcalari = qr_kod.split('|');
-            stokKod = qrParcalari[0] || qr_kod;
-            paketSira = parseInt(qrParcalari[1]) || 1;
-            paketToplam = parseInt(qrParcalari[2]) || 1;
+        }
+        if (!qrBilgi.basarili) {
+            return res.json({
+                success: false,
+                message: 'QR kod okunamadı: ' + qrBilgi.hata,
+                hata_tipi: 'INVALID_QR'
+            });
         }
 
-        // Cache yükle
+        const stokKod = qrBilgi.malzemeNo.slice(-10);
+        const paketSira = qrBilgi.paketSira;
+        const paketToplam = qrBilgi.paketToplam;
+
+        // 3. Cache yükle
         const cache = await fisCacheYukle(fis_no, client);
         if (!cache) {
             return res.json({ success: false, message: 'Fiş bilgileri yüklenemedi', hata_tipi: 'CACHE_ERROR' });
         }
 
-        // Duplicate kontrolü (cache O(1))
+        // 4. Duplicate kontrolü (cache O(1))
         if (cachedeQrVarMi(fis_no, qr_kod)) {
             return res.json({ success: false, message: 'Bu paket zaten okundu!', hata_tipi: 'DUPLICATE_QR', from_cache: true });
         }
 
-        // Eşleşen kalemi bul
+        // 5. Eşleşen kalemi bul
         let eslesenKalem = null;
 
-        if (qrBilgi.basarili) {
-            // 18 haneli malzemeNo ile bul
-            eslesenKalem = cache.kalemler.find(k =>
-                k.stok_kod === qrBilgi.malzemeNo ||
-                (qrBilgi.malzemeNo.length === 18 && k.stok_kod === qrBilgi.malzemeNo.slice(-10))
-            );
-        }
-
-        if (!eslesenKalem) {
+        if (qrBilgi.kisiyeOzel) {
+            eslesenKalem = cachedeSatinalmaKalemIdBul(fis_no, qrBilgi.satinalmaKalemId);
+            if (!eslesenKalem) {
+                return res.json({
+                    success: false,
+                    message: 'Bu kişiye özel ürün bu fişte bulunamadı!',
+                    hata_tipi: 'NOT_FOUND_CUSTOM',
+                    detay: { satinalma_kalem_id: qrBilgi.satinalmaKalemId }
+                });
+            }
+        } else {
             const herhangiKalem = cachedeStokKodBul(fis_no, stokKod);
             if (!herhangiKalem) {
                 return res.json({
@@ -425,20 +431,60 @@ router.post('/qr-okut', async (req, res) => {
             if (!eslesenKalem) eslesenKalem = herhangiKalem;
         }
 
-        // Paket limit kontrolü
+        // 5.5. Paket sayısı uyumsuzluk düzeltmesi (QR barkod = doğru kaynak)
+        const dbBirimPaket = parseInt(eslesenKalem.paket_sayisi) || 0;
+        if (dbBirimPaket > 0 && paketToplam !== dbBirimPaket) {
+
+            const cacheRef = fisCache.get(fis_no);
+            const eslesenKalemler = cacheRef ? cacheRef.kalemler.filter(k => stokKodEslesiyor(k, stokKod)) : [];
+            let guncellenenSatir = 0;
+            let toplamPaketFark = 0;
+
+            for (const kalem of eslesenKalemler) {
+                const miktar = parseFloat(kalem.miktar) || 1;
+                const eskiPaket = parseInt(kalem.paket_sayisi) || 0;
+
+                const { data: guncelData, error: guncelHata } = await client
+                    .from('cikis_fisi')
+                    .update({ paket_sayisi: paketToplam })
+                    .eq('id', kalem.id)
+                    .select('id');
+
+                if (guncelHata) {
+                    console.error(`Çıkış paket güncelleme hatası (id=${kalem.id}):`, guncelHata);
+                } else if (!guncelData || guncelData.length === 0) {
+                    console.error(`FIS_PAKET_SAYISI_DUZELTME: 0 satır güncellendi (id=${kalem.id}) - RLS UPDATE policy eksik olabilir!`);
+                } else {
+                    guncellenenSatir++;
+                    toplamPaketFark += Math.ceil(miktar * paketToplam) - Math.ceil(miktar * eskiPaket);
+                    kalem.paket_sayisi = paketToplam;
+                }
+            }
+
+            if (cacheRef && toplamPaketFark !== 0) {
+                cacheRef.toplamPaket += toplamPaketFark;
+            }
+        }
+
+        // 6. Paket limit kontrolü
         const toplamMiktar = toplamMiktarBulStokKod(fis_no, stokKod);
 
         if (!paketOkumasiYapilabilirMi(fis_no, stokKod, paketSira, toplamMiktar)) {
-            const mevcutOkuma = paketOkumaSayisi(fis_no, stokKod, paketSira);
-            return res.json({
-                success: false,
-                message: `${eslesenKalem.malzeme_adi || stokKod} (${paketSira}/${paketToplam}) için tüm okumalar tamamlandı!`,
-                hata_tipi: 'PAKET_LIMIT_ASILDI',
-                detay: { stok_kod: stokKod, paket_sira: paketSira, paket_toplam: paketToplam, miktar: toplamMiktar, okunan: mevcutOkuma }
-            });
+            // Cache stale olabilir - DB'den yenileyip tekrar kontrol et
+            await fisCacheYukle(fis_no, client, true);
+            const toplamMiktarYeni = toplamMiktarBulStokKod(fis_no, stokKod);
+            if (!paketOkumasiYapilabilirMi(fis_no, stokKod, paketSira, toplamMiktarYeni)) {
+                const mevcutOkuma = paketOkumaSayisi(fis_no, stokKod, paketSira);
+                return res.json({
+                    success: false,
+                    message: `${eslesenKalem.malzeme_adi || stokKod} (${paketSira}/${paketToplam}) için tüm okumalar tamamlandı!`,
+                    hata_tipi: 'PAKET_LIMIT_ASILDI',
+                    detay: { stok_kod: stokKod, paket_sira: paketSira, paket_toplam: paketToplam, miktar: toplamMiktarYeni, okunan: mevcutOkuma }
+                });
+            }
         }
 
-        // Veritabanına kaydet
+        // 7. Veritabanına kaydet
         const okumaKaydi = {
             fis_no: parseInt(fis_no),
             kalem_id: eslesenKalem.id,
@@ -446,13 +492,19 @@ router.post('/qr-okut', async (req, res) => {
             qr_hash: qrKodHash(qr_kod),
             stok_kod: stokKod,
             paket_sira: paketSira,
+            paket_toplam: paketToplam,
+            ozel_uretim_kodu: qrBilgi.ozelUretimKodu,
+            malzeme_no_qr: qrBilgi.malzemeNo,
+            satinalma_kalem_id_qr: qrBilgi.satinalmaKalemId,
             kullanici: kullanici || 'bilinmiyor',
             created_at: new Date().toISOString()
         };
 
-        const { error: insertError } = await client
+        const { data: yeniOkuma, error: insertError } = await client
             .from('cikis_fisi_okumalari')
-            .insert(okumaKaydi);
+            .insert(okumaKaydi)
+            .select()
+            .single();
 
         if (insertError) {
             if (insertError.code === '23505') {
@@ -462,7 +514,7 @@ router.post('/qr-okut', async (req, res) => {
             return res.json({ success: false, message: 'Okuma kaydedilemedi: ' + insertError.message, hata_tipi: 'INSERT_ERROR' });
         }
 
-        // Cache güncelle
+        // 8. Cache güncelle
         cacheyeOkumaEkle(fis_no, qr_kod, stokKod, paketSira, eslesenKalem.id);
 
         const guncelCache = fisCache.get(fis_no);
@@ -478,7 +530,8 @@ router.post('/qr-okut', async (req, res) => {
             },
             paket_bilgi: { sira: paketSira, toplam: paketToplam },
             fis_kalan_paket: guncelCache ? (guncelCache.toplamPaket - guncelCache.okunanPaket) : 0,
-            fis_okunan_paket: guncelCache?.okunanPaket || 0
+            fis_okunan_paket: guncelCache?.okunanPaket || 0,
+            okuma_id: yeniOkuma?.id
         });
 
     } catch (error) {

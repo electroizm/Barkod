@@ -31,7 +31,6 @@ async function baglantiyiBaslat() {
         );
 
         sheetsApi = google.sheets({ version: 'v4', auth });
-        console.log('Google Sheets bağlantısı başarılı.');
         return sheetsApi;
     } catch (hata) {
         console.error('Google Sheets bağlantı hatası:', hata.message);
