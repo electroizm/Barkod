@@ -226,8 +226,6 @@ class BarkodOkuyucu {
                         }
                     }
                     if (tamTekrar) {
-                        const tekrarSayisi = barkod.length / aday.length;
-                        console.log('Barkod okuyucu - ' + tekrarSayisi + 'x çoklu okuma tespit edildi, tek barkod alınıyor');
                         barkod = aday;
                         break;
                     }
@@ -247,8 +245,6 @@ class BarkodOkuyucu {
                 return; // Geçersiz barkod - callback çağrılmaz, Supabase'e gitmez
             }
         }
-
-        console.log('Barkod okuyucu - temizlenmiş:', barkod, '(' + barkod.length + ' char)');
 
         // 4. Başarılı okuma - callback çağır
         if (this.ayarlar.okumaSonrasi && typeof this.ayarlar.okumaSonrasi === 'function') {
@@ -341,7 +337,6 @@ class BarkodOkuyucu {
             + '?x-success=' + encodeURIComponent(donusUrl)
             + '&browser=external';
 
-        console.log('QRafter açılıyor, dönüş URL:', donusUrl);
         window.location.href = qrafterUrl;
     }
 
@@ -354,8 +349,6 @@ class BarkodOkuyucu {
         const code = params.get('qr_code');
 
         if (code && code !== '{CODE}' && code !== '%7BCODE%7D') {
-            console.log('QRafter geri dönüş (yeni sekme) - okunan:', code);
-
             // Kodu localStorage'a yaz - orijinal sekme bunu alacak
             localStorage.setItem('qrafter_result', code);
             localStorage.setItem('qrafter_time', Date.now().toString());
