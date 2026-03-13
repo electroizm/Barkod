@@ -48,14 +48,12 @@ class SayfaYoneticisi {
 
         // Ayni sayfaya tekrar gecis yapilmaz
         if (this._mevcutSayfa && this._mevcutSayfa.ad === ad) {
-            console.log('SayfaYoneticisi: Zaten aktif sayfa:', ad);
             return true;
         }
 
         // 1. Mevcut sayfayi unmount et
         if (this._mevcutSayfa) {
             try {
-                console.log('SayfaYoneticisi: unmount ->', this._mevcutSayfa.ad);
                 await this._mevcutSayfa.modul.unmount();
             } catch (hata) {
                 console.error('SayfaYoneticisi: unmount hatasi (' + this._mevcutSayfa.ad + '):', hata);
@@ -67,7 +65,6 @@ class SayfaYoneticisi {
 
         // 3. Yeni sayfayi mount et
         try {
-            console.log('SayfaYoneticisi: mount ->', ad);
             await yeniModul.mount(this._konteyner, params);
             this._mevcutSayfa = { ad: ad, modul: yeniModul };
             return true;
