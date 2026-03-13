@@ -19,7 +19,7 @@ uygulama.use(express.urlencoded({ extended: true, limit: '10mb' }));
 const spaRotalar = ['/giris', '/anasayfa', '/cikis-islemleri', '/giris-islemleri',
                     '/stok', '/sayim', '/ayarlar', '/fis/nakliye-arama',
                     '/sevk', '/fis/diger-giris', '/fis/nakliye-okutma',
-                    '/fis/teslimat', '/fis/barkod-okut', '/fis/teslimat-okut', '/fis/on-kayit',
+                    '/fis/teslimat', '/fis/nakliye-okut', '/fis/teslimat-okut', '/fis/on-kayit',
                     '/fis/diger-cikis'];
 
 // .html guard: SPA redirect + bilinmeyen .html engelleme (express.static'ten ONCE calisir)

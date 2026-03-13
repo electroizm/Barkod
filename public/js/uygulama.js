@@ -35,7 +35,7 @@
     router.ekle('/fis/diger-giris',    { baslik: 'Di\u011fer Giri\u015f', modul: 'diger-giris',    ustCubuk: true,  geriButon: true, anaYol: '/giris-islemleri' });
     router.ekle('/fis/nakliye-okutma', { baslik: 'Nakliye Okutma',        modul: 'nakliye-okutma', ustCubuk: true,  geriButon: true, anaYol: '/giris-islemleri' });
     router.ekle('/fis/teslimat',       { baslik: 'Teslimat',              modul: 'teslimat',       ustCubuk: true,  geriButon: true, anaYol: '/cikis-islemleri' });
-    router.ekle('/fis/barkod-okut',    { baslik: 'Barkod Okut',           modul: 'barkod-okut',    ustCubuk: true,  geriButon: true, anaYol: '/fis/nakliye-okutma' });
+    router.ekle('/fis/nakliye-okut',    { baslik: 'Nakliye Okut',          modul: 'nakliye-okut',   ustCubuk: true,  geriButon: true, anaYol: '/fis/nakliye-okutma' });
     router.ekle('/fis/teslimat-okut',  { baslik: 'Teslimat Okut',         modul: 'teslimat-okut',  ustCubuk: true,  geriButon: true, anaYol: '/fis/teslimat' });
     router.ekle('/fis/on-kayit',       { baslik: '\u00d6n Kay\u0131t',    modul: 'on-kayit',       ustCubuk: true,  geriButon: true, anaYol: '/anasayfa' });
     router.ekle('/fis/diger-cikis',    { baslik: '\u00c7\u0131k\u0131\u015f Fi\u015fi', modul: 'diger-cikis',    ustCubuk: true,  geriButon: true, anaYol: '/cikis-islemleri' });
@@ -47,8 +47,8 @@
         await orijinalUrlIsle(url);
         var eslesen = router._yolEslestir(url);
         if (eslesen) {
-            // Ust cubuk goster/gizle
-            if (eslesen.ayarlar.ustCubuk) {
+            // Ust cubuk: sadece anasayfa'da goster
+            if (url === '/anasayfa') {
                 ustCubuk.classList.remove('gizle');
             } else {
                 ustCubuk.classList.add('gizle');

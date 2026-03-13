@@ -966,27 +966,40 @@ body {
     background-color: #e9ecef;
 }
 
+.malzeme-item-wrapper {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 4px;
+}
+
+.malzeme-item-wrapper .btn-malzeme-oku,
+.malzeme-item-wrapper .malzeme-tik {
+    margin-top: 8px;
+    margin-right: 6px;
+}
+
 .malzeme-item {
     border-radius: 8px;
-    margin-bottom: 4px;
     overflow: hidden;
     transition: all 0.3s ease;
     border: 2px solid transparent;
     position: relative;
+    flex: 1;
+    min-width: 0;
 }
 
 .malzeme-baslik-row {
     display: flex;
     align-items: center;
-    padding: 6px 10px;
+    padding: 4px 8px;
     cursor: pointer;
     user-select: none;
 }
 
 .malzeme-ok {
-    width: 20px;
-    height: 20px;
-    margin-right: 12px;
+    width: 16px;
+    height: 16px;
+    margin-right: 6px;
     transition: transform 0.3s ease;
     flex-shrink: 0;
 }
@@ -997,10 +1010,11 @@ body {
 
 .malzeme-bilgi {
     flex: 1;
+    min-width: 0;
 }
 
 .malzeme-miktar {
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 700;
 }
 
@@ -1011,22 +1025,23 @@ body {
 }
 
 .malzeme-durum {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
-    padding: 4px 10px;
+    padding: 2px 8px;
     border-radius: 12px;
-    margin-left: 10px;
+    margin-left: 6px;
+    white-space: nowrap;
 }
 
 .btn-malzeme-oku {
-    width: 22px;
-    height: 22px;
+    width: 16px;
+    height: 16px;
     border: 2px solid #e67e22;
     border-radius: 50%;
     background: transparent;
     cursor: pointer;
     flex-shrink: 0;
-    margin-right: 10px;
+    margin-right: 6px;
     padding: 0;
 }
 
@@ -1998,7 +2013,7 @@ body {
     font-size: 16px;
     font-weight: 600;
     color: #2c3e50;
-    margin: 20px 0 10px;
+    margin: 40px 0 10px;
     padding-bottom: 8px;
     border-bottom: 2px solid #27ae60;
 }

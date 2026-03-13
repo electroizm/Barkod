@@ -393,8 +393,6 @@ class BarkodOkuyucu {
             return;
         }
 
-        console.log('QRafter localStorage bridge - okunan:', code);
-
         // Sonucu temizle (tekrar işlenmemesi için)
         localStorage.removeItem('qrafter_result');
         localStorage.removeItem('qrafter_time');
@@ -413,10 +411,7 @@ class BarkodOkuyucu {
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = 'https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js';
-            script.onload = () => {
-                console.log('html5-qrcode kütüphanesi yüklendi');
-                resolve();
-            };
+            script.onload = () => resolve();
             script.onerror = () => reject(new Error('html5-qrcode yüklenemedi'));
             document.head.appendChild(script);
         });
@@ -453,8 +448,6 @@ class BarkodOkuyucu {
                     disableFlip: false
                 },
                 (decodedText) => {
-                    // QR/Barkod bulundu!
-                    console.log('Kamera ile okundu:', decodedText);
                     this.kameraKapat_();
                     this.barkodIsle(decodedText);
                 },
@@ -522,7 +515,6 @@ class BarkodOkuyucu {
 
             const decodedText = await scanner.scanFile(dosya, false);
 
-            console.log('Fotoğraftan okundu:', decodedText);
             scanner.clear();
             this.barkodIsle(decodedText);
         } catch (hata) {

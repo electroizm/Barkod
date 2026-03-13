@@ -5,7 +5,7 @@ window.Views = window.Views || {};
 window.Views.anasayfa = {
     mount(konteyner) {
         konteyner.innerHTML =
-            '<h1 class="baslik">Ana Men\u00fc</h1>' +
+            '<h1 class="baslik">Do\u011fta\u015f Mobilya</h1>' +
             '<div class="menu-listesi">' +
                 '<a href="/giris-islemleri" class="buton">Giri\u015f \u0130\u015flemleri</a>' +
                 '<a href="/cikis-islemleri" class="buton">\u00c7\u0131k\u0131\u015f \u0130\u015flemleri</a>' +

@@ -166,7 +166,6 @@ window.Views['nakliye-arama'] = {
                 });
 
                 var data = await response.json();
-                console.log('API Yan\u0131t\u0131:', data);
 
                 if (data.success) {
                     self._aramaSonuclari = data.data || [];
@@ -347,7 +346,6 @@ window.Views['nakliye-arama'] = {
                 });
 
                 var data = await response.json();
-                console.log('Kay\u0131t yan\u0131t\u0131:', data);
 
                 if (data.success) {
                     var devam = confirm('Ba\u015far\u0131l\u0131!\n\n' + data.message + '\n\nNakliye Okutma sayfas\u0131na gitmek ister misiniz?');

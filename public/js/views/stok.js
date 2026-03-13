@@ -7,7 +7,7 @@ window.Views.stok = {
 
     mount(konteyner) {
         konteyner.innerHTML =
-            '<h1 class="baslik">Stok Arama</h1>' +
+            '<h1 class="baslik">Stok</h1>' +
             '<div class="arama-alani">' +
                 '<input type="text" class="arama-input" id="aramaInput" placeholder="Malzeme ad\u0131 veya stok kodu ile aray\u0131n..." autofocus>' +
             '</div>' +

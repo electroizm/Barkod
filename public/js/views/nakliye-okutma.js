@@ -1,6 +1,6 @@
 /**
  * Nakliye Okutma View - Oturum se\u00e7im hub sayfas\u0131
- * Kamera kullanmaz, se\u00e7ilen oturumu /fis/barkod-okut sayfas\u0131na y\u00f6nlendirir.
+ * Kamera kullanmaz, se\u00e7ilen oturumu /fis/nakliye-okut sayfas\u0131na y\u00f6nlendirir.
  */
 window.Views = window.Views || {};
 window.Views['nakliye-okutma'] = (function() {
@@ -236,15 +236,15 @@ window.Views['nakliye-okutma'] = (function() {
                 break;
             case 'oturumSecAcik':
                 el.acikOturumOverlay.classList.remove('goster');
-                AppRouter.git('/fis/barkod-okut?oturum=' + hedef.dataset.oturum);
+                AppRouter.git('/fis/nakliye-okut?oturum=' + hedef.dataset.oturum);
                 break;
             case 'oturumSecKapatilan':
                 el.kapatilanOturumOverlay.classList.remove('goster');
-                AppRouter.git('/fis/barkod-okut?oturum=' + hedef.dataset.oturum);
+                AppRouter.git('/fis/nakliye-okut?oturum=' + hedef.dataset.oturum);
                 break;
             case 'okumayaBasla':
                 if (mevcutOturum) {
-                    AppRouter.git('/fis/barkod-okut?oturum=' + mevcutOturum.oturum_id);
+                    AppRouter.git('/fis/nakliye-okut?oturum=' + mevcutOturum.oturum_id);
                 }
                 break;
         }

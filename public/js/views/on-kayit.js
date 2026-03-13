@@ -43,6 +43,7 @@ window.Views['on-kayit'] = (function() {
             '</div>' +
 
             '<div class="bekleyen-baslik">' +
+                '<input type="checkbox" id="hepsiniSecCheckbox" data-action="hepsiniSec" style="margin-right:8px;cursor:pointer;">' +
                 'Bekleyen Okumalar <span id="bekleyenSayisi"></span>' +
             '</div>' +
             '<div id="bekleyenListe"></div>' +
@@ -360,6 +361,14 @@ window.Views['on-kayit'] = (function() {
                 break;
             case 'manuelSec':
                 manuelOkut(hedef.dataset.stokKod, hedef.dataset.malzemeAdi);
+                break;
+            case 'hepsiniSec':
+                var seciliMi = hedef.checked;
+                document.querySelectorAll('.bekleyen-checkbox').forEach(function(cb) {
+                    cb.checked = seciliMi;
+                    var item = cb.closest('.bekleyen-item');
+                    if (item) item.classList.toggle('secili', seciliMi);
+                });
                 break;
             case 'checkboxToggle':
                 var item = hedef.closest('.bekleyen-item');

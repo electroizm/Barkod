@@ -357,20 +357,22 @@ function FisOkutmaOlustur(y) {
 
         var malzemeAdi = escAttr(kalem.malzeme_adi || '-');
         var durumIkon = durumSinifi === 'status-green'
-            ? '<span class="malzeme-tik">&#10003;</span>'
+            ? ''
             : '<button class="btn-malzeme-oku" data-action="topluOkut" data-kalem-id="' + kalem.id + '" data-malzeme-adi="' + malzemeAdi + '"></button>';
 
         return '' +
-            '<div class="malzeme-item ' + durumSinifi + '" data-kalem-id="' + kalem.id + '" data-index="' + index + '">' +
-                '<div class="malzeme-baslik-row" data-action="malzemeToggle" data-index="' + index + '" data-kalem-id="' + kalem.id + '">' +
-                    durumIkon +
-                    '<div class="malzeme-bilgi">' +
-                        '<div class="malzeme-miktar">' + miktarInt + ' - ' + (kalem.malzeme_adi || '-') + '</div>' +
+            '<div class="malzeme-item-wrapper">' +
+                durumIkon +
+                '<div class="malzeme-item ' + durumSinifi + '" data-kalem-id="' + kalem.id + '" data-index="' + index + '">' +
+                    '<div class="malzeme-baslik-row" data-action="malzemeToggle" data-index="' + index + '" data-kalem-id="' + kalem.id + '">' +
+                        '<div class="malzeme-bilgi">' +
+                            '<div class="malzeme-miktar">' + miktarInt + ' - ' + (kalem.malzeme_adi || '-') + '</div>' +
+                        '</div>' +
                     '</div>' +
-                '</div>' +
-                '<div class="paket-detay" id="paketDetay' + index + '">' +
-                    '<div class="paket-detay-icerik" id="paketIcerik' + index + '">' +
-                        '<div class="paket-yukleniyor">Y\u00fckleniyor...</div>' +
+                    '<div class="paket-detay" id="paketDetay' + index + '">' +
+                        '<div class="paket-detay-icerik" id="paketIcerik' + index + '">' +
+                            '<div class="paket-yukleniyor">Y\u00fckleniyor...</div>' +
+                        '</div>' +
                     '</div>' +
                 '</div>' +
             '</div>';
@@ -836,7 +838,7 @@ function FisOkutmaOlustur(y) {
 window.Views = window.Views || {};
 
 window.Views['sevk'] = FisOkutmaOlustur({
-    baslik:                'Sevk Fi\u015fi',
+    baslik:                'Depolar Aras\u0131 Sevk',
     araButonMetni:         'Sevk Fi\u015fi Ara',
     acikFisButonMetni:     'A\u00e7\u0131k Sevk Fi\u015fleri',
     kapatilanFisButonMetni: 'Kapat\u0131lan Sevk Fi\u015fleri',

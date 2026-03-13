@@ -174,7 +174,7 @@ window.Views['teslimat'] = (function() {
                             el.musteriIletisim.style.display = 'block';
                         }
                     } catch (e) {
-                        console.log('Adres bilgisi alinamadi:', e.message);
+                        // Adres bilgisi alınamadı - sessizce devam et
                     }
                 }
 
