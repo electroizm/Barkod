@@ -1876,36 +1876,6 @@ body {
     text-decoration: none;
 }
 
-.aksiyon-butonlari {
-    display: flex;
-    gap: 10px;
-    justify-content: center;
-    margin-bottom: 20px;
-}
-
-.aksiyon-butonlari .btn {
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    font-size: 14px;
-}
-
-.btn-kaydet {
-    background-color: #27ae60;
-    color: white;
-}
-
-.btn-devam {
-    background-color: #3498db;
-    color: white;
-}
-
-.btn-iptal {
-    background-color: #e74c3c;
-    color: white;
-}
 
 .fatura-ozet {
     background-color: #d4edda;

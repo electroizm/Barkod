@@ -47,12 +47,6 @@ window.Views['teslimat-okut'] = (function() {
                 '<div id="barkodOkuyucuAlani"></div>' +
             '</div>' +
 
-            '<div class="aksiyon-butonlari gizle" id="aksiyonButonlari">' +
-                '<button type="button" class="btn btn-kaydet" data-action="kaydet">Kaydet</button>' +
-                '<button type="button" class="btn btn-devam" data-action="devamEt">Devam Et</button>' +
-                '<button type="button" class="btn btn-iptal" data-action="iptalEt">\u0130ptal</button>' +
-            '</div>' +
-
             '<div class="tamamlandi-kutu gizle" id="tamamlandiKutu">' +
                 '<h2>Tamamland\u0131!</h2>' +
                 '<p>T\u00fcm paketler ba\u015far\u0131yla okundu.</p>' +
@@ -356,7 +350,6 @@ window.Views['teslimat-okut'] = (function() {
         el.sonMesaj.textContent = mesaj;
         el.sonMesaj.className = 'son-mesaj ' + tip;
         el.sonMesaj.classList.remove('gizle');
-        el.aksiyonButonlari.classList.remove('gizle');
     }
 
     function sonOkumalariGuncelle() {
@@ -393,9 +386,6 @@ window.Views['teslimat-okut'] = (function() {
             case 'malzemeToggle':
                 malzemeToggle(parseInt(hedef.dataset.index), parseInt(hedef.dataset.kalemId));
                 break;
-            case 'kaydet': break;
-            case 'devamEt': break;
-            case 'iptalEt': break;
         }
     }
 
@@ -422,7 +412,6 @@ window.Views['teslimat-okut'] = (function() {
             kalanPaketGoster:   konteyner.querySelector('#kalanPaketGoster'),
             toplamPaketGoster:  konteyner.querySelector('#toplamPaketGoster'),
             okumaAlani:         konteyner.querySelector('#okumaAlani'),
-            aksiyonButonlari:   konteyner.querySelector('#aksiyonButonlari'),
             tamamlandiKutu:     konteyner.querySelector('#tamamlandiKutu'),
             okumaListesi:       konteyner.querySelector('#okumaListesi'),
             malzemeListesi:     konteyner.querySelector('#malzemeListesi'),

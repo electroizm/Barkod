@@ -13,6 +13,8 @@ window.Views['on-kayit'] = (function() {
     var barkodOkuyucu = null;
     var aramaZamanlayici = null;
     var mesajZamanlayici = null;
+    var okunanQrler = new Set();   // Frontend duplicate koruması
+    var islemDevamEdiyor = false;  // Race condition koruması
 
     function escAttr(s) {
         return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -61,13 +63,17 @@ window.Views['on-kayit'] = (function() {
         if (!el) return;
         if (mesajZamanlayici) clearTimeout(mesajZamanlayici);
         el.textContent = mesaj;
-        el.className = 'sonuc-mesaj' + (tip ? ' ' + tip : '');
+        // 'tekrar' tipi gorsel olarak hata gibi gosterilir
+        var gorunumTip = (tip === 'tekrar') ? 'hata' : tip;
+        el.className = 'sonuc-mesaj' + (gorunumTip ? ' ' + gorunumTip : '');
         el.style.display = 'block';
         if (tip === 'basari') {
             if (window.SesYoneticisi) SesYoneticisi.sesliGeriBildirim('basarili');
             mesajZamanlayici = setTimeout(function() { el.style.display = 'none'; }, 4000);
         } else if (tip === 'hata') {
             if (window.SesYoneticisi) SesYoneticisi.sesliGeriBildirim('hata');
+        } else if (tip === 'tekrar') {
+            if (window.SesYoneticisi) SesYoneticisi.sesliGeriBildirim('tekrar');
         }
     }
 
@@ -88,6 +94,17 @@ window.Views['on-kayit'] = (function() {
         qrKod = qrKod.replace(/[\x00-\x1F\x7F]/g, '').trim();
         if (!qrKod) return;
 
+        // İşlem devam ediyorsa (race condition koruması)
+        if (islemDevamEdiyor) return;
+
+        // Frontend duplicate kontrolü
+        if (okunanQrler.has(qrKod)) {
+            mesajGoster('Bu barkod zaten okutuldu!', 'tekrar');
+            if (barkodOkuyucu) barkodOkuyucu.odaklan();
+            return;
+        }
+
+        islemDevamEdiyor = true;
         mesajGoster('Barkod okunuyor...', '');
 
         try {
@@ -120,6 +137,7 @@ window.Views['on-kayit'] = (function() {
             var kayit = await kayitResponse.json();
 
             if (kayit.success) {
+                okunanQrler.add(qrKod);
                 mesajGoster(bilgi.malzeme_adi + ' P' + bilgi.paket_sira + '/' + bilgi.paket_sayisi, 'basari');
                 bekleyenleriYukle();
             } else {
@@ -127,6 +145,8 @@ window.Views['on-kayit'] = (function() {
             }
         } catch (error) {
             mesajGoster('Ba\u011flant\u0131 hatas\u0131: ' + error.message, 'hata');
+        } finally {
+            islemDevamEdiyor = false;
         }
 
         if (barkodOkuyucu) barkodOkuyucu.odaklan();
@@ -453,6 +473,8 @@ window.Views['on-kayit'] = (function() {
         _aramaHandler = null;
         _enterHandler = null;
         _konteyner = null;
+        okunanQrler = new Set();
+        islemDevamEdiyor = false;
     }
 
     return { mount: mount, unmount: unmount };
