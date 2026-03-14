@@ -195,7 +195,7 @@ function FisOkutmaOlustur(y) {
                 if (!barkodOkuyucu) {
                     barkodOkuyucu = new BarkodOkuyucu('#barkodOkuyucuAlani', {
                         gs1Dogrulama: true,
-                        hataGosterici: function(hata) { okumaHatali(hata, 'format'); },
+                        hataGosterici: function(hata) { okumaHatali(hata, 'format'); SesYoneticisi.sesliGeriBildirim('hata'); },
                         okumaSonrasi: qrOkut
                     });
 
