@@ -80,10 +80,10 @@ window.Views.sayim = {
 
         this._kaydetHandler = function() {
             if (self._sayilanUrunler.length === 0) {
-                Bildirim.uyari('L\u00fctfen en az bir \u00fcr\u00fcn say\u0131n');
+                alert('L\u00fctfen en az bir \u00fcr\u00fcn say\u0131n');
                 return;
             }
-            Bildirim.basari('Say\u0131m kaydedildi! (Demo)');
+            alert('Say\u0131m kaydedildi! (Demo)');
             self._sayilanUrunler = [];
             listeGuncelle();
             sonOkunanEl.classList.remove('goster');
@@ -103,7 +103,7 @@ window.Views.sayim = {
         // BarkodOkuyucu
         this._barkodOkuyucu = new BarkodOkuyucu('#barkodOkuyucu', {
             gs1Dogrulama: true,
-            hataGosterici: function(hata) { Bildirim.hata(hata); },
+            hataGosterici: function(hata) { alert(hata); },
             okumaSonrasi: function(barkod) { urunSay(barkod); }
         });
 

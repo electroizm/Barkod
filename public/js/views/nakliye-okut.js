@@ -120,7 +120,11 @@ window.Views['nakliye-okut'] = (function() {
             if (data.success) {
                 frontendCacheyeEkle(qrKod);
                 okumaBasarili(data);
-                SesYoneticisi.sesliGeriBildirim('basarili');
+                if (data.paket_bilgi && data.paket_bilgi.sira === data.paket_bilgi.toplam) {
+                    SesYoneticisi.sesliGeriBildirim('kalemTamamlandi');
+                } else {
+                    SesYoneticisi.sesliGeriBildirim('basarili');
+                }
             } else {
                 if (data.hata_tipi === 'DUPLICATE_QR') { frontendCacheyeEkle(qrKod); SesYoneticisi.sesliGeriBildirim('tekrar'); }
                 else if (data.hata_tipi === 'PAKET_LIMIT_ASILDI') { SesYoneticisi.sesliGeriBildirim('tekrar'); }
@@ -288,7 +292,7 @@ window.Views['nakliye-okut'] = (function() {
             });
             var d = await r.json();
             if (d.success) {
-                sonMesajGoster(d.message, 'basarili'); SesYoneticisi.sesliGeriBildirim('basarili');
+                sonMesajGoster(d.message, 'basarili'); SesYoneticisi.sesliGeriBildirim('kalemTamamlandi');
                 okumalar.unshift({ basarili: true, mesaj: d.message, zaman: new Date() }); sonOkumalariGuncelle();
                 await frontendCacheSenkronize(); durumGuncelle();
             } else { sonMesajGoster(d.message, 'hata'); SesYoneticisi.sesliGeriBildirim('hata'); }

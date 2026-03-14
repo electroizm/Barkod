@@ -4,7 +4,7 @@
  * Her cagrida yeni AudioContext olusturmak yerine tek instance kullanir.
  *
  * Kullanim: SesYoneticisi.sesliGeriBildirim('basarili')
- * Tipler: 'basarili', 'tekrar', 'hata', 'tamamlandi'
+ * Tipler: 'basarili', 'tekrar', 'hata', 'kalemTamamlandi', 'tamamlandi'
  */
 
 const SesYoneticisi = {
@@ -31,6 +31,7 @@ const SesYoneticisi = {
         if ('vibrate' in navigator) {
             if (tip === 'basarili') navigator.vibrate(100);
             else if (tip === 'hata' || tip === 'tekrar') navigator.vibrate([100, 50, 100, 50, 100]);
+            else if (tip === 'kalemTamamlandi') navigator.vibrate([100, 50, 200]);
             else if (tip === 'tamamlandi') navigator.vibrate([100, 50, 100, 50, 200]);
         }
 
@@ -85,6 +86,22 @@ const SesYoneticisi = {
                 gain.gain.value = 0.3;
                 osc.start();
                 osc.stop(ctx.currentTime + 0.3);
+
+            } else if (tip === 'kalemTamamlandi') {
+                // Iki notali yukselme: triangle 660→880Hz (basarili'den farkli dalga+cift nota)
+                const notes = [660, 880];
+                let startTime = ctx.currentTime;
+                notes.forEach((freq, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.frequency.value = freq;
+                    osc.type = 'triangle';
+                    gain.gain.value = 0.35;
+                    osc.start(startTime + i * 0.12);
+                    osc.stop(startTime + i * 0.12 + 0.12);
+                });
 
             } else if (tip === 'tamamlandi') {
                 const notes = [523, 659, 784, 1047];

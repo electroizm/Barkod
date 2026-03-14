@@ -263,7 +263,12 @@ function FisOkutmaOlustur(y) {
             if (data.success) {
                 frontendCacheyeEkle(qrKod);
                 okumaBasarili(data);
-                SesYoneticisi.sesliGeriBildirim('basarili');
+                // Kalemin tum paketleri okunduysa kalemTamamlandi, degilse basarili
+                if (data.paket_bilgi && data.paket_bilgi.sira === data.paket_bilgi.toplam) {
+                    SesYoneticisi.sesliGeriBildirim('kalemTamamlandi');
+                } else {
+                    SesYoneticisi.sesliGeriBildirim('basarili');
+                }
             } else {
                 if (data.hata_tipi === 'DUPLICATE_QR') {
                     frontendCacheyeEkle(qrKod);
@@ -519,7 +524,7 @@ function FisOkutmaOlustur(y) {
 
             if (data.success) {
                 sonMesajGoster(data.message, 'basarili');
-                SesYoneticisi.sesliGeriBildirim('basarili');
+                SesYoneticisi.sesliGeriBildirim('kalemTamamlandi');
                 okumalar.unshift({ basarili: true, mesaj: data.message, zaman: new Date() });
                 sonOkumalariGuncelle();
                 await frontendCacheSenkronize();
