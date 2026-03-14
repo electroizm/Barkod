@@ -152,9 +152,9 @@ window.Views.ayarlar = {
             var adInput = konteyner.querySelector('#yeniDepoAdi');
             var kod = kodInput.value.trim();
             var ad = adInput.value.trim();
-            if (!kod || !ad) { alert('Depo kodu ve ad\u0131 giriniz'); return; }
+            if (!kod || !ad) { Bildirim.uyari('Depo kodu ve ad\u0131 giriniz'); return; }
             if (self._fabrikaDepolar.some(function(d) { return d.kod === kod; })) {
-                alert('Bu depo kodu zaten mevcut'); return;
+                Bildirim.uyari('Bu depo kodu zaten mevcut'); return;
             }
             self._fabrikaDepolar.push({ kod: kod, ad: ad });
             fabrikaDepolariGoster();

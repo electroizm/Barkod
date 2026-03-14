@@ -241,7 +241,7 @@ window.Views['nakliye-arama'] = {
                         }
                     });
                     if (plakalar.length > 1) {
-                        alert('Farkl\u0131 plakal\u0131 ara\u00e7lar var. T\u00fcm\u00fcn\u00fc se\u00e7emezsiniz.\nL\u00fctfen tek tek se\u00e7im yap\u0131n.');
+                        Bildirim.uyari('Farkl\u0131 plakal\u0131 ara\u00e7lar var. T\u00fcm\u00fcn\u00fc se\u00e7emezsiniz. L\u00fctfen tek tek se\u00e7im yap\u0131n.');
                         this.checked = false;
                         return;
                     }
@@ -273,7 +273,7 @@ window.Views['nakliye-arama'] = {
                             var mevcutPlaka = self._aramaSonuclari[mevcutSeciliIndex].shipmentVehicleLicensePlate;
                             var yeniPlaka = seciliNakliye.shipmentVehicleLicensePlate;
                             if (mevcutPlaka !== yeniPlaka) {
-                                alert('Farkl\u0131 plakal\u0131 ara\u00e7lar birle\u015ftirilemez!\n\nMevcut se\u00e7im: ' + mevcutPlaka + '\nSe\u00e7meye \u00e7al\u0131\u015ft\u0131\u011f\u0131n\u0131z: ' + yeniPlaka);
+                                Bildirim.uyari('Farkl\u0131 plakal\u0131 ara\u00e7lar birle\u015ftirilemez! Mevcut: ' + mevcutPlaka + ' / Se\u00e7ilen: ' + yeniPlaka);
                                 this.checked = false;
                                 return;
                             }
@@ -305,7 +305,7 @@ window.Views['nakliye-arama'] = {
         // Devam butonu
         this._devamHandler = async function() {
             if (self._seciliNakliyeler.size === 0) {
-                alert('L\u00fctfen en az bir nakliye se\u00e7in');
+                Bildirim.uyari('L\u00fctfen en az bir nakliye se\u00e7in');
                 return;
             }
 
@@ -364,11 +364,11 @@ window.Views['nakliye-arama'] = {
                         seciliSayisiniGuncelle();
                     }
                 } else {
-                    alert('Hata!\n\n' + (data.message || 'Kay\u0131t s\u0131ras\u0131nda bir hata olu\u015ftu'));
+                    Bildirim.hata(data.message || 'Kay\u0131t s\u0131ras\u0131nda bir hata olu\u015ftu');
                 }
             } catch (error) {
                 console.error('Kay\u0131t hatas\u0131:', error);
-                alert('Ba\u011flant\u0131 hatas\u0131!\n\nSunucuya ba\u011flan\u0131lamad\u0131. L\u00fctfen tekrar deneyin.');
+                Bildirim.hata('Ba\u011flant\u0131 hatas\u0131! Sunucuya ba\u011flan\u0131lamad\u0131. L\u00fctfen tekrar deneyin.');
             } finally {
                 yukleniyorGizle();
             }

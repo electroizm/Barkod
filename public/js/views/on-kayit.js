@@ -64,7 +64,10 @@ window.Views['on-kayit'] = (function() {
         el.className = 'sonuc-mesaj' + (tip ? ' ' + tip : '');
         el.style.display = 'block';
         if (tip === 'basari') {
+            if (window.SesYoneticisi) SesYoneticisi.sesliGeriBildirim('basarili');
             mesajZamanlayici = setTimeout(function() { el.style.display = 'none'; }, 4000);
+        } else if (tip === 'hata') {
+            if (window.SesYoneticisi) SesYoneticisi.sesliGeriBildirim('hata');
         }
     }
 

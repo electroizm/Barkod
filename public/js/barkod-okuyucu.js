@@ -425,7 +425,7 @@ class BarkodOkuyucu {
                                    window.location.hostname === '127.0.0.1';
 
             if (!guvenliKontrol) {
-                alert('Kamera erişimi için güvenli bağlantı (HTTPS) gereklidir.\n\nAlternatif olarak:\n- Fotoğraf butonunu kullanarak galeriden barkod okuyabilirsiniz\n- Barkodu manuel olarak girebilirsiniz');
+                Bildirim.uyari('Kamera eri\u015fimi i\u00e7in g\u00fcvenli ba\u011flant\u0131 (HTTPS) gereklidir. Foto\u011fraf butonunu veya manuel giri\u015fi kullanabilirsiniz.');
                 return;
             }
 
@@ -472,7 +472,7 @@ class BarkodOkuyucu {
                 hataMesaji += '\n\nFotoğraf butonunu kullanarak galeriden barkod okuyabilirsiniz.';
             }
 
-            alert(hataMesaji);
+            Bildirim.hata(hataMesaji.replace(/\n/g, ' '));
             this.kameraKapat_();
         }
     }
@@ -519,7 +519,7 @@ class BarkodOkuyucu {
             this.barkodIsle(decodedText);
         } catch (hata) {
             console.error('Fotoğraf okuma hatası:', hata);
-            alert('Fotoğrafta QR kod/barkod bulunamadı.\nQR kodun net ve tam göründüğünden emin olun.');
+            Bildirim.hata('Foto\u011frafta QR kod/barkod bulunamad\u0131. QR kodun net ve tam g\u00f6r\u00fcnd\u00fc\u011f\u00fcnden emin olun.');
         }
 
         // Input'u temizle (aynı dosyayı tekrar seçebilmek için)
