@@ -40,13 +40,19 @@ uygulama.use((istek, yanit, sonraki) => {
 
 uygulama.use(express.static(path.join(__dirname, '../public')));
 
+// SESSION_SECRET kontrolu
+if (!process.env.SESSION_SECRET) {
+    console.error('HATA: SESSION_SECRET environment variable tanimli degil!');
+    process.exit(1);
+}
+
 // Oturum yapılandırması
 uygulama.use(session({
-    secret: process.env.SESSION_SECRET || 'gizli-anahtar',
+    secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: false, // Production'da true yapılmalı (HTTPS)
+        secure: process.env.NODE_ENV === 'production',
         maxAge: 24 * 60 * 60 * 1000 // 24 saat
     }
 }));
