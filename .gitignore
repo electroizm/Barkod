@@ -5,9 +5,9 @@ node_modules/
 
 service_account.json
 
-# Dokümanlar ve Markdown dosyaları
+# Dokümanlar
 docs/
-*.md
+!README.md
 
 # Editor ve IDE ayarları
 .vscode/

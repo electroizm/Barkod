@@ -68,7 +68,38 @@ const cikisRotalari = require('./rotalar/cikis');
 const girisRotalari = require('./rotalar/giris');
 const sevkRotalari = require('./rotalar/sevk');
 
+// Health check - UptimeRobot ping icin (oturum gerektirmez)
+uygulama.get('/api/health', (istek, yanit) => {
+    yanit.json({ durum: 'aktif', zaman: new Date().toISOString() });
+});
+
+// Oturum kontrolu (oturum gerektirmez - frontend bunu kontrol icin kullanir)
+uygulama.get('/api/oturum-kontrol', (istek, yanit) => {
+    if (istek.session.kullanici) {
+        yanit.json({
+            girisYapildi: true,
+            kullanici: istek.session.kullanici
+        });
+    } else {
+        yanit.json({ girisYapildi: false });
+    }
+});
+
+// Yetkilendirme rotalari (oturum gerektirmez - giris/cikis)
 uygulama.use('/api/yetkilendirme', yetkilendirmeRotalari);
+
+// Oturum dogrulama middleware - bundan sonraki tum /api/* rotalari oturum gerektirir
+uygulama.use('/api', (istek, yanit, sonraki) => {
+    if (!istek.session || !istek.session.kullanici) {
+        return yanit.status(401).json({
+            success: false,
+            message: 'Oturum gecersiz. Lutfen giris yapin.'
+        });
+    }
+    sonraki();
+});
+
+// Korumali rotalar (oturum gerektirir)
 uygulama.use('/api/dogtas', dogtasRotalari);
 uygulama.use('/api/supabase', supabaseRotalari);
 uygulama.use('/api/ayarlar', ayarlarRotalari);
@@ -78,29 +109,12 @@ uygulama.use('/api/cikis', cikisRotalari);
 uygulama.use('/api/giris', girisRotalari);
 uygulama.use('/api/sevk', sevkRotalari);
 
-// Health check - UptimeRobot ping için
-uygulama.get('/api/health', (istek, yanit) => {
-    yanit.json({ durum: 'aktif', zaman: new Date().toISOString() });
-});
-
-// Ana sayfa yönlendirmesi (SPA route'larina yonlendir)
+// Ana sayfa yonlendirmesi (SPA route'larina yonlendir)
 uygulama.get('/', (istek, yanit) => {
     if (istek.session.kullanici) {
         yanit.redirect('/anasayfa');
     } else {
         yanit.redirect('/giris');
-    }
-});
-
-// Oturum kontrolü middleware
-uygulama.get('/api/oturum-kontrol', (istek, yanit) => {
-    if (istek.session.kullanici) {
-        yanit.json({
-            girisYapildi: true,
-            kullanici: istek.session.kullanici
-        });
-    } else {
-        yanit.json({ girisYapildi: false });
     }
 });
 
