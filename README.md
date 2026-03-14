@@ -1,10 +1,10 @@
 # Barkod Stok Takip Sistemi
 
-Gunesler Elektronik - Dogtas Mobilya icin gelistirilmis mobil uyumlu QR/barkod okutma ve stok takip uygulamasi.
+Güneşler Elektronik - Doğtaş Mobilya icin gelistirilmis mobil uyumlu QR/barkod okutma ve stok takip uygulamasi.
 
 ## Genel Bakis
 
-Bu uygulama, Dogtas Mobilya urunlerinin depo giris/cikis, nakliye, sevk, teslimat ve stok sayim islemlerini QR kod okutma ile takip eder. Mobil cihazlarda kamera uzerinden GS1 formatinda QR kodlari okur ve Supabase veritabanina kaydeder.
+Bu uygulama, Doğtaş Mobilya urunlerinin depo giris/cikis, nakliye, sevk, teslimat ve stok sayim islemlerini QR kod okutma ile takip eder. Mobil cihazlarda kamera uzerinden GS1 formatinda QR kodlari okur ve Supabase veritabanina kaydeder.
 
 ### Temel Ozellikler
 
@@ -110,21 +110,21 @@ Barkod/
 
 ## Supabase Tablolari
 
-| Tablo | Aciklama | Veri Kaynagi |
-|-------|----------|--------------|
-| `nakliye_fisleri` | Dogtas nakliye verileri | Dogtas API --> Web App |
-| `nakliye_fisleri_okumalari` | Nakliye QR okumalari | Web App |
-| `satis_faturasi` | Satis faturasi kalemleri | Mikro ERP --> PRG App |
-| `satis_faturasi_okumalari` | Fatura QR okumalari | Web App |
-| `sevk_fisi` | Sevk fisi kalemleri | Mikro ERP --> PRG App |
-| `sevk_fisi_okumalari` | Sevk QR okumalari | Web App |
-| `giris_fisi` | Giris fisi kalemleri | Mikro ERP --> PRG App |
-| `giris_fisi_okumalari` | Giris QR okumalari | Web App |
-| `cikis_fisi` | Cikis fisi kalemleri | Mikro ERP --> PRG App |
-| `cikis_fisi_okumalari` | Cikis QR okumalari | Web App |
-| `on_kayit_barkodlar` | On kayit barkod okumalari | Web App |
-| `on_kayit_bekleyenler` | On kayit bekleyen urunler | Web App |
-| `ayarlar` | Kullanici ayarlari | Web App |
+| Tablo                       | Aciklama                  | Veri Kaynagi           |
+| --------------------------- | ------------------------- | ---------------------- |
+| `nakliye_fisleri`           | Dogtas nakliye verileri   | Dogtas API --> Web App |
+| `nakliye_fisleri_okumalari` | Nakliye QR okumalari      | Web App                |
+| `satis_faturasi`            | Satis faturasi kalemleri  | Mikro ERP --> PRG App  |
+| `satis_faturasi_okumalari`  | Fatura QR okumalari       | Web App                |
+| `sevk_fisi`                 | Sevk fisi kalemleri       | Mikro ERP --> PRG App  |
+| `sevk_fisi_okumalari`       | Sevk QR okumalari         | Web App                |
+| `giris_fisi`                | Giris fisi kalemleri      | Mikro ERP --> PRG App  |
+| `giris_fisi_okumalari`      | Giris QR okumalari        | Web App                |
+| `cikis_fisi`                | Cikis fisi kalemleri      | Mikro ERP --> PRG App  |
+| `cikis_fisi_okumalari`      | Cikis QR okumalari        | Web App                |
+| `on_kayit_barkodlar`        | On kayit barkod okumalari | Web App                |
+| `on_kayit_bekleyenler`      | On kayit bekleyen urunler | Web App                |
+| `ayarlar`                   | Kullanici ayarlari        | Web App                |
 
 ## Kurulum
 
@@ -190,13 +190,13 @@ Uygulama GS1 standardinda QR kodlari destekler:
 
 ### GS1 Application Identifier'lar
 
-| AI | Alan | Aciklama |
-|----|------|----------|
-| 01 | GTIN | 14 haneli urun kodu |
-| 10 | Parti No | Uretim parti numarasi |
-| 37 | Miktar | Paket icindeki adet |
-| 91 | Ozel Kod | Kisiye ozel uretim kodu |
-| 241 | Malzeme No | 18 haneli malzeme numarasi |
+| AI  | Alan               | Aciklama                      |
+| --- | ------------------ | ----------------------------- |
+| 01  | GTIN               | 14 haneli urun kodu           |
+| 10  | Parti No           | Uretim parti numarasi         |
+| 37  | Miktar             | Paket icindeki adet           |
+| 91  | Ozel Kod           | Kisiye ozel uretim kodu       |
+| 241 | Malzeme No         | 18 haneli malzeme numarasi    |
 | 250 | Satinalma Kalem ID | Kisiye ozel siparis referansi |
 
 ### Eslestirme Mantigi
@@ -208,74 +208,81 @@ Uygulama GS1 standardinda QR kodlari destekler:
 ## API Endpointleri
 
 ### Yetkilendirme
-| Method | Endpoint | Aciklama |
-|--------|----------|----------|
-| POST | `/api/yetkilendirme/giris` | Kullanici girisi |
-| POST | `/api/yetkilendirme/cikis` | Cikis yap |
-| GET | `/api/oturum-kontrol` | Oturum durumu |
+
+| Method | Endpoint                   | Aciklama         |
+| ------ | -------------------------- | ---------------- |
+| POST   | `/api/yetkilendirme/giris` | Kullanici girisi |
+| POST   | `/api/yetkilendirme/cikis` | Cikis yap        |
+| GET    | `/api/oturum-kontrol`      | Oturum durumu    |
 
 ### Nakliye (supabase.js)
-| Method | Endpoint | Aciklama |
-|--------|----------|----------|
-| POST | `/api/supabase/nakliye-yukle` | Dogtas'tan nakliye verisi yukle |
-| POST | `/api/supabase/qr-okut` | QR kod okut |
-| GET | `/api/supabase/okuma-durumu/:id` | Oturum ilerleme durumu |
-| GET | `/api/supabase/malzeme-paketler/:id/:kalemId` | Paket detaylari |
-| POST | `/api/supabase/toplu-okut` | Eksik paketleri toplu tamamla |
-| GET | `/api/supabase/okunan-qrler/:id` | Frontend cache sync |
+
+| Method | Endpoint                                      | Aciklama                        |
+| ------ | --------------------------------------------- | ------------------------------- |
+| POST   | `/api/supabase/nakliye-yukle`                 | Dogtas'tan nakliye verisi yukle |
+| POST   | `/api/supabase/qr-okut`                       | QR kod okut                     |
+| GET    | `/api/supabase/okuma-durumu/:id`              | Oturum ilerleme durumu          |
+| GET    | `/api/supabase/malzeme-paketler/:id/:kalemId` | Paket detaylari                 |
+| POST   | `/api/supabase/toplu-okut`                    | Eksik paketleri toplu tamamla   |
+| GET    | `/api/supabase/okunan-qrler/:id`              | Frontend cache sync             |
 
 ### Fatura/Teslimat (mikro.js)
-| Method | Endpoint | Aciklama |
-|--------|----------|----------|
-| GET | `/api/mikro/fatura/:no` | Fatura kalemlerini getir |
-| POST | `/api/mikro/qr-okut` | QR kod okut |
-| GET | `/api/mikro/fatura-durumu/:no` | Fatura ilerleme durumu |
-| GET | `/api/mikro/acik-faturalar` | Acik faturalar listesi |
-| GET | `/api/mikro/kapatilan-faturalar` | Kapatilan faturalar |
-| POST | `/api/mikro/toplu-okut` | Toplu okutma |
-| POST | `/api/mikro/on-kayit-barkod-bilgi` | On kayit barkod sorgula |
-| POST | `/api/mikro/on-kayit-kaydet` | On kayit kaydet |
+
+| Method | Endpoint                           | Aciklama                 |
+| ------ | ---------------------------------- | ------------------------ |
+| GET    | `/api/mikro/fatura/:no`            | Fatura kalemlerini getir |
+| POST   | `/api/mikro/qr-okut`               | QR kod okut              |
+| GET    | `/api/mikro/fatura-durumu/:no`     | Fatura ilerleme durumu   |
+| GET    | `/api/mikro/acik-faturalar`        | Acik faturalar listesi   |
+| GET    | `/api/mikro/kapatilan-faturalar`   | Kapatilan faturalar      |
+| POST   | `/api/mikro/toplu-okut`            | Toplu okutma             |
+| POST   | `/api/mikro/on-kayit-barkod-bilgi` | On kayit barkod sorgula  |
+| POST   | `/api/mikro/on-kayit-kaydet`       | On kayit kaydet          |
 
 ### Sevk / Giris / Cikis (sevk.js, giris.js, cikis.js)
-| Method | Endpoint | Aciklama |
-|--------|----------|----------|
-| GET | `/api/{sevk,giris,cikis}/fis/:no` | Fis kalemlerini getir |
-| POST | `/api/{sevk,giris,cikis}/qr-okut` | QR kod okut |
-| GET | `/api/{sevk,giris,cikis}/fis-durumu/:no` | Fis ilerleme durumu |
-| GET | `/api/{sevk,giris,cikis}/acik-fisler` | Acik fisler |
-| GET | `/api/{sevk,giris,cikis}/kapatilan-fisler` | Kapatilan fisler |
-| POST | `/api/{sevk,giris,cikis}/toplu-okut` | Toplu okutma |
+
+| Method | Endpoint                                   | Aciklama              |
+| ------ | ------------------------------------------ | --------------------- |
+| GET    | `/api/{sevk,giris,cikis}/fis/:no`          | Fis kalemlerini getir |
+| POST   | `/api/{sevk,giris,cikis}/qr-okut`          | QR kod okut           |
+| GET    | `/api/{sevk,giris,cikis}/fis-durumu/:no`   | Fis ilerleme durumu   |
+| GET    | `/api/{sevk,giris,cikis}/acik-fisler`      | Acik fisler           |
+| GET    | `/api/{sevk,giris,cikis}/kapatilan-fisler` | Kapatilan fisler      |
+| POST   | `/api/{sevk,giris,cikis}/toplu-okut`       | Toplu okutma          |
 
 ### Dogtas API
-| Method | Endpoint | Aciklama |
-|--------|----------|----------|
-| POST | `/api/dogtas/nakliye-ara` | Nakliye fisi ara |
+
+| Method | Endpoint                  | Aciklama         |
+| ------ | ------------------------- | ---------------- |
+| POST   | `/api/dogtas/nakliye-ara` | Nakliye fisi ara |
 
 ### Stok
-| Method | Endpoint | Aciklama |
-|--------|----------|----------|
-| GET | `/api/stok/ara?q=...` | Stok arama |
+
+| Method | Endpoint              | Aciklama   |
+| ------ | --------------------- | ---------- |
+| GET    | `/api/stok/ara?q=...` | Stok arama |
 
 ### Ayarlar
-| Method | Endpoint | Aciklama |
-|--------|----------|----------|
-| GET | `/api/ayarlar/getir` | Ayarlari getir |
-| POST | `/api/ayarlar/kaydet` | Ayarlari kaydet |
-| GET | `/api/ayarlar/fabrika-depolar` | Fabrika depo listesi |
-| POST | `/api/ayarlar/fabrika-depolar` | Fabrika depo kaydet |
+
+| Method | Endpoint                       | Aciklama             |
+| ------ | ------------------------------ | -------------------- |
+| GET    | `/api/ayarlar/getir`           | Ayarlari getir       |
+| POST   | `/api/ayarlar/kaydet`          | Ayarlari kaydet      |
+| GET    | `/api/ayarlar/fabrika-depolar` | Fabrika depo listesi |
+| POST   | `/api/ayarlar/fabrika-depolar` | Fabrika depo kaydet  |
 
 ## Teknolojiler
 
-| Katman | Teknoloji |
-|--------|-----------|
-| **Backend** | Node.js, Express 4 |
-| **Frontend** | Vanilla JavaScript (SPA, build tool yok) |
-| **Veritabani** | Supabase (PostgreSQL) |
-| **Kullanici DB** | Google Sheets |
-| **QR Okuyucu** | ZXing-js (browser-based) |
-| **Ses** | Web Audio API |
-| **Hosting** | Render.com |
-| **Stil** | Custom CSS (framework yok) |
+| Katman           | Teknoloji                                |
+| ---------------- | ---------------------------------------- |
+| **Backend**      | Node.js, Express 4                       |
+| **Frontend**     | Vanilla JavaScript (SPA, build tool yok) |
+| **Veritabani**   | Supabase (PostgreSQL)                    |
+| **Kullanici DB** | Google Sheets                            |
+| **QR Okuyucu**   | ZXing-js (browser-based)                 |
+| **Ses**          | Web Audio API                            |
+| **Hosting**      | Render.com                               |
+| **Stil**         | Custom CSS (framework yok)               |
 
 ## Lisans
 
@@ -283,7 +290,7 @@ ISC
 
 ## Gelistirici
 
-Ismail Gunes - Gunesler Elektronik
+İsmail Güneş - Güneşler Elektronik
 
 [![X (Twitter)](https://img.shields.io/badge/X-000000?style=for-the-badge&logo=x&logoColor=white)](https://x.com/Guneslsmail)
 [![Instagram](https://img.shields.io/badge/Instagram-E4405F?style=for-the-badge&logo=instagram&logoColor=white)](https://www.instagram.com/dogtasbatman/)
