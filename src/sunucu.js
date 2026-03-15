@@ -10,6 +10,10 @@ const path = require('path');
 const uygulama = express();
 const PORT = process.env.PORT || 3000;
 
+// Render reverse proxy arkasinda calistigimiz icin trust proxy gerekli
+// Bu olmadan secure cookie (NODE_ENV=production) duzgun calismaz
+uygulama.set('trust proxy', 1);
+
 // Middleware
 // Büyük nakliye verileri için limit artırıldı (varsayılan 100KB -> 10MB)
 uygulama.use(express.json({ limit: '10mb' }));
