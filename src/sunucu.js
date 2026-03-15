@@ -79,6 +79,8 @@ uygulama.get('/api/health', async (istek, yanit) => {
 
     sonuc.node_env = process.env.NODE_ENV || 'undefined';
     sonuc.cookie_secure = process.env.NODE_ENV === 'production';
+    sonuc.trust_proxy = uygulama.get('trust proxy') ? true : false;
+    sonuc.protocol = istek.protocol;
     sonuc.session_var = istek.session ? (istek.session.kullanici ? 'SET' : 'YOK') : 'NO_SESSION';
 
     // ?db=1 parametresi ile Supabase baglanti testi
