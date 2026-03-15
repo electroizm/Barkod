@@ -127,3 +127,4 @@ router.get('/cache-temizle', (req, res) => {
 });
 
 module.exports = router;
+module.exports.stokVerisiYukle = stokVerisiYukle;

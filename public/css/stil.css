@@ -2144,3 +2144,436 @@ body {
     padding: 15px;
     color: #666;
 }
+
+/* ═══════════════════════════════════════════════════
+   SAYIM SISTEMI
+   ═══════════════════════════════════════════════════ */
+
+/* Lokasyon Secim Grid */
+.sayim-lokasyon-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.sayim-lokasyon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 16px;
+}
+
+.sayim-lokasyon-btn:active {
+    transform: scale(0.98);
+}
+
+.sayim-lokasyon-ad {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.sayim-lokasyon-depo {
+    border-color: #3498db;
+    color: #2c3e50;
+}
+.sayim-lokasyon-depo:hover { background: #ebf5fb; }
+
+.sayim-lokasyon-exc {
+    border-color: #e67e22;
+    color: #2c3e50;
+}
+.sayim-lokasyon-exc:hover { background: #fef5e7; }
+
+.sayim-lokasyon-sube {
+    border-color: #27ae60;
+    color: #2c3e50;
+}
+.sayim-lokasyon-sube:hover { background: #eafaf1; }
+
+/* Geri Butonu */
+.sayim-geri-btn {
+    background: none;
+    border: 1px solid #bdc3c7;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 20px;
+    cursor: pointer;
+    color: #2c3e50;
+    line-height: 1;
+}
+.sayim-geri-btn:hover { background: #f0f0f0; }
+
+/* Sayim Item (Acik/Kapatilan listeler) */
+.sayim-item {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 12px 15px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.sayim-item:hover { background: #f8f9fa; }
+
+.sayim-item-acik {
+    border-left: 4px solid #27ae60;
+}
+
+.sayim-item-kapatilan {
+    border-left: 4px solid #95a5a6;
+    cursor: default;
+}
+
+.sayim-item-tarih {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 4px;
+}
+
+.sayim-item-detay {
+    font-size: 13px;
+    color: #7f8c8d;
+}
+
+.sayim-item-butonlar {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+}
+
+.sayim-mini-btn {
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    color: white;
+}
+.sayim-mini-rapor { background: #3498db; }
+.sayim-mini-rapor:hover { background: #2980b9; }
+.sayim-mini-csv { background: #27ae60; }
+.sayim-mini-csv:hover { background: #219a52; }
+
+/* Sayim Okut - Tab Bar */
+.sayim-tab-bar {
+    display: flex;
+    gap: 0;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.sayim-tab {
+    flex: 1;
+    padding: 12px;
+    text-align: center;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    font-size: 15px;
+    font-weight: 500;
+    color: #7f8c8d;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sayim-tab.aktif {
+    color: #2c3e50;
+    border-bottom-color: #3498db;
+    font-weight: 600;
+}
+
+.sayim-tab-icerik {
+    display: none;
+}
+.sayim-tab-icerik.aktif {
+    display: block;
+}
+
+/* Sayim Okut - Baslik + Ozet */
+.sayim-okut-baslik {
+    font-size: 18px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.sayim-okut-ozet {
+    font-size: 14px;
+    color: #7f8c8d;
+    margin-bottom: 15px;
+}
+
+/* Sayim Arama (Manuel Giris) */
+.sayim-arama-liste {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-top: 5px;
+    background: white;
+}
+
+.sayim-arama-item {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.1s;
+}
+.sayim-arama-item:last-child { border-bottom: none; }
+.sayim-arama-item:hover { background: #ebf5fb; }
+
+.sayim-arama-item-kod {
+    font-size: 11px;
+    color: #95a5a6;
+    margin-top: 2px;
+}
+
+.sayim-secilen-urun {
+    background: #eafaf1;
+    border: 1px solid #27ae60;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+/* Urun Listesi (Okutma sayfasi) */
+.sayim-urun-satir {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    position: relative;
+}
+
+.sayim-urun-bilgi {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.sayim-urun-ad {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2c3e50;
+    flex: 1;
+}
+
+.sayim-urun-kod {
+    font-size: 11px;
+    color: #95a5a6;
+    margin-top: 2px;
+}
+
+.sayim-urun-sag {
+    text-align: right;
+    min-width: 50px;
+}
+
+.sayim-urun-adet {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2c3e50;
+}
+
+/* Paket Satiri */
+.sayim-paket-satir {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.sayim-paket {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 24px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.sayim-paket-ok {
+    background: #d5f5e3;
+    color: #27ae60;
+    border: 1px solid #a9dfbf;
+}
+
+.sayim-paket-bos {
+    background: #f5f5f5;
+    color: #bdc3c7;
+    border: 1px solid #e0e0e0;
+}
+
+/* Manuel Badge */
+.sayim-manuel-badge {
+    display: inline-block;
+    background: #ebf5fb;
+    color: #2980b9;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    margin-left: 6px;
+}
+
+/* Sil Butonu */
+.sayim-sil-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: none;
+    border: none;
+    color: #e74c3c;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    opacity: 0.5;
+    transition: opacity 0.15s;
+}
+.sayim-sil-btn:hover { opacity: 1; background: #fdecea; }
+
+.sayim-sil-satir {
+    background: #fdecea !important;
+    border-color: #e74c3c !important;
+}
+
+/* Rapor Modal */
+.sayim-rapor-modal {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 15px;
+}
+
+.sayim-rapor-icerik {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+.sayim-rapor-kapat {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+}
+.sayim-rapor-kapat:hover { background: #f0f0f0; }
+
+/* Rapor Ozet */
+.sayim-rapor-ozet {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.sayim-ozet-esit, .sayim-ozet-eksik, .sayim-ozet-fazla {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.sayim-ozet-esit {
+    background: #d5f5e3;
+    color: #1e8449;
+}
+
+.sayim-ozet-eksik {
+    background: #fdecea;
+    color: #c0392b;
+}
+
+.sayim-ozet-fazla {
+    background: #fef9e7;
+    color: #b7950b;
+}
+
+/* Rapor Tablo */
+.sayim-rapor-tablo {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.sayim-rapor-baslik-satir {
+    display: flex;
+    background: #f8f9fa;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #2c3e50;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.sayim-rapor-satir {
+    display: flex;
+    padding: 8px 12px;
+    font-size: 13px;
+    border-bottom: 1px solid #f0f0f0;
+    align-items: center;
+}
+.sayim-rapor-satir:last-child { border-bottom: none; }
+
+.sayim-rapor-esit {
+    background: #f0fdf4;
+}
+
+.sayim-rapor-eksik {
+    background: #fef2f2;
+}
+
+.sayim-rapor-fazla {
+    background: #fefce8;
+}
+
+/* Form Input (genel) */
+.form-input {
+    width: 100%;
+    padding: 12px;
+    font-size: 15px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    outline: none;
+    box-sizing: border-box;
+}
+.form-input:focus {
+    border-color: #3498db;
+}

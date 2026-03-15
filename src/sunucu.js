@@ -20,7 +20,7 @@ const spaRotalar = ['/giris', '/anasayfa', '/cikis-islemleri', '/giris-islemleri
                     '/stok', '/sayim', '/ayarlar', '/fis/nakliye-arama',
                     '/sevk', '/fis/diger-giris', '/fis/nakliye-okutma',
                     '/fis/teslimat', '/fis/nakliye-okut', '/fis/teslimat-okut', '/fis/on-kayit',
-                    '/fis/diger-cikis'];
+                    '/fis/diger-cikis', '/sayim/okut'];
 
 // .html guard: SPA redirect + bilinmeyen .html engelleme (express.static'ten ONCE calisir)
 uygulama.use((istek, yanit, sonraki) => {
@@ -67,6 +67,7 @@ const stokRotalari = require('./rotalar/stok');
 const cikisRotalari = require('./rotalar/cikis');
 const girisRotalari = require('./rotalar/giris');
 const sevkRotalari = require('./rotalar/sevk');
+const sayimRotalari = require('./rotalar/sayim');
 
 // Health check - UptimeRobot ping icin (oturum gerektirmez)
 uygulama.get('/api/health', (istek, yanit) => {
@@ -108,6 +109,7 @@ uygulama.use('/api/stok', stokRotalari);
 uygulama.use('/api/cikis', cikisRotalari);
 uygulama.use('/api/giris', girisRotalari);
 uygulama.use('/api/sevk', sevkRotalari);
+uygulama.use('/api/sayim', sayimRotalari);
 
 // Ana sayfa yonlendirmesi (SPA route'larina yonlendir)
 uygulama.get('/', (istek, yanit) => {
