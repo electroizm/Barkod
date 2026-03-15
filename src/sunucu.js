@@ -70,8 +70,29 @@ const sevkRotalari = require('./rotalar/sevk');
 const sayimRotalari = require('./rotalar/sayim');
 
 // Health check - UptimeRobot ping icin (oturum gerektirmez)
-uygulama.get('/api/health', (istek, yanit) => {
-    yanit.json({ durum: 'aktif', zaman: new Date().toISOString() });
+uygulama.get('/api/health', async (istek, yanit) => {
+    const sonuc = { durum: 'aktif', zaman: new Date().toISOString() };
+
+    // ?db=1 parametresi ile Supabase baglanti testi
+    if (istek.query.db) {
+        try {
+            const { createClient } = require('@supabase/supabase-js');
+            const url = process.env.SUPABASE_URL;
+            const key = process.env.SUPABASE_ANON_KEY;
+            sonuc.supabase_url = url ? url.substring(0, 30) + '...' : 'YOK';
+            sonuc.supabase_key = key ? 'SET (len=' + key.length + ')' : 'YOK';
+
+            if (url && key) {
+                const client = createClient(url, key);
+                const { data, error } = await client.from('satis_faturasi').select('id', { count: 'exact', head: true });
+                sonuc.supabase_test = error ? 'HATA: ' + error.message : 'OK (baglanti basarili)';
+            }
+        } catch (e) {
+            sonuc.supabase_test = 'EXCEPTION: ' + e.message;
+        }
+    }
+
+    yanit.json(sonuc);
 });
 
 // Oturum kontrolu (oturum gerektirmez - frontend bunu kontrol icin kullanir)
