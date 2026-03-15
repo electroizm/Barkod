@@ -30,6 +30,67 @@ const CACHE_SURESI_MS = 30 * 60 * 1000; // 30 dk
 // Lokasyon kodu mapping
 const LOKASYON_KODLARI = { 'DEPO': 100, 'SUBE': 200, 'EXC': 300 };
 
+// ─── Sayim Kodu Yardimci ────────────────────────────────────────────
+
+/**
+ * YYMMDD formatinda tarih uret
+ */
+function bugunKodu() {
+    var simdi = new Date();
+    var yy = String(simdi.getFullYear()).slice(-2);
+    var mm = String(simdi.getMonth() + 1).padStart(2, '0');
+    var dd = String(simdi.getDate()).padStart(2, '0');
+    return yy + mm + dd;
+}
+
+/**
+ * Sayim kodu uret: YYMMDD-NN (ornek: 260315-01, 260315-02)
+ */
+async function sayimKoduUret(client) {
+    var tarihKodu = bugunKodu();
+    var prefix = tarihKodu + '-';
+
+    // O gune ait mevcut sayimlari say
+    var { data, error } = await client
+        .from('sayim_oturumlari')
+        .select('sayim_kodu')
+        .like('sayim_kodu', prefix + '%')
+        .order('sayim_kodu', { ascending: false })
+        .limit(1);
+
+    var sira = 1;
+    if (!error && data && data.length > 0) {
+        var sonKod = data[0].sayim_kodu;
+        var sonSira = parseInt(sonKod.split('-')[1]) || 0;
+        sira = sonSira + 1;
+    }
+
+    return prefix + String(sira).padStart(2, '0');
+}
+
+/**
+ * Parametre UUID mi yoksa sayim_kodu mu? Cozumle ve UUID dondur.
+ */
+async function oturumIdCozumle(parametre, client) {
+    if (!parametre) return null;
+
+    // UUID formati: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    var uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(parametre)) {
+        return parametre;
+    }
+
+    // sayim_kodu olarak ara
+    var { data, error } = await client
+        .from('sayim_oturumlari')
+        .select('id')
+        .eq('sayim_kodu', parametre)
+        .single();
+
+    if (error || !data) return null;
+    return data.id;
+}
+
 // ─── Cache Fonksiyonlari ───────────────────────────────────────────
 
 async function sayimCacheYukle(oturumId, client, zorlaYenile) {
@@ -50,7 +111,7 @@ async function sayimCacheYukle(oturumId, client, zorlaYenile) {
     }
 
     var okunanQrler = new Set();
-    var stokSayilari = new Map(); // stok_kod -> { qrOkumalar: [{paketSira, paketToplam}], manuelAdet: 0, malzemeAdi: '' }
+    var stokSayilari = new Map();
 
     (okumalar || []).forEach(function(okuma) {
         if (okuma.qr_kod) {
@@ -72,7 +133,6 @@ async function sayimCacheYukle(oturumId, client, zorlaYenile) {
             });
         }
 
-        // Malzeme adi guncelle (en son okunan gecerli)
         if (okuma.malzeme_adi) {
             mevcut.malzemeAdi = okuma.malzeme_adi;
         }
@@ -124,17 +184,11 @@ function cacheyeOkumaEkle(oturumId, qrKod, stokKod, malzemeAdi, paketSira, paket
 
 // ─── Yardimci Fonksiyonlar ─────────────────────────────────────────
 
-/**
- * Stok bazinda tamamlanan urun sayisini hesapla
- * QR okumalar: Bir urunun tum paketleri okunmussa 1 urun tamamlandi
- * Manuel: Direkt adet
- */
 function urunSayisiHesapla(stokBilgi) {
     var toplam = stokBilgi.manuelAdet;
 
     if (stokBilgi.qrOkumalar.length > 0) {
-        // Paket toplam degerine gore grupla
-        var paketGruplari = new Map(); // paketToplam -> Set<paketSira>
+        var paketGruplari = new Map();
         stokBilgi.qrOkumalar.forEach(function(okuma) {
             var pt = okuma.paketToplam || 1;
             if (!paketGruplari.has(pt)) {
@@ -143,15 +197,12 @@ function urunSayisiHesapla(stokBilgi) {
             paketGruplari.get(pt).push(okuma.paketSira);
         });
 
-        // Her paketToplam grubunda kac tam set var?
         paketGruplari.forEach(function(siralar, paketToplam) {
-            // Her paketToplam icin kac kez tam set olustu?
             var siraSet = {};
             siralar.forEach(function(s) {
                 siraSet[s] = (siraSet[s] || 0) + 1;
             });
 
-            // En dusuk tekrar sayisi = tam set sayisi
             var tamSetler = Infinity;
             for (var s = 1; s <= paketToplam; s++) {
                 var sayi = siraSet[s] || 0;
@@ -183,13 +234,17 @@ router.post('/oturum-olustur', async function(req, res) {
         var client = await getSupabaseClient();
         if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
 
+        // Sayim kodu uret
+        var sayimKodu = await sayimKoduUret(client);
+
         var { data, error } = await client
             .from('sayim_oturumlari')
             .insert({
                 lokasyon: lokasyon,
                 lokasyon_kodu: LOKASYON_KODLARI[lokasyon],
                 kullanici: kullanici,
-                durum: 'acik'
+                durum: 'acik',
+                sayim_kodu: sayimKodu
             })
             .select()
             .single();
@@ -199,7 +254,7 @@ router.post('/oturum-olustur', async function(req, res) {
             return res.json({ success: false, message: 'Oturum olusturulamadi: ' + error.message });
         }
 
-        return res.json({ success: true, oturum_id: data.id, lokasyon: lokasyon });
+        return res.json({ success: true, oturum_id: data.id, sayim_kodu: sayimKodu, lokasyon: lokasyon });
 
     } catch (err) {
         console.error('Sayim oturum olusturma hata:', err);
@@ -244,7 +299,6 @@ router.get('/kapatilan-sayimlar/:lokasyon', async function(req, res) {
         var client = await getSupabaseClient();
         if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
 
-        // Son 90 gun
         var tarihSinir = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
 
         var { data, error } = await client
@@ -273,15 +327,18 @@ router.get('/kapatilan-sayimlar/:lokasyon', async function(req, res) {
  */
 router.post('/qr-okut', async function(req, res) {
     try {
-        var oturum_id = req.body.oturum_id;
+        var oturum_param = req.body.oturum_id;
         var qr_kod = req.body.qr_kod;
         var kullanici = req.body.kullanici || req.session.kullanici?.kullaniciAdi || 'bilinmiyor';
 
-        if (!oturum_id) return res.json({ success: false, message: 'Oturum ID eksik', hata_tipi: 'MISSING_OTURUM' });
+        if (!oturum_param) return res.json({ success: false, message: 'Oturum ID eksik', hata_tipi: 'MISSING_OTURUM' });
         if (!qr_kod) return res.json({ success: false, message: 'QR kod eksik', hata_tipi: 'MISSING_QR' });
 
         var client = await getSupabaseClient();
         if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi', hata_tipi: 'DB_CONNECTION' });
+
+        var oturum_id = await oturumIdCozumle(oturum_param, client);
+        if (!oturum_id) return res.json({ success: false, message: 'Sayim oturumu bulunamadi', hata_tipi: 'INVALID_OTURUM' });
 
         // QR validasyon (GS1 only)
         var qrBilgi = qrKodValidasyon(qr_kod);
@@ -394,22 +451,24 @@ router.post('/qr-okut', async function(req, res) {
 
 /**
  * POST /api/sayim/manuel-ekle
- * Manuel urun ekleme
  */
 router.post('/manuel-ekle', async function(req, res) {
     try {
-        var oturum_id = req.body.oturum_id;
+        var oturum_param = req.body.oturum_id;
         var stok_kod = (req.body.stok_kod || '').trim();
         var malzeme_adi = (req.body.malzeme_adi || '').trim();
         var adet = parseInt(req.body.adet) || 1;
         var kullanici = req.body.kullanici || req.session.kullanici?.kullaniciAdi || 'bilinmiyor';
 
-        if (!oturum_id) return res.json({ success: false, message: 'Oturum ID eksik' });
+        if (!oturum_param) return res.json({ success: false, message: 'Oturum ID eksik' });
         if (!stok_kod) return res.json({ success: false, message: 'Stok kodu eksik' });
         if (adet < 1) return res.json({ success: false, message: 'Adet en az 1 olmali' });
 
         var client = await getSupabaseClient();
         if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
+
+        var oturum_id = await oturumIdCozumle(oturum_param, client);
+        if (!oturum_id) return res.json({ success: false, message: 'Sayim oturumu bulunamadi' });
 
         var okumaKaydi = {
             oturum_id: oturum_id,
@@ -442,7 +501,6 @@ router.post('/manuel-ekle', async function(req, res) {
             cacheyeOkumaEkle(oturum_id, null, stok_kod, malzeme_adi || stok_kod, null, null, true, adet);
         }
 
-        // Oturum istatistiklerini guncelle
         var guncelCache = sayimCache.get(oturum_id);
         var toplamCesit = guncelCache ? guncelCache.stokSayilari.size : 0;
         var toplamOkuma = guncelCache ? guncelCache.toplamOkuma : 0;
@@ -471,13 +529,16 @@ router.post('/manuel-ekle', async function(req, res) {
 
 /**
  * GET /api/sayim/oturum-durumu/:id
- * Oturum detayi + okunan urunler
+ * id = UUID veya sayim_kodu
  */
 router.get('/oturum-durumu/:id', async function(req, res) {
     try {
-        var oturumId = req.params.id;
+        var parametre = req.params.id;
         var client = await getSupabaseClient();
         if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
+
+        var oturumId = await oturumIdCozumle(parametre, client);
+        if (!oturumId) return res.json({ success: false, message: 'Sayim oturumu bulunamadi' });
 
         // Oturum bilgisi
         var { data: oturum, error: oturumError } = await client
@@ -538,7 +599,6 @@ router.get('/oturum-durumu/:id', async function(req, res) {
             });
         });
 
-        // Urun sayilarini hesapla
         var urunListesi = Object.values(stokGruplari).map(function(grup) {
             var urunAdedi = urunSayisiHesapla({
                 qrOkumalar: grup.qrOkumalar,
@@ -555,7 +615,6 @@ router.get('/oturum-durumu/:id', async function(req, res) {
             };
         });
 
-        // Malzeme adina gore sirala
         urunListesi.sort(function(a, b) {
             return (a.malzeme_adi || '').localeCompare(b.malzeme_adi || '', 'tr');
         });
@@ -577,15 +636,16 @@ router.get('/oturum-durumu/:id', async function(req, res) {
 
 /**
  * POST /api/sayim/kapat/:id
- * Sayimi kapat
  */
 router.post('/kapat/:id', async function(req, res) {
     try {
-        var oturumId = req.params.id;
+        var parametre = req.params.id;
         var client = await getSupabaseClient();
         if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
 
-        // Oturum var mi kontrol et
+        var oturumId = await oturumIdCozumle(parametre, client);
+        if (!oturumId) return res.json({ success: false, message: 'Sayim oturumu bulunamadi' });
+
         var { data: oturum, error: oturumError } = await client
             .from('sayim_oturumlari')
             .select('id, durum')
@@ -600,7 +660,6 @@ router.post('/kapat/:id', async function(req, res) {
             return res.json({ success: false, message: 'Bu sayim zaten kapatilmis' });
         }
 
-        // Guncel istatistikleri hesapla
         var { data: okumalar } = await client
             .from('sayim_okumalari')
             .select('stok_kod')
@@ -623,7 +682,6 @@ router.post('/kapat/:id', async function(req, res) {
             return res.json({ success: false, message: 'Sayim kapatilamadi: ' + updateError.message });
         }
 
-        // Cache temizle
         sayimCache.delete(oturumId);
 
         return res.json({ success: true, message: 'Sayim basariyla kapatildi' });
@@ -636,15 +694,16 @@ router.post('/kapat/:id', async function(req, res) {
 
 /**
  * GET /api/sayim/rapor/:id
- * Fark raporu: beklenen (PRGsheets) vs sayilan
  */
 router.get('/rapor/:id', async function(req, res) {
     try {
-        var oturumId = req.params.id;
+        var parametre = req.params.id;
         var client = await getSupabaseClient();
         if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
 
-        // Oturum bilgisi (lokasyon icin)
+        var oturumId = await oturumIdCozumle(parametre, client);
+        if (!oturumId) return res.json({ success: false, message: 'Sayim oturumu bulunamadi' });
+
         var { data: oturum } = await client
             .from('sayim_oturumlari')
             .select('lokasyon')
@@ -655,14 +714,12 @@ router.get('/rapor/:id', async function(req, res) {
             return res.json({ success: false, message: 'Sayim oturumu bulunamadi' });
         }
 
-        // Okumalari cek
         var { data: okumalar } = await client
             .from('sayim_okumalari')
             .select('stok_kod, malzeme_adi, paket_sira, paket_toplam, manuel, adet')
             .eq('oturum_id', oturumId);
 
-        // Sayilan urunleri grupla
-        var sayilanMap = {}; // stok_kod -> { malzemeAdi, qrOkumalar, manuelAdet }
+        var sayilanMap = {};
         (okumalar || []).forEach(function(okuma) {
             if (!sayilanMap[okuma.stok_kod]) {
                 sayilanMap[okuma.stok_kod] = {
@@ -680,9 +737,8 @@ router.get('/rapor/:id', async function(req, res) {
             if (okuma.malzeme_adi) item.malzemeAdi = okuma.malzeme_adi;
         });
 
-        // PRGsheets'ten beklenen stok verisini cek
-        var beklenenMap = {}; // stok_kod -> { malzemeAdi, beklenen }
-        var lokasyonKolonu = oturum.lokasyon; // 'DEPO', 'SUBE', 'EXC'
+        var beklenenMap = {};
+        var lokasyonKolonu = oturum.lokasyon;
         try {
             var { stokVerisiYukle } = require('./stok');
             var stokData = await stokVerisiYukle();
@@ -701,10 +757,8 @@ router.get('/rapor/:id', async function(req, res) {
             }
         } catch (e) {
             console.error('Sayim rapor - stok verisi yuklenemedi:', e.message);
-            // Stok verisi olmadan da devam et - sadece sayilan veriler gosterilir
         }
 
-        // Rapor olustur
         var rapor = [];
         var tumKodlar = new Set([...Object.keys(sayilanMap), ...Object.keys(beklenenMap)]);
 
@@ -734,12 +788,10 @@ router.get('/rapor/:id', async function(req, res) {
             });
         });
 
-        // Malzeme adina gore sirala
         rapor.sort(function(a, b) {
             return (a.malzeme_adi || '').localeCompare(b.malzeme_adi || '', 'tr');
         });
 
-        // Ozet
         var ozet = {
             toplam_cesit: rapor.length,
             esit: rapor.filter(function(r) { return r.durum === 'esit'; }).length,
@@ -762,26 +814,24 @@ router.get('/rapor/:id', async function(req, res) {
 
 /**
  * GET /api/sayim/csv-indir/:id
- * Rapor verisini CSV olarak indir
  */
 router.get('/csv-indir/:id', async function(req, res) {
     try {
-        var oturumId = req.params.id;
-
-        // Rapor verisini al (kendi endpoint'imizi kullanmak yerine direkt hesapla)
+        var parametre = req.params.id;
         var client = await getSupabaseClient();
         if (!client) return res.status(500).send('Veritabani baglantisi kurulamadi');
 
-        // Oturum bilgisi
+        var oturumId = await oturumIdCozumle(parametre, client);
+        if (!oturumId) return res.status(404).send('Sayim oturumu bulunamadi');
+
         var { data: oturum } = await client
             .from('sayim_oturumlari')
-            .select('lokasyon, baslangic')
+            .select('lokasyon, baslangic, sayim_kodu')
             .eq('id', oturumId)
             .single();
 
         if (!oturum) return res.status(404).send('Sayim oturumu bulunamadi');
 
-        // Rapor verisini hesapla - ayni mantik rapor endpoint'i ile
         var { data: okumalar } = await client
             .from('sayim_okumalari')
             .select('stok_kod, malzeme_adi, paket_sira, paket_toplam, manuel, adet')
@@ -832,16 +882,13 @@ router.get('/csv-indir/:id', async function(req, res) {
             satirlar.push([kod, '"' + ad.replace(/"/g, '""') + '"', beklenenAdet, sayilanAdet, fark, durum].join(';'));
         });
 
-        // Malzeme adina gore sirala
         satirlar.sort(function(a, b) {
             return a.localeCompare(b, 'tr');
         });
 
-        // CSV olustur
-        var tarih = new Date(oturum.baslangic).toISOString().slice(0, 10);
-        var dosyaAdi = 'sayim_' + oturum.lokasyon + '_' + tarih + '.csv';
+        var dosyaAdi = 'sayim_' + (oturum.sayim_kodu || oturum.lokasyon) + '.csv';
 
-        var csvIcerik = '\uFEFF'; // BOM (Excel Turkce uyumu)
+        var csvIcerik = '\uFEFF';
         csvIcerik += 'Stok Kod;Urun Adi;Beklenen;Sayilan;Fark;Durum\n';
         csvIcerik += satirlar.join('\n');
 
@@ -857,7 +904,6 @@ router.get('/csv-indir/:id', async function(req, res) {
 
 /**
  * DELETE /api/sayim/okuma-sil/:id
- * Tek bir okumayi sil
  */
 router.delete('/okuma-sil/:id', async function(req, res) {
     try {
@@ -865,7 +911,6 @@ router.delete('/okuma-sil/:id', async function(req, res) {
         var client = await getSupabaseClient();
         if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
 
-        // Okuma bilgisini al (oturum_id icin - cache temizleme)
         var { data: okuma } = await client
             .from('sayim_okumalari')
             .select('oturum_id')
@@ -885,7 +930,6 @@ router.delete('/okuma-sil/:id', async function(req, res) {
             return res.json({ success: false, message: 'Silme hatasi: ' + deleteError.message });
         }
 
-        // Cache temizle (yeniden yuklenmesi icin)
         sayimCache.delete(okuma.oturum_id);
 
         return res.json({ success: true, message: 'Okuma silindi' });

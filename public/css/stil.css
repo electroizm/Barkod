@@ -2162,12 +2162,17 @@ body {
     align-items: center;
     justify-content: center;
     padding: 24px 20px;
-    border: 2px solid #e0e0e0;
+    border: 2px solid #3498db;
     border-radius: 12px;
     background: white;
+    color: #2c3e50;
     cursor: pointer;
     transition: all 0.2s;
     font-size: 16px;
+}
+
+.sayim-lokasyon-btn:hover {
+    background: #ebf5fb;
 }
 
 .sayim-lokasyon-btn:active {
@@ -2179,37 +2184,6 @@ body {
     font-weight: 700;
     letter-spacing: 1px;
 }
-
-.sayim-lokasyon-depo {
-    border-color: #3498db;
-    color: #2c3e50;
-}
-.sayim-lokasyon-depo:hover { background: #ebf5fb; }
-
-.sayim-lokasyon-exc {
-    border-color: #e67e22;
-    color: #2c3e50;
-}
-.sayim-lokasyon-exc:hover { background: #fef5e7; }
-
-.sayim-lokasyon-sube {
-    border-color: #27ae60;
-    color: #2c3e50;
-}
-.sayim-lokasyon-sube:hover { background: #eafaf1; }
-
-/* Geri Butonu */
-.sayim-geri-btn {
-    background: none;
-    border: 1px solid #bdc3c7;
-    border-radius: 8px;
-    padding: 8px 14px;
-    font-size: 20px;
-    cursor: pointer;
-    color: #2c3e50;
-    line-height: 1;
-}
-.sayim-geri-btn:hover { background: #f0f0f0; }
 
 /* Sayim Item (Acik/Kapatilan listeler) */
 .sayim-item {
@@ -2264,32 +2238,31 @@ body {
 .sayim-mini-csv { background: #27ae60; }
 .sayim-mini-csv:hover { background: #219a52; }
 
-/* Sayim Okut - Tab Bar */
+/* Sayim Okut - Tab Bar (kapsul) */
 .sayim-tab-bar {
     display: flex;
-    gap: 0;
     margin-bottom: 15px;
-    border-bottom: 2px solid #e0e0e0;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #ddd;
 }
 
 .sayim-tab {
     flex: 1;
     padding: 12px;
     text-align: center;
-    background: none;
+    background: white;
     border: none;
-    border-bottom: 3px solid transparent;
-    margin-bottom: -2px;
     font-size: 15px;
     font-weight: 500;
-    color: #7f8c8d;
+    color: #555;
     cursor: pointer;
     transition: all 0.2s;
 }
 
 .sayim-tab.aktif {
-    color: #2c3e50;
-    border-bottom-color: #3498db;
+    background: #27ae60;
+    color: white;
     font-weight: 600;
 }
 

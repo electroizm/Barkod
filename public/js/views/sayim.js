@@ -7,6 +7,7 @@ window.Views.sayim = (function() {
     var _konteyner = null;
     var _delegeHandler = null;
     var _secilenLokasyon = null;
+    var _orijinalGeriHandler = null;
 
     function mount(konteyner) {
         _konteyner = konteyner;
@@ -14,26 +15,21 @@ window.Views.sayim = (function() {
 
         konteyner.innerHTML =
             '<div id="lokasyonSecimAlani">' +
-                '<h1 class="baslik">Stok Say\u0131m\u0131</h1>' +
-                '<div class="sayim-bilgi">Say\u0131m yapmak istedi\u011finiz lokasyonu se\u00e7in.</div>' +
+                '<h1 class="baslik">Say\u0131m</h1>' +
                 '<div class="sayim-lokasyon-grid">' +
-                    '<button class="sayim-lokasyon-btn sayim-lokasyon-depo" data-action="lokasyon" data-lokasyon="DEPO">' +
+                    '<button class="sayim-lokasyon-btn" data-action="lokasyon" data-lokasyon="DEPO">' +
                         '<div class="sayim-lokasyon-ad">DEPO</div>' +
                     '</button>' +
-                    '<button class="sayim-lokasyon-btn sayim-lokasyon-exc" data-action="lokasyon" data-lokasyon="EXC">' +
+                    '<button class="sayim-lokasyon-btn" data-action="lokasyon" data-lokasyon="EXC">' +
                         '<div class="sayim-lokasyon-ad">EXC</div>' +
                     '</button>' +
-                    '<button class="sayim-lokasyon-btn sayim-lokasyon-sube" data-action="lokasyon" data-lokasyon="SUBE">' +
+                    '<button class="sayim-lokasyon-btn" data-action="lokasyon" data-lokasyon="SUBE">' +
                         '<div class="sayim-lokasyon-ad">\u015eUBE</div>' +
                     '</button>' +
                 '</div>' +
             '</div>' +
 
             '<div id="oturumListeAlani" style="display:none;">' +
-                '<div style="display:flex; align-items:center; margin-bottom:15px;">' +
-                    '<button data-action="geriLokasyon" class="sayim-geri-btn">\u2190</button>' +
-                    '<h2 id="lokasyonBaslik" style="margin:0 0 0 10px; font-size:20px; color:#2c3e50;"></h2>' +
-                '</div>' +
                 '<button data-action="yeniSayim" class="buton buton-basari" style="margin-bottom:20px;">+ Yeni Say\u0131m Ba\u015flat</button>' +
                 '<button data-action="acikListeToggle" id="acikSayimlarBtn" class="buton" style="margin-bottom:8px;">A\u00e7\u0131k Say\u0131mlar</button>' +
                 '<div id="acikSayimlarListe" style="display:none;"></div>' +
@@ -43,7 +39,6 @@ window.Views.sayim = (function() {
 
         el.lokasyonSecim = konteyner.querySelector('#lokasyonSecimAlani');
         el.oturumListe = konteyner.querySelector('#oturumListeAlani');
-        el.lokasyonBaslik = konteyner.querySelector('#lokasyonBaslik');
         el.acikBtn = konteyner.querySelector('#acikSayimlarBtn');
         el.acikListe = konteyner.querySelector('#acikSayimlarListe');
         el.kapatilanBtn = konteyner.querySelector('#kapatilanSayimlarBtn');
@@ -54,6 +49,9 @@ window.Views.sayim = (function() {
     }
 
     function unmount() {
+        // Shell geri butonunu eski haline dondur
+        geriButonuSifirla();
+
         if (_delegeHandler && _konteyner) {
             _konteyner.removeEventListener('click', _delegeHandler);
         }
@@ -72,9 +70,6 @@ window.Views.sayim = (function() {
             case 'lokasyon':
                 lokasyonSec(hedef.dataset.lokasyon);
                 break;
-            case 'geriLokasyon':
-                lokasyonSecimeGeri();
-                break;
             case 'yeniSayim':
                 yeniSayimBaslat();
                 break;
@@ -85,15 +80,15 @@ window.Views.sayim = (function() {
                 kapatilanSayimlariToggle();
                 break;
             case 'sayimAc':
-                sayimaGit(hedef.dataset.oturumId);
+                sayimaGit(hedef.dataset.sayimKodu);
                 break;
             case 'sayimRapor':
                 e.stopPropagation();
-                sayimRaporuGoster(hedef.dataset.oturumId);
+                sayimRaporuGoster(hedef.dataset.sayimKodu);
                 break;
             case 'sayimCsv':
                 e.stopPropagation();
-                window.open('/api/sayim/csv-indir/' + hedef.dataset.oturumId, '_blank');
+                window.open('/api/sayim/csv-indir/' + hedef.dataset.sayimKodu, '_blank');
                 break;
         }
     }
@@ -102,9 +97,12 @@ window.Views.sayim = (function() {
         _secilenLokasyon = lokasyon;
         el.lokasyonSecim.style.display = 'none';
         el.oturumListe.style.display = 'block';
-        el.lokasyonBaslik.textContent = lokasyon + ' Say\u0131mlar\u0131';
         el.acikListe.style.display = 'none';
         el.kapatilanListe.style.display = 'none';
+
+        // Shell geri butonunu override et: lokasyon secimine geri don
+        geriButonuOverride();
+
         acikSayimlariToggle();
     }
 
@@ -116,6 +114,30 @@ window.Views.sayim = (function() {
         el.acikListe.innerHTML = '';
         el.kapatilanListe.style.display = 'none';
         el.kapatilanListe.innerHTML = '';
+
+        // Shell geri butonunu eski haline dondur (anasayfaya gider)
+        geriButonuSifirla();
+    }
+
+    // Shell geri buton yonetimi
+    function geriButonuOverride() {
+        var geriBtn = document.getElementById('geriBtn');
+        if (!geriBtn) return;
+        // Mevcut handler'i sakla
+        _orijinalGeriHandler = geriBtn.onclick;
+        geriBtn.onclick = function(e) {
+            e.preventDefault();
+            lokasyonSecimeGeri();
+        };
+    }
+
+    function geriButonuSifirla() {
+        var geriBtn = document.getElementById('geriBtn');
+        if (!geriBtn) return;
+        if (_orijinalGeriHandler) {
+            geriBtn.onclick = _orijinalGeriHandler;
+            _orijinalGeriHandler = null;
+        }
     }
 
     async function yeniSayimBaslat() {
@@ -131,15 +153,15 @@ window.Views.sayim = (function() {
                 bildirimGoster(veri.message || 'Oturum olusturulamadi', 'hata');
                 return;
             }
-            sayimaGit(veri.oturum_id);
+            sayimaGit(veri.sayim_kodu);
         } catch (err) {
             bildirimGoster('Baglanti hatasi: ' + err.message, 'hata');
         }
     }
 
-    function sayimaGit(oturumId) {
+    function sayimaGit(sayimKodu) {
         if (window.AppRouter) {
-            window.AppRouter.git('/sayim/okut?oturum=' + oturumId + '&lokasyon=' + _secilenLokasyon);
+            window.AppRouter.git('/sayim/okut?oturum=' + sayimKodu + '&lokasyon=' + _secilenLokasyon);
         }
     }
 
@@ -165,9 +187,9 @@ window.Views.sayim = (function() {
                 return;
             }
             el.acikListe.innerHTML = veri.sayimlar.map(function(s) {
-                var tarih = new Date(s.baslangic).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                return '<div class="sayim-item sayim-item-acik" data-action="sayimAc" data-oturum-id="' + s.id + '">' +
-                    '<div class="sayim-item-tarih">' + tarih + '</div>' +
+                var kod = s.sayim_kodu || s.id.substring(0, 8);
+                return '<div class="sayim-item sayim-item-acik" data-action="sayimAc" data-sayim-kodu="' + (s.sayim_kodu || s.id) + '">' +
+                    '<div class="sayim-item-tarih">' + kod + '</div>' +
                     '<div class="sayim-item-detay">' + (s.toplam_cesit || 0) + ' \u00e7e\u015fit, ' + (s.toplam_adet || 0) + ' okuma - ' + (s.kullanici || '') + '</div>' +
                 '</div>';
             }).join('');
@@ -200,13 +222,13 @@ window.Views.sayim = (function() {
                 return;
             }
             el.kapatilanListe.innerHTML = veri.sayimlar.map(function(s) {
-                var tarih = new Date(s.bitis || s.baslangic).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                var kod = s.sayim_kodu || s.id.substring(0, 8);
                 return '<div class="sayim-item sayim-item-kapatilan">' +
-                    '<div class="sayim-item-tarih">' + tarih + ' - ' + (s.kullanici || '') + '</div>' +
+                    '<div class="sayim-item-tarih">' + kod + ' - ' + (s.kullanici || '') + '</div>' +
                     '<div class="sayim-item-detay">' + (s.toplam_cesit || 0) + ' \u00e7e\u015fit, ' + (s.toplam_adet || 0) + ' okuma</div>' +
                     '<div class="sayim-item-butonlar">' +
-                        '<button data-action="sayimRapor" data-oturum-id="' + s.id + '" class="sayim-mini-btn sayim-mini-rapor">Rapor</button>' +
-                        '<button data-action="sayimCsv" data-oturum-id="' + s.id + '" class="sayim-mini-btn sayim-mini-csv">CSV \u0130ndir</button>' +
+                        '<button data-action="sayimRapor" data-sayim-kodu="' + (s.sayim_kodu || s.id) + '" class="sayim-mini-btn sayim-mini-rapor">Rapor</button>' +
+                        '<button data-action="sayimCsv" data-sayim-kodu="' + (s.sayim_kodu || s.id) + '" class="sayim-mini-btn sayim-mini-csv">CSV \u0130ndir</button>' +
                     '</div>' +
                 '</div>';
             }).join('');
@@ -217,9 +239,9 @@ window.Views.sayim = (function() {
         }
     }
 
-    async function sayimRaporuGoster(oturumId) {
+    async function sayimRaporuGoster(sayimKodu) {
         try {
-            var yanit = await fetch('/api/sayim/rapor/' + oturumId);
+            var yanit = await fetch('/api/sayim/rapor/' + sayimKodu);
             var veri = await yanit.json();
             if (!veri.success) {
                 bildirimGoster(veri.message || 'Rapor yuklenemedi', 'hata');
@@ -255,7 +277,7 @@ window.Views.sayim = (function() {
                             '</div>';
                         }).join('') +
                     '</div>' +
-                    '<button data-action="sayimCsv" data-oturum-id="' + oturumId + '" class="buton" style="margin-top:15px;">CSV \u0130ndir</button>' +
+                    '<button data-action="sayimCsv" data-sayim-kodu="' + sayimKodu + '" class="buton" style="margin-top:15px;">CSV \u0130ndir</button>' +
                 '</div>';
 
             document.body.appendChild(modal);

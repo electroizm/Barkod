@@ -35,8 +35,8 @@ window.Views.sayimOkut = (function() {
 
             // Tab butonlari
             '<div class="sayim-tab-bar">' +
-                '<button data-action="tabQr" class="sayim-tab aktif" id="tabQrBtn">QR Okut</button>' +
-                '<button data-action="tabManuel" class="sayim-tab" id="tabManuelBtn">Manuel Giri\u015f</button>' +
+                '<button data-action="tabQr" class="sayim-tab aktif" id="tabQrBtn">Barkod Okutma</button>' +
+                '<button data-action="tabManuel" class="sayim-tab" id="tabManuelBtn">Manuel Okutma</button>' +
             '</div>' +
 
             // QR Tab
