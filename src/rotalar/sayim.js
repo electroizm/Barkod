@@ -91,6 +91,55 @@ async function oturumIdCozumle(parametre, client) {
     return data.id;
 }
 
+/**
+ * Eski kayitlara sayim_kodu ata (null olanlari doldur)
+ */
+async function sayimKoduBackfill(sayimlar, client) {
+    if (!sayimlar || sayimlar.length === 0) return sayimlar;
+    for (var i = 0; i < sayimlar.length; i++) {
+        var s = sayimlar[i];
+        if (!s.sayim_kodu) {
+            // Oturum baslangic tarihinden sayim_kodu uret
+            var tarih = new Date(s.baslangic || s.created_at || Date.now());
+            var yy = String(tarih.getFullYear()).slice(-2);
+            var mm = String(tarih.getMonth() + 1).padStart(2, '0');
+            var dd = String(tarih.getDate()).padStart(2, '0');
+            var tarihKodu = yy + mm + dd;
+            var yeniKod = await sayimKoduUretTarihli(tarihKodu, client);
+
+            var { error } = await client
+                .from('sayim_oturumlari')
+                .update({ sayim_kodu: yeniKod })
+                .eq('id', s.id);
+
+            if (!error) {
+                s.sayim_kodu = yeniKod;
+            }
+        }
+    }
+    return sayimlar;
+}
+
+/**
+ * Belirli bir tarih kodu icin sayim_kodu uret
+ */
+async function sayimKoduUretTarihli(tarihKodu, client) {
+    var prefix = tarihKodu + '-';
+    var { data } = await client
+        .from('sayim_oturumlari')
+        .select('sayim_kodu')
+        .like('sayim_kodu', prefix + '%')
+        .order('sayim_kodu', { ascending: false })
+        .limit(1);
+
+    var sira = 1;
+    if (data && data.length > 0 && data[0].sayim_kodu) {
+        var sonSira = parseInt(data[0].sayim_kodu.split('-')[1]) || 0;
+        sira = sonSira + 1;
+    }
+    return prefix + String(sira).padStart(2, '0');
+}
+
 // ─── Cache Fonksiyonlari ───────────────────────────────────────────
 
 async function sayimCacheYukle(oturumId, client, zorlaYenile) {
@@ -282,6 +331,9 @@ router.get('/acik-sayimlar/:lokasyon', async function(req, res) {
             return res.json({ success: false, message: 'Sayimlar yuklenemedi: ' + error.message });
         }
 
+        // Eski kayitlara sayim_kodu ata
+        await sayimKoduBackfill(data, client);
+
         return res.json({ success: true, sayimlar: data || [] });
 
     } catch (err) {
@@ -312,6 +364,9 @@ router.get('/kapatilan-sayimlar/:lokasyon', async function(req, res) {
         if (error) {
             return res.json({ success: false, message: 'Sayimlar yuklenemedi: ' + error.message });
         }
+
+        // Eski kayitlara sayim_kodu ata
+        await sayimKoduBackfill(data, client);
 
         return res.json({ success: true, sayimlar: data || [] });
 
@@ -936,6 +991,215 @@ router.delete('/okuma-sil/:id', async function(req, res) {
 
     } catch (err) {
         console.error('Sayim okuma silme hatasi:', err);
+        return res.json({ success: false, message: 'Sunucu hatasi: ' + err.message });
+    }
+});
+
+/**
+ * GET /api/sayim/sayim-durumu/:id
+ * Sayim durumu + PRGsheet beklenen verisi (malzeme listesi icin)
+ * teslimat-okut'taki fatura-durumu benzeri: kalemler + progress
+ */
+router.get('/sayim-durumu/:id', async function(req, res) {
+    try {
+        var parametre = req.params.id;
+        var client = await getSupabaseClient();
+        if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
+
+        var oturumId = await oturumIdCozumle(parametre, client);
+        if (!oturumId) return res.json({ success: false, message: 'Sayim oturumu bulunamadi' });
+
+        // Oturum bilgisi
+        var { data: oturum } = await client
+            .from('sayim_oturumlari')
+            .select('*')
+            .eq('id', oturumId)
+            .single();
+
+        if (!oturum) return res.json({ success: false, message: 'Sayim oturumu bulunamadi' });
+
+        // Okumalari cek
+        var { data: okumalar } = await client
+            .from('sayim_okumalari')
+            .select('*')
+            .eq('oturum_id', oturumId)
+            .order('created_at', { ascending: false });
+
+        // Stok bazinda grupla (sayilan)
+        var sayilanMap = {};
+        (okumalar || []).forEach(function(okuma) {
+            if (!sayilanMap[okuma.stok_kod]) {
+                sayilanMap[okuma.stok_kod] = {
+                    malzemeAdi: okuma.malzeme_adi || okuma.stok_kod,
+                    qrOkumalar: [],
+                    manuelAdet: 0,
+                    paketToplam: null
+                };
+            }
+            var item = sayilanMap[okuma.stok_kod];
+            if (okuma.manuel) {
+                item.manuelAdet += (okuma.adet || 1);
+            } else {
+                item.qrOkumalar.push({
+                    paketSira: okuma.paket_sira,
+                    paketToplam: okuma.paket_toplam
+                });
+                if (okuma.paket_toplam) {
+                    item.paketToplam = okuma.paket_toplam;
+                }
+            }
+            if (okuma.malzeme_adi) item.malzemeAdi = okuma.malzeme_adi;
+        });
+
+        // PRGsheet stok verisi (beklenen)
+        var beklenenMap = {};
+        try {
+            var { stokVerisiYukle } = require('./stok');
+            var stokData = await stokVerisiYukle();
+            if (stokData && stokData.veriler) {
+                stokData.veriler.forEach(function(kayit) {
+                    var kod = Object.values(kayit)[0]?.toString() || '';
+                    if (!kod) return;
+                    var beklenenDeger = parseFloat(kayit[oturum.lokasyon]) || 0;
+                    if (beklenenDeger > 0) {
+                        beklenenMap[kod] = {
+                            malzemeAdi: kayit['Malzeme Ad\u0131'] || kod,
+                            beklenen: beklenenDeger
+                        };
+                    }
+                });
+            }
+        } catch (e) {
+            console.error('Sayim durumu - stok verisi yuklenemedi:', e.message);
+        }
+
+        // Kalemleri birlestir
+        var tumKodlar = new Set([...Object.keys(beklenenMap), ...Object.keys(sayilanMap)]);
+        var kalemler = [];
+
+        tumKodlar.forEach(function(kod) {
+            var beklenen = beklenenMap[kod];
+            var sayilan = sayilanMap[kod];
+
+            var beklenenAdet = beklenen ? beklenen.beklenen : 0;
+            var sayilanAdet = 0;
+            var okunanPaket = 0;
+            var manuelAdet = 0;
+
+            if (sayilan) {
+                sayilanAdet = urunSayisiHesapla({
+                    qrOkumalar: sayilan.qrOkumalar,
+                    manuelAdet: sayilan.manuelAdet
+                });
+                okunanPaket = sayilan.qrOkumalar.length;
+                manuelAdet = sayilan.manuelAdet;
+            }
+
+            var durum = 'status-gray';
+            if (sayilanAdet > 0 && sayilanAdet >= beklenenAdet) durum = 'status-green';
+            else if (sayilanAdet > 0 || okunanPaket > 0 || manuelAdet > 0) durum = 'status-yellow';
+
+            kalemler.push({
+                stok_kod: kod,
+                malzeme_adi: (beklenen && beklenen.malzemeAdi) || (sayilan && sayilan.malzemeAdi) || kod,
+                beklenen: beklenenAdet,
+                sayilan: sayilanAdet,
+                okunan_paket: okunanPaket,
+                manuel_adet: manuelAdet,
+                durum: durum
+            });
+        });
+
+        // Siralama: yellow -> gray -> green
+        var durumSira = { 'status-yellow': 0, 'status-gray': 1, 'status-green': 2 };
+        kalemler.sort(function(a, b) {
+            var fark = durumSira[a.durum] - durumSira[b.durum];
+            if (fark !== 0) return fark;
+            return (a.malzeme_adi || '').localeCompare(b.malzeme_adi || '', 'tr');
+        });
+
+        // Toplamlar
+        var toplamBeklenen = kalemler.reduce(function(t, k) { return t + k.beklenen; }, 0);
+        var toplamSayilan = kalemler.reduce(function(t, k) { return t + k.sayilan; }, 0);
+        var yuzde = toplamBeklenen > 0 ? Math.round((toplamSayilan / toplamBeklenen) * 100) : 0;
+        if (yuzde > 100) yuzde = 100;
+
+        return res.json({
+            success: true,
+            sayim_kodu: oturum.sayim_kodu,
+            lokasyon: oturum.lokasyon,
+            durum: oturum.durum,
+            tamamlanma_yuzdesi: yuzde,
+            toplam_cesit: kalemler.length,
+            toplam_urun: toplamBeklenen,
+            sayilan_urun: toplamSayilan,
+            kalemler: kalemler
+        });
+
+    } catch (err) {
+        console.error('Sayim durumu hatasi:', err);
+        return res.json({ success: false, message: 'Sunucu hatasi: ' + err.message });
+    }
+});
+
+/**
+ * GET /api/sayim/sayim-paket-detay/:oturumId/:stokKod
+ * Bir urunun paket detaylari (expand icin)
+ */
+router.get('/sayim-paket-detay/:oturumId/:stokKod', async function(req, res) {
+    try {
+        var oturumParam = req.params.oturumId;
+        var stokKod = decodeURIComponent(req.params.stokKod);
+
+        var client = await getSupabaseClient();
+        if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
+
+        var oturumId = await oturumIdCozumle(oturumParam, client);
+        if (!oturumId) return res.json({ success: false, message: 'Oturum bulunamadi' });
+
+        var { data: okumalar } = await client
+            .from('sayim_okumalari')
+            .select('id, paket_sira, paket_toplam, manuel, adet, created_at')
+            .eq('oturum_id', oturumId)
+            .eq('stok_kod', stokKod)
+            .order('created_at', { ascending: true });
+
+        if (!okumalar || okumalar.length === 0) {
+            return res.json({ success: true, paketler: [], manuel_adet: 0 });
+        }
+
+        var paketToplam = null;
+        var manuelAdet = 0;
+        var paketSayilari = {};
+
+        okumalar.forEach(function(o) {
+            if (o.manuel) {
+                manuelAdet += (o.adet || 1);
+            } else {
+                if (o.paket_toplam) paketToplam = o.paket_toplam;
+                var sira = o.paket_sira || 0;
+                paketSayilari[sira] = (paketSayilari[sira] || 0) + 1;
+            }
+        });
+
+        var paketler = [];
+        if (paketToplam) {
+            for (var i = 1; i <= paketToplam; i++) {
+                paketler.push({
+                    paket_sira: i,
+                    okunan: paketSayilari[i] || 0
+                });
+            }
+        }
+
+        return res.json({
+            success: true,
+            paketler: paketler,
+            manuel_adet: manuelAdet
+        });
+
+    } catch (err) {
+        console.error('Sayim paket detay hatasi:', err);
         return res.json({ success: false, message: 'Sunucu hatasi: ' + err.message });
     }
 });

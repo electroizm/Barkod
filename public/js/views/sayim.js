@@ -153,7 +153,7 @@ window.Views.sayim = (function() {
                 bildirimGoster(veri.message || 'Oturum olusturulamadi', 'hata');
                 return;
             }
-            sayimaGit(veri.sayim_kodu);
+            sayimaGit(veri.sayim_kodu || veri.oturum_id);
         } catch (err) {
             bildirimGoster('Baglanti hatasi: ' + err.message, 'hata');
         }

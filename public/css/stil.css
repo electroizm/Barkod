@@ -2537,6 +2537,31 @@ body {
     background: #fefce8;
 }
 
+/* Sayim Durum Badge (malzeme listesi icerik) */
+.sayim-durum-badge {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 12px;
+    white-space: nowrap;
+    margin-left: 6px;
+}
+
+.sayim-durum-badge.status-gray {
+    background: #e2e8f0;
+    color: #64748b;
+}
+
+.sayim-durum-badge.status-yellow {
+    background: #fef08a;
+    color: #92400e;
+}
+
+.sayim-durum-badge.status-green {
+    background: #bbf7d0;
+    color: #166534;
+}
+
 /* Form Input (genel) */
 .form-input {
     width: 100%;

@@ -1,5 +1,6 @@
 /**
- * Sayim Okut View - QR okutma + Manuel giris + Urun listesi + Rapor
+ * Sayim Okut View - teslimat-okut benzeri layout
+ * QR okutma + Manuel giris + PRGsheet malzeme listesi + Rapor
  * URL: /sayim/okut?oturum=X&lokasyon=DEPO
  */
 window.Views = window.Views || {};
@@ -13,42 +14,44 @@ window.Views.sayimOkut = (function() {
     var _okunanQrler = new Set();
     var _aramaTimer = null;
     var _islemDevamEdiyor = false;
+    var _okumalar = [];
+    var _aktifTab = 'qr';
 
-    function mount(konteyner, params) {
-        _konteyner = konteyner;
-        _oturumId = params.oturum || null;
-        _lokasyon = params.lokasyon || 'DEPO';
-        _okunanQrler = new Set();
-        _islemDevamEdiyor = false;
+    function escAttr(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
 
-        if (!_oturumId) {
-            konteyner.innerHTML = '<div class="mesaj mesaj-hata">Oturum ID eksik. <a href="/sayim">Say\u0131m sayfas\u0131na d\u00f6n</a></div>';
-            return;
-        }
+    function htmlOlustur() {
+        return '' +
+            '<div class="fatura-ozet" id="sayimOzet">Y\u00fckleniyor...</div>' +
 
-        konteyner.innerHTML =
-            // Baslik + ozet
-            '<div class="sayim-okut-baslik">' +
-                '<h2 id="sayimBaslik" style="margin:0 0 5px 0; font-size:18px; color:#2c3e50;">' + _lokasyon + ' Say\u0131m\u0131</h2>' +
-                '<div id="sayimOzet" class="sayim-okut-ozet">Y\u00fckleniyor...</div>' +
+            '<div class="son-mesaj gizle" id="sonMesaj"></div>' +
+
+            '<div class="progress-container gizle" id="progressContainer">' +
+                '<div class="progress-bar">' +
+                    '<div class="progress-fill" id="progressFill" style="width:0%"></div>' +
+                    '<span class="progress-text" id="progressText">0%</span>' +
+                '</div>' +
+                '<div class="progress-stats">' +
+                    '<span id="sayilanGoster" style="color:#22c55e;">0</span>' +
+                    '<span class="stat-separator">/</span>' +
+                    '<span id="toplamGoster" style="color:#3b82f6;">0</span>' +
+                    '<span style="margin-left:6px; font-size:11px; color:#888;">\u00fcr\u00fcn</span>' +
+                '</div>' +
             '</div>' +
 
-            // Tab butonlari
             '<div class="sayim-tab-bar">' +
                 '<button data-action="tabQr" class="sayim-tab aktif" id="tabQrBtn">Barkod Okutma</button>' +
                 '<button data-action="tabManuel" class="sayim-tab" id="tabManuelBtn">Manuel Okutma</button>' +
             '</div>' +
 
-            // QR Tab
-            '<div id="qrTabIcerik" class="sayim-tab-icerik">' +
-                '<div class="barkod-alani">' +
-                    '<div id="barkodOkuyucu"></div>' +
+            '<div id="qrTabIcerik">' +
+                '<div class="okuma-alani" id="okumaAlani">' +
+                    '<div id="barkodOkuyucuAlani"></div>' +
                 '</div>' +
-                '<div id="sonOkunan" class="son-okunan"></div>' +
             '</div>' +
 
-            // Manuel Tab
-            '<div id="manuelTabIcerik" class="sayim-tab-icerik" style="display:none;">' +
+            '<div id="manuelTabIcerik" style="display:none;">' +
                 '<div class="form-grup">' +
                     '<label>\u00dcr\u00fcn Ara</label>' +
                     '<input type="text" id="manuelArama" class="form-input" placeholder="Stok kodu veya \u00fcr\u00fcn ad\u0131...">' +
@@ -64,115 +67,164 @@ window.Views.sayimOkut = (function() {
                 '</div>' +
             '</div>' +
 
-            // Urun listesi
-            '<div class="sayim-urun-baslik" style="margin-top:20px;">' +
-                '<h3 style="margin:0;">Say\u0131lan \u00dcr\u00fcnler</h3>' +
-            '</div>' +
-            '<div id="urunListesi" class="urun-listesi">' +
-                '<div class="bos-liste">Hen\u00fcz \u00fcr\u00fcn say\u0131lmad\u0131</div>' +
+            '<div class="son-okumalar" id="sonOkumalarAlani">' +
+                '<h3>Son Okumalar</h3>' +
+                '<div class="okuma-listesi" id="okumaListesi"></div>' +
             '</div>' +
 
-            // Alt butonlar
+            '<div class="malzeme-listesi" id="malzemeListesiAlani">' +
+                '<div class="malzeme-baslik-satir">' +
+                    '<h3>Malzeme Durumu</h3>' +
+                    '<div class="malzeme-butonlar">' +
+                        '<button type="button" data-action="tumunuDaralt" class="btn-daralt">Daralt</button>' +
+                        '<button type="button" data-action="tumunuGenislet" class="btn-genislet">Geni\u015flet</button>' +
+                    '</div>' +
+                '</div>' +
+                '<div id="malzemeListesi"></div>' +
+            '</div>' +
+
             '<div style="margin-top:20px;">' +
                 '<button data-action="raporGoster" class="buton" style="margin-bottom:8px;">Rapor G\u00f6ster</button>' +
-                '<button data-action="sayimiKaydet" class="buton buton-tehlike" style="margin-bottom:8px;">Say\u0131m\u0131 Kapat</button>' +
+                '<button data-action="sayimiKapat" class="buton buton-tehlike" style="margin-bottom:8px;">Say\u0131m\u0131 Kapat</button>' +
             '</div>' +
 
-            // Rapor alani (gizli)
-            '<div id="raporAlani" style="display:none; margin-top:20px;"></div>';
+            '<div id="raporAlani" style="display:none; margin-top:20px;"></div>' +
 
-        el.sayimBaslik = konteyner.querySelector('#sayimBaslik');
-        el.sayimOzet = konteyner.querySelector('#sayimOzet');
-        el.tabQrBtn = konteyner.querySelector('#tabQrBtn');
-        el.tabManuelBtn = konteyner.querySelector('#tabManuelBtn');
-        el.qrTab = konteyner.querySelector('#qrTabIcerik');
-        el.manuelTab = konteyner.querySelector('#manuelTabIcerik');
-        el.sonOkunan = konteyner.querySelector('#sonOkunan');
-        el.manuelArama = konteyner.querySelector('#manuelArama');
-        el.aramaListesi = konteyner.querySelector('#aramaListesi');
-        el.manuelSecilen = konteyner.querySelector('#manuelSecilen');
-        el.secilenUrunBilgi = konteyner.querySelector('#secilenUrunBilgi');
-        el.manuelAdet = konteyner.querySelector('#manuelAdet');
-        el.urunListesi = konteyner.querySelector('#urunListesi');
-        el.raporAlani = konteyner.querySelector('#raporAlani');
+            '<div id="yukleniyorOverlay" class="yukleniyor-overlay gizle">' +
+                '<div class="spinner"></div>' +
+            '</div>';
+    }
+
+    // ─── Cache ─────────────────────────────────────────────────────
+    function getCacheKey() { return 'sayim_qr_cache_' + _oturumId; }
+    function frontendCacheYukle() {
+        try { var d = localStorage.getItem(getCacheKey()); return d ? new Set(JSON.parse(d)) : new Set(); }
+        catch (e) { return new Set(); }
+    }
+    function frontendCacheKaydet(set) {
+        try { localStorage.setItem(getCacheKey(), JSON.stringify([...set])); } catch (e) { }
+    }
+    function frontendCacheyeEkle(qrKod) {
+        _okunanQrler.add(qrKod);
+        var c = frontendCacheYukle(); c.add(qrKod); frontendCacheKaydet(c);
+    }
+
+    // ─── Mount ─────────────────────────────────────────────────────
+    function mount(konteyner, params) {
+        _konteyner = konteyner;
+        _oturumId = (params && params.oturum) || null;
+        _lokasyon = (params && params.lokasyon) || 'DEPO';
+        _okunanQrler = frontendCacheYukle();
+        _islemDevamEdiyor = false;
+        _okumalar = [];
+        _aktifTab = 'qr';
+
+        if (!_oturumId) {
+            konteyner.innerHTML = '<div class="mesaj mesaj-hata">Oturum ID eksik. <a href="/sayim">Say\u0131m sayfas\u0131na d\u00f6n</a></div>';
+            return;
+        }
+
+        konteyner.innerHTML = htmlOlustur();
+
+        el = {
+            sayimOzet:          konteyner.querySelector('#sayimOzet'),
+            sonMesaj:           konteyner.querySelector('#sonMesaj'),
+            progressContainer:  konteyner.querySelector('#progressContainer'),
+            progressFill:       konteyner.querySelector('#progressFill'),
+            progressText:       konteyner.querySelector('#progressText'),
+            sayilanGoster:      konteyner.querySelector('#sayilanGoster'),
+            toplamGoster:       konteyner.querySelector('#toplamGoster'),
+            tabQrBtn:           konteyner.querySelector('#tabQrBtn'),
+            tabManuelBtn:       konteyner.querySelector('#tabManuelBtn'),
+            qrTab:              konteyner.querySelector('#qrTabIcerik'),
+            manuelTab:          konteyner.querySelector('#manuelTabIcerik'),
+            okumaAlani:         konteyner.querySelector('#okumaAlani'),
+            okumaListesi:       konteyner.querySelector('#okumaListesi'),
+            malzemeListesi:     konteyner.querySelector('#malzemeListesi'),
+            manuelArama:        konteyner.querySelector('#manuelArama'),
+            aramaListesi:       konteyner.querySelector('#aramaListesi'),
+            manuelSecilen:      konteyner.querySelector('#manuelSecilen'),
+            secilenUrunBilgi:   konteyner.querySelector('#secilenUrunBilgi'),
+            manuelAdet:         konteyner.querySelector('#manuelAdet'),
+            raporAlani:         konteyner.querySelector('#raporAlani'),
+            yukleniyorOverlay:  konteyner.querySelector('#yukleniyorOverlay')
+        };
 
         _delegeHandler = tikIsle;
         konteyner.addEventListener('click', _delegeHandler);
 
-        // Manuel arama input
         el.manuelArama.addEventListener('input', function() {
             if (_aramaTimer) clearTimeout(_aramaTimer);
             _aramaTimer = setTimeout(function() { manuelAramaYap(); }, 300);
         });
 
-        // BarkodOkuyucu baslat
-        _barkodOkuyucu = new BarkodOkuyucu('#barkodOkuyucu', {
-            gs1Dogrulama: true,
-            hataGosterici: function(hata) { bildirimGoster(hata, 'hata'); },
-            okumaSonrasi: function(barkod) { qrOkut(barkod); }
-        });
+        // Durum yukle, sonra barkod okuyucu baslat
+        durumGuncelle().then(function() {
+            _barkodOkuyucu = new BarkodOkuyucu('#barkodOkuyucuAlani', {
+                gs1Dogrulama: true,
+                hataGosterici: function(hata) {
+                    okumaHatali(hata, 'format');
+                    SesYoneticisi.sesliGeriBildirim('hata');
+                },
+                okumaSonrasi: qrOkut
+            });
 
-        // Oturum durumunu yukle
-        oturumDurumuYukle();
+            // Progress bar'i barkod-alt-satir icine tasi
+            setTimeout(function() {
+                var barkodEtiket = document.querySelector('.barkod-etiket');
+                var prog = el.progressContainer;
+                if (barkodEtiket && prog) {
+                    barkodEtiket.parentNode.insertBefore(prog, barkodEtiket);
+                    barkodEtiket.remove();
+                    prog.classList.remove('gizle');
+                    prog.style.flex = '1';
+                    prog.style.margin = '0';
+                }
+            }, 100);
+        });
     }
 
+    // ─── Unmount ───────────────────────────────────────────────────
     function unmount() {
-        if (_barkodOkuyucu) {
-            _barkodOkuyucu.destroy();
-            _barkodOkuyucu = null;
-        }
-        if (_aramaTimer) {
-            clearTimeout(_aramaTimer);
-            _aramaTimer = null;
-        }
-        if (_delegeHandler && _konteyner) {
-            _konteyner.removeEventListener('click', _delegeHandler);
-        }
+        if (_barkodOkuyucu) { _barkodOkuyucu.destroy(); _barkodOkuyucu = null; }
+        if (_aramaTimer) { clearTimeout(_aramaTimer); _aramaTimer = null; }
+        if (_konteyner && _delegeHandler) _konteyner.removeEventListener('click', _delegeHandler);
         _delegeHandler = null;
         _konteyner = null;
         _oturumId = null;
         _lokasyon = null;
         _okunanQrler = new Set();
         _islemDevamEdiyor = false;
+        _okumalar = [];
         el = {};
     }
 
+    // ─── Event Delegation ──────────────────────────────────────────
     function tikIsle(e) {
         var hedef = e.target.closest('[data-action]');
         if (!hedef) return;
-
         var action = hedef.dataset.action;
         switch (action) {
-            case 'tabQr':
-                tabDegistir('qr');
+            case 'tabQr': tabDegistir('qr'); break;
+            case 'tabManuel': tabDegistir('manuel'); break;
+            case 'manuelEkle': manuelUrunEkle(); break;
+            case 'aramaSecim': aramaUrunSec(hedef); break;
+            case 'tumunuDaralt': tumunuDaralt(); break;
+            case 'tumunuGenislet': tumunuGenislet(); break;
+            case 'malzemeToggle':
+                malzemeToggle(parseInt(hedef.dataset.index), hedef.dataset.stokKod);
                 break;
-            case 'tabManuel':
-                tabDegistir('manuel');
-                break;
-            case 'manuelEkle':
-                manuelUrunEkle();
-                break;
-            case 'aramaSecim':
-                aramaUrunSec(hedef);
-                break;
-            case 'okumasilBtn':
-                okumaSil(hedef.dataset.okumaId);
-                break;
-            case 'raporGoster':
-                raporGoster();
-                break;
-            case 'sayimiKaydet':
-                sayimiKapat();
-                break;
+            case 'raporGoster': raporGoster(); break;
+            case 'sayimiKapat': sayimiKapat(); break;
             case 'sayimCsv':
-                window.open('/api/sayim/csv-indir/' + _oturumId, '_blank');
+                window.open('/api/sayim/csv-indir/' + encodeURIComponent(_oturumId), '_blank');
                 break;
         }
     }
 
-    // ─── Tab Yonetimi ──────────────────────────────────────────
-
+    // ─── Tab Yonetimi ──────────────────────────────────────────────
     function tabDegistir(tab) {
+        _aktifTab = tab;
         if (tab === 'qr') {
             el.qrTab.style.display = 'block';
             el.manuelTab.style.display = 'none';
@@ -186,68 +238,193 @@ window.Views.sayimOkut = (function() {
         }
     }
 
-    // ─── QR Okutma ─────────────────────────────────────────────
+    // ─── QR Okutma ─────────────────────────────────────────────────
+    async function qrOkut(qrKod) {
+        if (!qrKod || _islemDevamEdiyor) return;
+        qrKod = qrKod.replace(/[\x00-\x1F\x7F]/g, '').trim();
+        if (!qrKod) return;
 
-    async function qrOkut(barkod) {
-        if (!barkod || _islemDevamEdiyor) return;
-
-        // Kontrol karakterlerini temizle
-        barkod = barkod.replace(/[\x00-\x1F\x7F]/g, '');
-
-        // Frontend duplicate kontrol
-        if (_okunanQrler.has(barkod)) {
-            bildirimGoster('Bu paket zaten okundu!', 'uyari');
-            if (window.SesYoneticisi) window.SesYoneticisi.sesliGeriBildirim('tekrar');
+        if (_okunanQrler.has(qrKod)) {
+            okumaHatali('Bu paket zaten okundu!', 'DUPLICATE_QR');
+            SesYoneticisi.sesliGeriBildirim('tekrar');
             return;
         }
 
         _islemDevamEdiyor = true;
+        yukleniyorGoster();
+        el.okumaAlani.classList.remove('basarili', 'hata');
 
         try {
             var yanit = await fetch('/api/sayim/qr-okut', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    oturum_id: _oturumId,
-                    qr_kod: barkod
-                })
+                body: JSON.stringify({ oturum_id: _oturumId, qr_kod: qrKod })
             });
             var veri = await yanit.json();
 
-            if (!veri.success) {
-                bildirimGoster(veri.message || 'Okuma hatasi', 'hata');
+            if (veri.success) {
+                frontendCacheyeEkle(qrKod);
+                okumaBasarili(veri);
+                SesYoneticisi.sesliGeriBildirim('basarili');
+            } else {
                 if (veri.hata_tipi === 'DUPLICATE_QR') {
-                    _okunanQrler.add(barkod);
-                    if (window.SesYoneticisi) window.SesYoneticisi.sesliGeriBildirim('tekrar');
+                    frontendCacheyeEkle(qrKod);
+                    SesYoneticisi.sesliGeriBildirim('tekrar');
                 } else {
-                    if (window.SesYoneticisi) window.SesYoneticisi.sesliGeriBildirim('hata');
+                    SesYoneticisi.sesliGeriBildirim('hata');
                 }
-                return;
+                okumaHatali(veri.message || 'Okuma hatasi', veri.hata_tipi);
             }
-
-            // Basarili
-            _okunanQrler.add(barkod);
-            if (window.SesYoneticisi) window.SesYoneticisi.sesliGeriBildirim('basarili');
-
-            el.sonOkunan.textContent = veri.message;
-            el.sonOkunan.classList.add('goster');
-
-            // Ozet guncelle
-            ozetGuncelle(veri.toplam_cesit, veri.toplam_okuma);
-
-            // Listeyi yenile
-            oturumDurumuYukle();
-
         } catch (err) {
-            bildirimGoster('Baglanti hatasi: ' + err.message, 'hata');
-            if (window.SesYoneticisi) window.SesYoneticisi.sesliGeriBildirim('hata');
+            okumaHatali('Ba\u011flant\u0131 hatas\u0131: ' + err.message, 'CONNECTION_ERROR');
+            SesYoneticisi.sesliGeriBildirim('hata');
         } finally {
             _islemDevamEdiyor = false;
+            yukleniyorGizle();
+            if (_barkodOkuyucu) _barkodOkuyucu.odaklan();
         }
     }
 
-    // ─── Manuel Giris ──────────────────────────────────────────
+    function okumaBasarili(veri) {
+        el.okumaAlani.classList.add('basarili');
+        setTimeout(function() { el.okumaAlani.classList.remove('basarili'); }, 300);
+        sonMesajGoster(veri.message, 'basarili');
+        _okumalar.unshift({ basarili: true, mesaj: veri.message, zaman: new Date() });
+        sonOkumalariGuncelle();
+        durumGuncelle();
+    }
 
+    function okumaHatali(mesaj, hataTipi) {
+        el.okumaAlani.classList.add('hata');
+        setTimeout(function() { el.okumaAlani.classList.remove('hata'); }, 300);
+        sonMesajGoster(mesaj, 'hata');
+        _okumalar.unshift({ basarili: false, mesaj: mesaj, zaman: new Date() });
+        sonOkumalariGuncelle();
+    }
+
+    // ─── Durum Guncelle ────────────────────────────────────────────
+    async function durumGuncelle() {
+        try {
+            var yanit = await fetch('/api/sayim/sayim-durumu/' + encodeURIComponent(_oturumId));
+            var veri = await yanit.json();
+            if (veri.success) {
+                el.sayimOzet.textContent = veri.lokasyon + ' Say\u0131m\u0131 - ' + (veri.sayim_kodu || '');
+
+                var yuzde = veri.tamamlanma_yuzdesi || 0;
+                el.progressFill.style.width = yuzde + '%';
+                el.progressText.textContent = yuzde + '%';
+                el.sayilanGoster.textContent = veri.sayilan_urun || 0;
+                el.toplamGoster.textContent = veri.toplam_urun || 0;
+                el.progressContainer.classList.remove('gizle');
+
+                malzemeListesiGuncelle(veri.kalemler);
+            }
+        } catch (err) {
+            console.error('Durum g\u00fcncelleme hatas\u0131:', err);
+        }
+    }
+
+    // ─── Malzeme Listesi ───────────────────────────────────────────
+    function kalemHtmlOlustur(kalem, index) {
+        var durumSinifi = kalem.durum || 'status-gray';
+        var malzemeAdi = escAttr(kalem.malzeme_adi || kalem.stok_kod || '-');
+        var beklenen = kalem.beklenen || 0;
+        var sayilan = kalem.sayilan || 0;
+
+        return '<div class="malzeme-item-wrapper">' +
+            '<div class="malzeme-item ' + durumSinifi + '" data-stok-kod="' + escAttr(kalem.stok_kod) + '" data-index="' + index + '">' +
+                '<div class="malzeme-baslik-row" data-action="malzemeToggle" data-index="' + index + '" data-stok-kod="' + escAttr(kalem.stok_kod) + '">' +
+                    '<div class="malzeme-bilgi">' +
+                        '<div class="malzeme-miktar">' + beklenen + ' - ' + (kalem.malzeme_adi || kalem.stok_kod || '-') + '</div>' +
+                    '</div>' +
+                    '<div class="sayim-durum-badge ' + durumSinifi + '">' + sayilan + '/' + beklenen + '</div>' +
+                '</div>' +
+                '<div class="paket-detay" id="paketDetay' + index + '">' +
+                    '<div class="paket-detay-icerik" id="paketIcerik' + index + '">' +
+                        '<div class="paket-yukleniyor">Y\u00fckleniyor...</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    }
+
+    function malzemeListesiGuncelle(kalemler) {
+        if (!kalemler || kalemler.length === 0) {
+            el.malzemeListesi.innerHTML = '<p style="text-align:center;color:#888;font-size:13px;">Hen\u00fcz malzeme bilgisi yok</p>';
+            return;
+        }
+
+        var topKalem = kalemler.length;
+        var topBeklenen = kalemler.reduce(function(t, k) { return t + (k.beklenen || 0); }, 0);
+        var topSayilan = kalemler.reduce(function(t, k) { return t + (k.sayilan || 0); }, 0);
+
+        var baslikHtml = '<div class="depo-baslik">' +
+            '<div class="depo-adi">' + escAttr(_lokasyon || '') + '</div>' +
+            '<div class="depo-ozet">' + topKalem + ' Kalem - (' + topSayilan + '/' + topBeklenen + ' \u00dcr\u00fcn)</div>' +
+        '</div>';
+
+        var kalemlerHtml = kalemler.map(function(kalem, index) {
+            return kalemHtmlOlustur(kalem, index);
+        }).join('');
+
+        el.malzemeListesi.innerHTML = baslikHtml + '<div class="depo-kalemler">' + kalemlerHtml + '</div>';
+    }
+
+    async function malzemeToggle(index, stokKod) {
+        var detay = document.getElementById('paketDetay' + index);
+        var icerik = document.getElementById('paketIcerik' + index);
+        if (!detay || !icerik) return;
+
+        if (detay.classList.contains('acik')) { detay.classList.remove('acik'); return; }
+        detay.classList.add('acik');
+
+        try {
+            icerik.innerHTML = '<div class="paket-yukleniyor">Y\u00fckleniyor...</div>';
+            var r = await fetch('/api/sayim/sayim-paket-detay/' + encodeURIComponent(_oturumId) + '/' + encodeURIComponent(stokKod));
+            var d = await r.json();
+            if (d.success) {
+                var html = '';
+                if (d.paketler && d.paketler.length > 0) {
+                    html += d.paketler.map(function(p) {
+                        var s = p.okunan > 0 ? 'paket-green' : 'paket-gray';
+                        return '<div class="paket-kutu ' + s + '">' +
+                            '<div class="paket-etiket">P' + p.paket_sira + '</div>' +
+                            '<div class="paket-sayi">' + p.okunan + '</div>' +
+                        '</div>';
+                    }).join('');
+                }
+                if (d.manuel_adet > 0) {
+                    html += '<div style="grid-column:1/-1; padding:8px 0 4px; font-size:13px; color:#2980b9; font-weight:500;">Manuel: ' + d.manuel_adet + ' adet</div>';
+                }
+                if (!html) {
+                    html = '<div class="paket-yukleniyor">Hen\u00fcz okuma yok</div>';
+                }
+                icerik.innerHTML = html;
+            } else {
+                icerik.innerHTML = '<div class="paket-yukleniyor">Paket bilgisi bulunamad\u0131</div>';
+            }
+        } catch (e) {
+            icerik.innerHTML = '<div class="paket-yukleniyor">Y\u00fcklenemedi</div>';
+        }
+    }
+
+    function tumunuDaralt() {
+        document.querySelectorAll('.paket-detay').forEach(function(d) { d.classList.remove('acik'); });
+    }
+
+    async function tumunuGenislet() {
+        var items = document.querySelectorAll('.malzeme-item.status-yellow, .malzeme-item.status-gray');
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            var idx = item.dataset.index;
+            var stokKod = item.dataset.stokKod;
+            var detay = document.getElementById('paketDetay' + idx);
+            if (!detay || detay.classList.contains('acik')) continue;
+            await malzemeToggle(parseInt(idx), stokKod);
+        }
+    }
+
+    // ─── Manuel Giris ──────────────────────────────────────────────
     async function manuelAramaYap() {
         var q = (el.manuelArama.value || '').trim();
         if (q.length < 2) {
@@ -265,14 +442,13 @@ window.Views.sayimOkut = (function() {
                 return;
             }
 
-            // Ilk 10 sonuc
             var sonuclar = veri.sonuclar.slice(0, 10);
             el.aramaListesi.innerHTML = sonuclar.map(function(s) {
                 var stokKod = Object.values(s)[0]?.toString() || '';
                 var ad = s['Malzeme Ad\u0131'] || stokKod;
-                return '<div class="sayim-arama-item" data-action="aramaSecim" data-stok-kod="' + stokKod + '" data-malzeme-adi="' + ad.replace(/"/g, '&quot;') + '">' +
-                    '<div style="font-weight:500;">' + ad + '</div>' +
-                    '<div style="font-size:12px; color:#666;">' + stokKod + '</div>' +
+                return '<div class="sayim-arama-item" data-action="aramaSecim" data-stok-kod="' + escAttr(stokKod) + '" data-malzeme-adi="' + escAttr(ad) + '">' +
+                    '<div style="font-weight:500;">' + escAttr(ad) + '</div>' +
+                    '<div style="font-size:12px; color:#666;">' + escAttr(stokKod) + '</div>' +
                 '</div>';
             }).join('');
 
@@ -288,8 +464,8 @@ window.Views.sayimOkut = (function() {
         el.aramaListesi.innerHTML = '';
         el.manuelSecilen.style.display = 'block';
         el.secilenUrunBilgi.innerHTML =
-            '<strong>' + malzemeAdi + '</strong><br>' +
-            '<span style="font-size:13px; color:#666;">' + stokKod + '</span>';
+            '<strong>' + escAttr(malzemeAdi) + '</strong><br>' +
+            '<span style="font-size:13px; color:#666;">' + escAttr(stokKod) + '</span>';
         el.manuelSecilen.dataset.stokKod = stokKod;
         el.manuelSecilen.dataset.malzemeAdi = malzemeAdi;
         el.manuelAdet.value = '1';
@@ -304,11 +480,12 @@ window.Views.sayimOkut = (function() {
         var adet = parseInt(el.manuelAdet.value) || 1;
 
         if (!stokKod) {
-            bildirimGoster('\u00d6nce bir \u00fcr\u00fcn se\u00e7in', 'hata');
+            sonMesajGoster('\u00d6nce bir \u00fcr\u00fcn se\u00e7in', 'hata');
             return;
         }
 
         _islemDevamEdiyor = true;
+        yukleniyorGoster();
 
         try {
             var yanit = await fetch('/api/sayim/manuel-ekle', {
@@ -324,154 +501,58 @@ window.Views.sayimOkut = (function() {
             var veri = await yanit.json();
 
             if (!veri.success) {
-                bildirimGoster(veri.message || 'Ekleme hatasi', 'hata');
+                sonMesajGoster(veri.message || 'Ekleme hatasi', 'hata');
+                SesYoneticisi.sesliGeriBildirim('hata');
                 return;
             }
 
-            bildirimGoster(veri.message, 'basari');
-            if (window.SesYoneticisi) window.SesYoneticisi.sesliGeriBildirim('basarili');
+            sonMesajGoster(veri.message, 'basarili');
+            SesYoneticisi.sesliGeriBildirim('basarili');
+            _okumalar.unshift({ basarili: true, mesaj: veri.message, zaman: new Date() });
+            sonOkumalariGuncelle();
 
-            // Formu temizle
             el.manuelSecilen.style.display = 'none';
             el.manuelArama.value = '';
             el.manuelSecilen.dataset.stokKod = '';
             el.manuelSecilen.dataset.malzemeAdi = '';
 
-            // Ozet guncelle
-            ozetGuncelle(veri.toplam_cesit, veri.toplam_okuma);
-
-            // Listeyi yenile
-            oturumDurumuYukle();
+            durumGuncelle();
 
         } catch (err) {
-            bildirimGoster('Baglanti hatasi: ' + err.message, 'hata');
+            sonMesajGoster('Ba\u011flant\u0131 hatas\u0131: ' + err.message, 'hata');
+            SesYoneticisi.sesliGeriBildirim('hata');
         } finally {
             _islemDevamEdiyor = false;
+            yukleniyorGizle();
         }
     }
 
-    // ─── Oturum Durumu ─────────────────────────────────────────
-
-    async function oturumDurumuYukle() {
-        try {
-            var yanit = await fetch('/api/sayim/oturum-durumu/' + _oturumId);
-            var veri = await yanit.json();
-
-            if (!veri.success) {
-                el.urunListesi.innerHTML = '<div class="mesaj mesaj-hata">' + (veri.message || 'Hata') + '</div>';
-                return;
-            }
-
-            // Ozet guncelle
-            ozetGuncelle(veri.toplam_cesit, veri.toplam_okuma);
-
-            // QR cache sync
-            if (veri.urunler) {
-                veri.urunler.forEach(function(u) {
-                    if (u.okumalar) {
-                        u.okumalar.forEach(function(o) {
-                            if (!o.manuel && o.qr_kod) {
-                                // Buradan qr_kod gelmiyor (select'te yok), ama cache zaten backend'de
-                            }
-                        });
-                    }
-                });
-            }
-
-            // Urun listesi render
-            if (!veri.urunler || veri.urunler.length === 0) {
-                el.urunListesi.innerHTML = '<div class="bos-liste">Hen\u00fcz \u00fcr\u00fcn say\u0131lmad\u0131</div>';
-                return;
-            }
-
-            el.urunListesi.innerHTML = veri.urunler.map(function(u) {
-                var paketHtml = '';
-                if (u.qr_okuma_sayisi > 0 && u.paket_detay && u.paket_detay.length > 0) {
-                    // Paket detayi goster
-                    var paketToplam = u.paket_detay[0]?.paketToplam || 0;
-                    if (paketToplam > 0) {
-                        var okunanSiralar = {};
-                        u.paket_detay.forEach(function(p) {
-                            okunanSiralar[p.paketSira] = (okunanSiralar[p.paketSira] || 0) + 1;
-                        });
-                        var paketler = [];
-                        for (var i = 1; i <= paketToplam; i++) {
-                            var okundu = okunanSiralar[i] ? true : false;
-                            paketler.push('<span class="sayim-paket ' + (okundu ? 'sayim-paket-ok' : 'sayim-paket-bos') + '">P' + i + '</span>');
-                        }
-                        paketHtml = '<div class="sayim-paket-satir">' + paketler.join(' ') + '</div>';
-                    }
-                }
-
-                var manuelHtml = '';
-                if (u.manuel_adet > 0) {
-                    manuelHtml = '<span class="sayim-manuel-badge">M x' + u.manuel_adet + '</span>';
-                }
-
-                var silButonlari = '';
-                if (u.okumalar && u.okumalar.length > 0) {
-                    silButonlari = u.okumalar.map(function(o) {
-                        var etiket = o.manuel ? ('x' + (o.adet || 1)) : ('P' + o.paket_sira);
-                        return '<button data-action="okumasilBtn" data-okuma-id="' + o.id + '" class="sayim-sil-btn" title="Sil">' + etiket + ' \u2715</button>';
-                    }).join(' ');
-                }
-
-                return '<div class="sayim-urun-satir">' +
-                    '<div class="sayim-urun-bilgi">' +
-                        '<div class="sayim-urun-ad">' + u.malzeme_adi + '</div>' +
-                        '<div class="sayim-urun-kod">' + u.stok_kod + '</div>' +
-                        paketHtml +
-                    '</div>' +
-                    '<div class="sayim-urun-sag">' +
-                        '<div class="sayim-urun-adet">' + u.urun_adedi + ' adet</div>' +
-                        manuelHtml +
-                    '</div>' +
-                    (silButonlari ? '<div class="sayim-sil-satir">' + silButonlari + '</div>' : '') +
-                '</div>';
-            }).join('');
-
-        } catch (err) {
-            el.urunListesi.innerHTML = '<div class="mesaj mesaj-hata">Yukleme hatasi</div>';
-        }
+    // ─── UI Yardimcilari ───────────────────────────────────────────
+    function sonMesajGoster(mesaj, tip) {
+        el.sonMesaj.textContent = mesaj;
+        el.sonMesaj.className = 'son-mesaj ' + tip;
+        el.sonMesaj.classList.remove('gizle');
     }
 
-    function ozetGuncelle(cesit, okuma) {
-        if (el.sayimOzet) {
-            el.sayimOzet.textContent = (cesit || 0) + ' \u00e7e\u015fit, ' + (okuma || 0) + ' okuma';
-        }
+    function sonOkumalariGuncelle() {
+        el.okumaListesi.innerHTML = _okumalar.slice(0, 10).map(function(o) {
+            return '<div class="okuma-item ' + (o.basarili ? 'basarili' : 'hata') + '">' +
+                '<svg class="okuma-ikon ' + (o.basarili ? 'basarili' : 'hata') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                    (o.basarili ? '<polyline points="20 6 9 17 4 12"/>' : '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>') +
+                '</svg><div class="okuma-bilgi"><div class="okuma-urun">' + escAttr(o.mesaj) + '</div></div></div>';
+        }).join('');
     }
 
-    // ─── Okuma Silme ───────────────────────────────────────────
+    function yukleniyorGoster() { if (el.yukleniyorOverlay) el.yukleniyorOverlay.classList.remove('gizle'); }
+    function yukleniyorGizle() { if (el.yukleniyorOverlay) el.yukleniyorOverlay.classList.add('gizle'); }
 
-    async function okumaSil(okumaId) {
-        if (!okumaId) return;
-        if (!confirm('Bu okumay\u0131 silmek istediginize emin misiniz?')) return;
-
-        try {
-            var yanit = await fetch('/api/sayim/okuma-sil/' + okumaId, { method: 'DELETE' });
-            var veri = await yanit.json();
-
-            if (!veri.success) {
-                bildirimGoster(veri.message || 'Silme hatasi', 'hata');
-                return;
-            }
-
-            bildirimGoster('Okuma silindi', 'basari');
-            oturumDurumuYukle();
-
-        } catch (err) {
-            bildirimGoster('Baglanti hatasi: ' + err.message, 'hata');
-        }
-    }
-
-    // ─── Rapor ─────────────────────────────────────────────────
-
+    // ─── Rapor ─────────────────────────────────────────────────────
     async function raporGoster() {
         el.raporAlani.style.display = 'block';
         el.raporAlani.innerHTML = '<div style="text-align:center; padding:20px; color:#666;">Rapor y\u00fckleniyor...</div>';
 
         try {
-            var yanit = await fetch('/api/sayim/rapor/' + _oturumId);
+            var yanit = await fetch('/api/sayim/rapor/' + encodeURIComponent(_oturumId));
             var veri = await yanit.json();
 
             if (!veri.success) {
@@ -480,7 +561,7 @@ window.Views.sayimOkut = (function() {
             }
 
             el.raporAlani.innerHTML =
-                '<h3 style="margin:0 0 10px 0;">Fark Raporu - ' + veri.lokasyon + '</h3>' +
+                '<h3 style="margin:0 0 10px 0;">Fark Raporu - ' + escAttr(veri.lokasyon) + '</h3>' +
                 '<div class="sayim-rapor-ozet">' +
                     '<span class="sayim-ozet-esit">' + veri.ozet.esit + ' E\u015fit</span>' +
                     '<span class="sayim-ozet-eksik">' + veri.ozet.eksik + ' Eksik</span>' +
@@ -496,7 +577,7 @@ window.Views.sayimOkut = (function() {
                     veri.rapor.map(function(r) {
                         var cls = r.durum === 'esit' ? 'sayim-rapor-esit' : (r.durum === 'eksik' ? 'sayim-rapor-eksik' : 'sayim-rapor-fazla');
                         return '<div class="sayim-rapor-satir ' + cls + '">' +
-                            '<span style="flex:2; font-size:13px;">' + r.malzeme_adi + '</span>' +
+                            '<span style="flex:2; font-size:13px;">' + escAttr(r.malzeme_adi) + '</span>' +
                             '<span style="flex:1;text-align:center">' + r.beklenen + '</span>' +
                             '<span style="flex:1;text-align:center">' + r.sayilan + '</span>' +
                             '<span style="flex:1;text-align:center;font-weight:600">' + (r.fark > 0 ? '+' : '') + r.fark + '</span>' +
@@ -510,43 +591,33 @@ window.Views.sayimOkut = (function() {
         }
     }
 
-    // ─── Sayimi Kapat ──────────────────────────────────────────
-
+    // ─── Sayimi Kapat ──────────────────────────────────────────────
     async function sayimiKapat() {
         if (!confirm('Say\u0131m\u0131 kapatmak istedi\u011finize emin misiniz? Kapatt\u0131ktan sonra okuma yap\u0131lamaz.')) return;
 
         try {
-            var yanit = await fetch('/api/sayim/kapat/' + _oturumId, { method: 'POST' });
+            var yanit = await fetch('/api/sayim/kapat/' + encodeURIComponent(_oturumId), { method: 'POST' });
             var veri = await yanit.json();
 
             if (!veri.success) {
-                bildirimGoster(veri.message || 'Kapatma hatasi', 'hata');
+                sonMesajGoster(veri.message || 'Kapatma hatasi', 'hata');
+                SesYoneticisi.sesliGeriBildirim('hata');
                 return;
             }
 
-            bildirimGoster('Say\u0131m ba\u015far\u0131yla kapat\u0131ld\u0131', 'basari');
+            sonMesajGoster('Say\u0131m ba\u015far\u0131yla kapat\u0131ld\u0131', 'basarili');
+            SesYoneticisi.sesliGeriBildirim('basarili');
 
-            // Kamerayi kapat
             if (_barkodOkuyucu) {
                 _barkodOkuyucu.destroy();
                 _barkodOkuyucu = null;
             }
 
-            // Raporu goster
             raporGoster();
 
         } catch (err) {
-            bildirimGoster('Baglanti hatasi: ' + err.message, 'hata');
-        }
-    }
-
-    // ─── Yardimcilar ───────────────────────────────────────────
-
-    function bildirimGoster(mesaj, tip) {
-        if (window.toast) {
-            window.toast(mesaj, tip === 'hata' ? 'error' : (tip === 'uyari' ? 'warning' : 'success'));
-        } else {
-            alert(mesaj);
+            sonMesajGoster('Ba\u011flant\u0131 hatas\u0131: ' + err.message, 'hata');
+            SesYoneticisi.sesliGeriBildirim('hata');
         }
     }
 
