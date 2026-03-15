@@ -84,8 +84,17 @@ uygulama.get('/api/health', async (istek, yanit) => {
 
             if (url && key) {
                 const client = createClient(url, key);
-                const { data, error } = await client.from('satis_faturasi').select('id', { count: 'exact', head: true });
-                sonuc.supabase_test = error ? 'HATA: ' + error.message : 'OK (baglanti basarili)';
+                const { count, error } = await client.from('satis_faturasi').select('*', { count: 'exact', head: true });
+                sonuc.supabase_test = error ? 'HATA: ' + error.message : 'OK';
+                sonuc.satis_faturasi_count = error ? 0 : count;
+
+                // satis_faturasi_okumalari tablosu var mi?
+                const { count: c2, error: e2 } = await client.from('satis_faturasi_okumalari').select('*', { count: 'exact', head: true });
+                sonuc.okumalari_count = e2 ? 'HATA: ' + e2.message : c2;
+
+                // fatura_okumalari tablosu var mi?
+                const { count: c3, error: e3 } = await client.from('fatura_okumalari').select('*', { count: 'exact', head: true });
+                sonuc.fatura_okumalari_count = e3 ? 'HATA: ' + e3.message : c3;
             }
         } catch (e) {
             sonuc.supabase_test = 'EXCEPTION: ' + e.message;
