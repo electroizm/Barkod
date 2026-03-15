@@ -73,6 +73,10 @@ const sayimRotalari = require('./rotalar/sayim');
 uygulama.get('/api/health', async (istek, yanit) => {
     const sonuc = { durum: 'aktif', zaman: new Date().toISOString() };
 
+    sonuc.node_env = process.env.NODE_ENV || 'undefined';
+    sonuc.cookie_secure = process.env.NODE_ENV === 'production';
+    sonuc.session_var = istek.session ? (istek.session.kullanici ? 'SET' : 'YOK') : 'NO_SESSION';
+
     // ?db=1 parametresi ile Supabase baglanti testi
     if (istek.query.db) {
         try {
