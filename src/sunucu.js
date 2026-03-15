@@ -74,44 +74,8 @@ const sevkRotalari = require('./rotalar/sevk');
 const sayimRotalari = require('./rotalar/sayim');
 
 // Health check - UptimeRobot ping icin (oturum gerektirmez)
-uygulama.get('/api/health', async (istek, yanit) => {
-    const sonuc = { durum: 'aktif', zaman: new Date().toISOString() };
-
-    sonuc.node_env = process.env.NODE_ENV || 'undefined';
-    sonuc.cookie_secure = process.env.NODE_ENV === 'production';
-    sonuc.trust_proxy = uygulama.get('trust proxy') ? true : false;
-    sonuc.protocol = istek.protocol;
-    sonuc.session_var = istek.session ? (istek.session.kullanici ? 'SET' : 'YOK') : 'NO_SESSION';
-
-    // ?db=1 parametresi ile Supabase baglanti testi
-    if (istek.query.db) {
-        try {
-            const { createClient } = require('@supabase/supabase-js');
-            const url = process.env.SUPABASE_URL;
-            const key = process.env.SUPABASE_ANON_KEY;
-            sonuc.supabase_url = url ? url.substring(0, 30) + '...' : 'YOK';
-            sonuc.supabase_key = key ? 'SET (len=' + key.length + ')' : 'YOK';
-
-            if (url && key) {
-                const client = createClient(url, key);
-                const { count, error } = await client.from('satis_faturasi').select('*', { count: 'exact', head: true });
-                sonuc.supabase_test = error ? 'HATA: ' + error.message : 'OK';
-                sonuc.satis_faturasi_count = error ? 0 : count;
-
-                // satis_faturasi_okumalari tablosu var mi?
-                const { count: c2, error: e2 } = await client.from('satis_faturasi_okumalari').select('*', { count: 'exact', head: true });
-                sonuc.okumalari_count = e2 ? 'HATA: ' + e2.message : c2;
-
-                // fatura_okumalari tablosu var mi?
-                const { count: c3, error: e3 } = await client.from('fatura_okumalari').select('*', { count: 'exact', head: true });
-                sonuc.fatura_okumalari_count = e3 ? 'HATA: ' + e3.message : c3;
-            }
-        } catch (e) {
-            sonuc.supabase_test = 'EXCEPTION: ' + e.message;
-        }
-    }
-
-    yanit.json(sonuc);
+uygulama.get('/api/health', (istek, yanit) => {
+    yanit.json({ durum: 'aktif', zaman: new Date().toISOString() });
 });
 
 // Oturum kontrolu (oturum gerektirmez - frontend bunu kontrol icin kullanir)
