@@ -214,6 +214,10 @@ window.Views.sayimOkut = (function() {
             case 'malzemeToggle':
                 malzemeToggle(parseInt(hedef.dataset.index), hedef.dataset.stokKod);
                 break;
+            case 'topluOkut':
+                e.stopPropagation();
+                topluOkut(hedef.dataset.stokKod, hedef.dataset.malzemeAdi);
+                break;
             case 'raporGoster': raporGoster(); break;
             case 'sayimiKapat': sayimiKapat(); break;
             case 'sayimCsv':
@@ -329,15 +333,18 @@ window.Views.sayimOkut = (function() {
         var durumSinifi = kalem.durum || 'status-gray';
         var malzemeAdi = escAttr(kalem.malzeme_adi || kalem.stok_kod || '-');
         var beklenen = kalem.beklenen || 0;
-        var sayilan = kalem.sayilan || 0;
+
+        var durumIkon = durumSinifi === 'status-green'
+            ? ''
+            : '<button class="btn-malzeme-oku" data-action="topluOkut" data-stok-kod="' + escAttr(kalem.stok_kod) + '" data-malzeme-adi="' + malzemeAdi + '"></button>';
 
         return '<div class="malzeme-item-wrapper">' +
+            durumIkon +
             '<div class="malzeme-item ' + durumSinifi + '" data-stok-kod="' + escAttr(kalem.stok_kod) + '" data-index="' + index + '">' +
                 '<div class="malzeme-baslik-row" data-action="malzemeToggle" data-index="' + index + '" data-stok-kod="' + escAttr(kalem.stok_kod) + '">' +
                     '<div class="malzeme-bilgi">' +
                         '<div class="malzeme-miktar">' + beklenen + ' - ' + (kalem.malzeme_adi || kalem.stok_kod || '-') + '</div>' +
                     '</div>' +
-                    '<div class="sayim-durum-badge ' + durumSinifi + '">' + sayilan + '/' + beklenen + '</div>' +
                 '</div>' +
                 '<div class="paket-detay" id="paketDetay' + index + '">' +
                     '<div class="paket-detay-icerik" id="paketIcerik' + index + '">' +
@@ -421,6 +428,44 @@ window.Views.sayimOkut = (function() {
             var detay = document.getElementById('paketDetay' + idx);
             if (!detay || detay.classList.contains('acik')) continue;
             await malzemeToggle(parseInt(idx), stokKod);
+        }
+    }
+
+    // ─── Toplu Okut ───────────────────────────────────────────────
+    async function topluOkut(stokKod, malzemeAdi) {
+        if (!stokKod || _islemDevamEdiyor) return;
+        if (!confirm('"' + malzemeAdi + '" i\u00e7in eksik paketlerin t\u00fcm\u00fc okunmu\u015f say\u0131ls\u0131n m\u0131?')) return;
+
+        _islemDevamEdiyor = true;
+        yukleniyorGoster();
+        try {
+            var yanit = await fetch('/api/sayim/toplu-okut', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ oturum_id: _oturumId, stok_kod: stokKod })
+            });
+            if (!yanit.ok) {
+                sonMesajGoster('Sunucu hatas\u0131 (' + yanit.status + ')', 'hata');
+                SesYoneticisi.sesliGeriBildirim('hata');
+                return;
+            }
+            var veri = await yanit.json();
+            if (veri.success) {
+                sonMesajGoster(veri.message, 'basarili');
+                SesYoneticisi.sesliGeriBildirim('basarili');
+                _okumalar.unshift({ basarili: true, mesaj: veri.message, zaman: new Date() });
+                sonOkumalariGuncelle();
+                durumGuncelle();
+            } else {
+                sonMesajGoster(veri.message || 'Toplu okutma hatasi', 'hata');
+                SesYoneticisi.sesliGeriBildirim('hata');
+            }
+        } catch (err) {
+            sonMesajGoster('Ba\u011flant\u0131 hatas\u0131: ' + err.message, 'hata');
+            SesYoneticisi.sesliGeriBildirim('hata');
+        } finally {
+            _islemDevamEdiyor = false;
+            yukleniyorGizle();
         }
     }
 

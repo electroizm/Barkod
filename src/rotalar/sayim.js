@@ -583,6 +583,125 @@ router.post('/manuel-ekle', async function(req, res) {
 });
 
 /**
+ * POST /api/sayim/toplu-okut
+ * Bir urunun eksik adedini manuel olarak tamamla
+ * PRGsheet'ten beklenen - sayilan = eksik adet, manuel kayit olarak ekler
+ */
+router.post('/toplu-okut', async function(req, res) {
+    try {
+        var oturum_param = req.body.oturum_id;
+        var stok_kod = (req.body.stok_kod || '').trim();
+        var kullanici = req.body.kullanici || req.session.kullanici?.kullaniciAdi || 'bilinmiyor';
+
+        if (!oturum_param) return res.json({ success: false, message: 'Oturum ID eksik' });
+        if (!stok_kod) return res.json({ success: false, message: 'Stok kodu eksik' });
+
+        var client = await getSupabaseClient();
+        if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
+
+        var oturum_id = await oturumIdCozumle(oturum_param, client);
+        if (!oturum_id) return res.json({ success: false, message: 'Sayim oturumu bulunamadi' });
+
+        // Oturum bilgisi (lokasyon lazim)
+        var { data: oturum } = await client
+            .from('sayim_oturumlari')
+            .select('lokasyon')
+            .eq('id', oturum_id)
+            .single();
+
+        if (!oturum) return res.json({ success: false, message: 'Oturum bulunamadi' });
+
+        // PRGsheet'ten beklenen adedi bul
+        var beklenenAdet = 0;
+        var malzemeAdi = stok_kod;
+        try {
+            var { stokVerisiYukle } = require('./stok');
+            var stokData = await stokVerisiYukle();
+            if (stokData && stokData.veriler) {
+                var bulunan = stokData.veriler.find(function(k) {
+                    var kod = Object.values(k)[0]?.toString() || '';
+                    return kod === stok_kod;
+                });
+                if (bulunan) {
+                    beklenenAdet = parseFloat(bulunan[oturum.lokasyon]) || 0;
+                    if (bulunan['Malzeme Ad\u0131']) malzemeAdi = bulunan['Malzeme Ad\u0131'];
+                }
+            }
+        } catch (e) {
+            // PRGsheet'e ulasilamazsa beklenen 0 kal
+        }
+
+        // Mevcut okumalari cek, sayilan hesapla
+        var { data: okumalar } = await client
+            .from('sayim_okumalari')
+            .select('manuel, adet, paket_sira, paket_toplam')
+            .eq('oturum_id', oturum_id)
+            .eq('stok_kod', stok_kod);
+
+        var stokBilgi = { qrOkumalar: [], manuelAdet: 0 };
+        (okumalar || []).forEach(function(o) {
+            if (o.manuel) {
+                stokBilgi.manuelAdet += (o.adet || 1);
+            } else {
+                stokBilgi.qrOkumalar.push({ paketSira: o.paket_sira, paketToplam: o.paket_toplam });
+            }
+        });
+        var sayilanAdet = urunSayisiHesapla(stokBilgi);
+
+        var eksikAdet = Math.max(0, beklenenAdet - sayilanAdet);
+        if (eksikAdet <= 0) {
+            return res.json({ success: false, message: 'Bu urun zaten tamamlanmis (sayilan: ' + sayilanAdet + ', beklenen: ' + beklenenAdet + ')' });
+        }
+
+        // Manuel kayit olarak ekle
+        var okumaKaydi = {
+            oturum_id: oturum_id,
+            stok_kod: stok_kod,
+            malzeme_adi: malzemeAdi,
+            qr_kod: null,
+            qr_hash: null,
+            paket_sira: null,
+            paket_toplam: null,
+            malzeme_no_qr: null,
+            manuel: true,
+            adet: eksikAdet,
+            kullanici: kullanici,
+            created_at: new Date().toISOString()
+        };
+
+        var { error: insertError } = await client
+            .from('sayim_okumalari')
+            .insert(okumaKaydi);
+
+        if (insertError) {
+            return res.json({ success: false, message: 'Kayit hatasi: ' + insertError.message });
+        }
+
+        // Cache guncelle
+        var cache = await sayimCacheYukle(oturum_id, client, true);
+        var guncelCache = sayimCache.get(oturum_id);
+        var toplamCesit = guncelCache ? guncelCache.stokSayilari.size : 0;
+        var toplamOkuma = guncelCache ? guncelCache.toplamOkuma : 0;
+
+        await client
+            .from('sayim_oturumlari')
+            .update({ toplam_cesit: toplamCesit, toplam_adet: toplamOkuma })
+            .eq('id', oturum_id);
+
+        return res.json({
+            success: true,
+            message: malzemeAdi + ' x' + eksikAdet + ' tamamlandi',
+            stok_kod: stok_kod,
+            eklenen_adet: eksikAdet
+        });
+
+    } catch (err) {
+        console.error('Sayim toplu okutma hatasi:', err);
+        return res.json({ success: false, message: 'Sunucu hatasi: ' + err.message });
+    }
+});
+
+/**
  * GET /api/sayim/oturum-durumu/:id
  * id = UUID veya sayim_kodu
  */
@@ -913,7 +1032,7 @@ router.get('/csv-indir/:id', async function(req, res) {
                     if (!kod) return;
                     var beklenenDeger = parseFloat(kayit[oturum.lokasyon]) || 0;
                     if (beklenenDeger > 0 || sayilanMap[kod]) {
-                        beklenenMap[kod] = { malzemeAdi: kayit['Malzeme Ad\u0131'] || kod, beklenen: beklenenDeger };
+                        beklenenMap[kod] = { malzemeAdi: kayit['Malzeme Ad\u0131'] || kod, beklenen: beklenenDeger, malzemeKodu: kayit['Malzeme Kodu'] || '' };
                     }
                 });
             }
@@ -933,8 +1052,9 @@ router.get('/csv-indir/:id', async function(req, res) {
             var fark = sayilanAdet - beklenenAdet;
             var durum = fark === 0 ? 'Esit' : (fark < 0 ? 'Eksik' : 'Fazla');
             var ad = (sayilan && sayilan.malzemeAdi) || (beklenen && beklenen.malzemeAdi) || kod;
+            var malzemeKodu = (beklenen && beklenen.malzemeKodu) || '';
 
-            satirlar.push([kod, '"' + ad.replace(/"/g, '""') + '"', beklenenAdet, sayilanAdet, fark, durum].join(';'));
+            satirlar.push([kod, '"' + malzemeKodu.replace(/"/g, '""') + '"', '"' + ad.replace(/"/g, '""') + '"', beklenenAdet, sayilanAdet, fark, durum].join(';'));
         });
 
         satirlar.sort(function(a, b) {
@@ -944,7 +1064,7 @@ router.get('/csv-indir/:id', async function(req, res) {
         var dosyaAdi = 'sayim_' + (oturum.sayim_kodu || oturum.lokasyon) + '.csv';
 
         var csvIcerik = '\uFEFF';
-        csvIcerik += 'Stok Kod;Urun Adi;Beklenen;Sayilan;Fark;Durum\n';
+        csvIcerik += 'Stok Kod;Malzeme Kodu;Urun Adi;Beklenen;Sayilan;Fark;Durum\n';
         csvIcerik += satirlar.join('\n');
 
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
