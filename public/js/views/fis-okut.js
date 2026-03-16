@@ -186,6 +186,10 @@ function FisOkutmaOlustur(y) {
                 el.fisSecimAlani.style.display = 'none';
                 el.okutmaAlani.style.display = 'block';
 
+                // QRafter parametrelerini yakala (replaceState silmeden once)
+                var qrafterParams = new URLSearchParams(window.location.search);
+                var bekleyenQrCode = qrafterParams.get('qr_scan') === '1' ? qrafterParams.get('qr_code') : null;
+
                 history.replaceState(null, '', y.sayfaYolu + '?fis=' + no);
 
                 await frontendCacheSenkronize();
@@ -198,6 +202,11 @@ function FisOkutmaOlustur(y) {
                         hataGosterici: function(hata) { okumaHatali(hata, 'format'); SesYoneticisi.sesliGeriBildirim('hata'); },
                         okumaSonrasi: qrOkut
                     });
+
+                    // QRafter'dan bekleyen barkod varsa isle
+                    if (bekleyenQrCode && bekleyenQrCode !== '{CODE}' && bekleyenQrCode !== '%7BCODE%7D') {
+                        barkodOkuyucu.barkodIsle(bekleyenQrCode);
+                    }
 
                     // Progress bar'i barkod-alt-satir icine tasi
                     setTimeout(function() {
