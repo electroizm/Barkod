@@ -216,7 +216,7 @@ window.Views.sayimOkut = (function() {
                 break;
             case 'topluOkut':
                 e.stopPropagation();
-                topluOkut(hedef.dataset.stokKod, hedef.dataset.malzemeAdi, parseInt(hedef.dataset.beklenen) || 0);
+                topluOkut(hedef.dataset.stokKod, hedef.dataset.malzemeAdi, parseInt(hedef.dataset.kalan) || 0);
                 break;
             case 'raporGoster': raporGoster(); break;
             case 'sayimiKapat': sayimiKapat(); break;
@@ -333,14 +333,16 @@ window.Views.sayimOkut = (function() {
         var durumSinifi = kalem.durum || 'status-gray';
         var malzemeAdi = escAttr(kalem.malzeme_adi || kalem.stok_kod || '-');
         var beklenen = kalem.beklenen || 0;
+        var sayilan = kalem.sayilan || 0;
+        var kalan = Math.max(0, beklenen - sayilan);
 
         var durumIkon = durumSinifi === 'status-green'
             ? ''
-            : '<button class="btn-malzeme-oku" data-action="topluOkut" data-stok-kod="' + escAttr(kalem.stok_kod) + '" data-malzeme-adi="' + malzemeAdi + '" data-beklenen="' + beklenen + '"></button>';
+            : '<button class="btn-malzeme-oku" data-action="topluOkut" data-stok-kod="' + escAttr(kalem.stok_kod) + '" data-malzeme-adi="' + malzemeAdi + '" data-kalan="' + kalan + '"></button>';
 
         return '<div class="malzeme-item-wrapper">' +
             durumIkon +
-            '<div class="malzeme-item ' + durumSinifi + '" data-stok-kod="' + escAttr(kalem.stok_kod) + '" data-index="' + index + '">' +
+            '<div class="malzeme-item ' + durumSinifi + '" data-stok-kod="' + escAttr(kalem.stok_kod) + '" data-index="' + index + '" data-beklenen="' + beklenen + '" data-sayilan="' + sayilan + '">' +
                 '<div class="malzeme-baslik-row" data-action="malzemeToggle" data-index="' + index + '" data-stok-kod="' + escAttr(kalem.stok_kod) + '">' +
                     '<div class="malzeme-bilgi">' +
                         '<div class="malzeme-miktar">' + beklenen + ' - ' + (kalem.malzeme_adi || kalem.stok_kod || '-') + '</div>' +
@@ -401,7 +403,15 @@ window.Views.sayimOkut = (function() {
                     }).join('');
                 }
                 if (d.manuel_adet > 0) {
-                    html += '<div style="grid-column:1/-1; padding:8px 0 4px; font-size:13px; color:#2980b9; font-weight:500;">Manuel: ' + d.manuel_adet + ' adet</div>';
+                    html += '<div style="grid-column:1/-1; padding:8px 0 4px; font-size:13px; color:#2980b9; font-weight:500;">Manuel Okutma: ' + d.manuel_adet + '</div>';
+                }
+                // Kalan gosterimi (parent malzeme-item'dan beklenen/sayilan oku)
+                var malzemeItem = document.querySelector('.malzeme-item[data-stok-kod="' + stokKod + '"]');
+                if (malzemeItem) {
+                    var bek = parseInt(malzemeItem.dataset.beklenen) || 0;
+                    var say = parseInt(malzemeItem.dataset.sayilan) || 0;
+                    var kal = Math.max(0, bek - say);
+                    html += '<div style="grid-column:1/-1; padding:4px 0; font-size:13px; color:#e67e22; font-weight:500;">Kalan: ' + kal + '</div>';
                 }
                 if (!html) {
                     html = '<div class="paket-yukleniyor">Hen\u00fcz okuma yok</div>';
@@ -432,20 +442,19 @@ window.Views.sayimOkut = (function() {
     }
 
     // ─── Toplu Okut ───────────────────────────────────────────────
-    function topluOkut(stokKod, malzemeAdi, beklenen) {
+    function topluOkut(stokKod, malzemeAdi, kalan) {
         if (!stokKod || _islemDevamEdiyor) return;
 
-        if (beklenen > 1) {
-            // Adet secim dialogu goster
-            topluOkutDialog(stokKod, malzemeAdi, beklenen);
+        if (kalan === 1) {
+            // Kalan 1 ise direkt tamamla (dialog yok)
+            topluOkutGonder(stokKod, 1);
         } else {
-            // Beklenen 0 veya 1 ise direkt confirm
-            if (!confirm('"' + malzemeAdi + '" tamamlans\u0131n m\u0131?')) return;
-            topluOkutGonder(stokKod);
+            // Kalan 0 veya 1'den buyuk ise adet secim dialogu goster
+            topluOkutDialog(stokKod, malzemeAdi, kalan);
         }
     }
 
-    function topluOkutDialog(stokKod, malzemeAdi, beklenen) {
+    function topluOkutDialog(stokKod, malzemeAdi, kalan) {
         var modal = document.createElement('div');
         modal.className = 'sayim-rapor-modal';
         modal.innerHTML =
@@ -454,10 +463,11 @@ window.Views.sayimOkut = (function() {
                     '<h3 style="margin:0; font-size:16px;">Toplu Tamamla</h3>' +
                     '<button class="sayim-rapor-kapat">\u2715</button>' +
                 '</div>' +
-                '<div style="font-size:14px; color:#333; margin-bottom:12px;">' + escAttr(malzemeAdi) + '</div>' +
+                '<div style="font-size:14px; color:#333; margin-bottom:8px;">' + escAttr(malzemeAdi) + '</div>' +
+                '<div style="font-size:13px; color:#666; margin-bottom:12px;">Kalan: ' + kalan + '</div>' +
                 '<div style="margin-bottom:12px;">' +
                     '<label style="font-size:13px; color:#666; display:block; margin-bottom:4px;">Ka\u00e7 adet tamamlans\u0131n?</label>' +
-                    '<input type="number" id="topluOkutAdet" class="form-input" value="' + beklenen + '" min="1" max="999" style="width:120px; text-align:center; font-size:18px; font-weight:600;">' +
+                    '<input type="number" id="topluOkutAdet" class="form-input" value="' + kalan + '" min="1" max="999" style="width:120px; text-align:center; font-size:18px; font-weight:600;">' +
                 '</div>' +
                 '<button id="topluOkutOnayBtn" class="buton buton-basari" style="width:100%;">Tamamla</button>' +
             '</div>';
