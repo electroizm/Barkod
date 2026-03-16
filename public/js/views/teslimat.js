@@ -150,12 +150,13 @@ window.Views['teslimat'] = (function() {
                             var riskFormatli = Math.round(riskNum).toLocaleString('tr-TR');
                             el.riskBakiyeGoster.textContent = 'Risk: ' + riskFormatli + '\u20BA';
                             el.riskBakiyeGoster.style.display = 'inline-block';
-                            el.riskBakiyeGoster.style.background = '#ef4444';
+                            el.riskBakiyeGoster.style.background = '#fee2e2';
                             el.riskBakiyeGoster.style.padding = '4px 12px';
                             el.riskBakiyeGoster.style.borderRadius = '6px';
-                            el.riskBakiyeGoster.style.fontSize = '14px';
+                            el.riskBakiyeGoster.style.fontSize = '18px';
                             el.riskBakiyeGoster.style.fontWeight = '600';
-                            el.riskBakiyeGoster.style.color = '#000';
+                            el.riskBakiyeGoster.style.color = '#2c3e50';
+                            el.riskBakiyeGoster.style.marginLeft = 'auto';
                         }
                     } catch (e) {
                         // Risk bilgisi alinamadiysa sessizce devam et
