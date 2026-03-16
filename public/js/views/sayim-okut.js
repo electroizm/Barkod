@@ -402,7 +402,11 @@ window.Views.sayimOkut = (function() {
                         '</div>';
                     }).join('');
                 }
-                // Manuel Okutma + Kalan ayni satirda
+                // Manuel + Barkod + Kalan ayni satirda
+                var barkodAdet = 0;
+                if (d.paketler && d.paketler.length > 0) {
+                    barkodAdet = Math.min.apply(null, d.paketler.map(function(p) { return p.okunan; }));
+                }
                 var malzemeItem = document.querySelector('.malzeme-item[data-stok-kod="' + stokKod + '"]');
                 var kalanStr = '';
                 if (malzemeItem) {
@@ -411,13 +415,12 @@ window.Views.sayimOkut = (function() {
                     var kal = Math.max(0, bek - say);
                     kalanStr = '<span style="color:#e67e22;">Kalan: ' + kal + '</span>';
                 }
-                if (d.manuel_adet > 0) {
+                var manuelStr = d.manuel_adet > 0 ? '<span style="color:#2980b9;">Manuel: ' + d.manuel_adet + '</span>' : '';
+                var barkodStr = (d.paketler && d.paketler.length > 0) ? '<span style="color:#27ae60;">Barkod: ' + barkodAdet + '</span>' : '';
+                if (manuelStr || barkodStr || kalanStr) {
                     html += '<div style="grid-column:1/-1; padding:8px 0 4px; font-size:13px; font-weight:500; display:flex; justify-content:space-between;">' +
-                        '<span style="color:#2980b9;">Manuel Okutma: ' + d.manuel_adet + '</span>' +
-                        kalanStr +
+                        manuelStr + barkodStr + kalanStr +
                     '</div>';
-                } else if (kalanStr) {
-                    html += '<div style="grid-column:1/-1; padding:8px 0 4px; font-size:13px; font-weight:500;">' + kalanStr + '</div>';
                 }
                 if (!html) {
                     html = '<div class="paket-yukleniyor">Hen\u00fcz okuma yok</div>';
