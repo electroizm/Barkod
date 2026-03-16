@@ -345,7 +345,7 @@ window.Views.sayimOkut = (function() {
             '<div class="malzeme-item ' + durumSinifi + '" data-stok-kod="' + escAttr(kalem.stok_kod) + '" data-index="' + index + '" data-beklenen="' + beklenen + '" data-sayilan="' + sayilan + '">' +
                 '<div class="malzeme-baslik-row" data-action="malzemeToggle" data-index="' + index + '" data-stok-kod="' + escAttr(kalem.stok_kod) + '">' +
                     '<div class="malzeme-bilgi">' +
-                        '<div class="malzeme-miktar">' + beklenen + ' - ' + (kalem.malzeme_adi || kalem.stok_kod || '-') + '</div>' +
+                        '<div class="malzeme-miktar">' + (kalem.malzeme_adi || kalem.stok_kod || '-') + '</div>' +
                     '</div>' +
                 '</div>' +
                 '<div class="paket-detay" id="paketDetay' + index + '">' +

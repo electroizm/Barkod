@@ -37,6 +37,7 @@ window.Views['teslimat'] = (function() {
                     '<div class="fatura-baslik">' +
                         '<span>Fatura:</span>' +
                         '<span class="fatura-id" id="faturaNoGoster"></span>' +
+                        '<span id="riskBakiyeGoster" style="display:none;"></span>' +
                     '</div>' +
                     '<div class="bilgi-grid">' +
                         '<div class="bilgi-satir">' +
@@ -138,6 +139,27 @@ window.Views['teslimat'] = (function() {
                         el.toplamPaketGoster.textContent = durumData.okunan_paket + ' / ' + durumData.toplam_paket;
                     }
                 } catch (e) { }
+
+                // Risk bakiye bilgisi
+                if (mevcutFatura.cari_kodu) {
+                    try {
+                        var riskResponse = await fetch('/api/stok/risk/' + encodeURIComponent(mevcutFatura.cari_kodu));
+                        var riskData = await riskResponse.json();
+                        if (riskData.success && riskData.bulundu && riskData.risk) {
+                            var riskTutar = riskData.risk;
+                            el.riskBakiyeGoster.textContent = 'Kalan Bakiye : ' + riskTutar + ' TL';
+                            el.riskBakiyeGoster.style.display = 'inline-block';
+                            el.riskBakiyeGoster.style.background = '#fee2e2';
+                            el.riskBakiyeGoster.style.padding = '4px 12px';
+                            el.riskBakiyeGoster.style.borderRadius = '6px';
+                            el.riskBakiyeGoster.style.fontSize = '14px';
+                            el.riskBakiyeGoster.style.fontWeight = '600';
+                            el.riskBakiyeGoster.style.color = '#7c3aed';
+                        }
+                    } catch (e) {
+                        // Risk bilgisi alinamadiysa sessizce devam et
+                    }
+                }
 
                 // Musteri adres/telefon bilgileri
                 if (mevcutFatura.cari_kodu) {
@@ -387,6 +409,7 @@ window.Views['teslimat'] = (function() {
             cepTelGoster:           konteyner.querySelector('#cepTelGoster'),
             telefonGoster:          konteyner.querySelector('#telefonGoster'),
             adresGoster:            konteyner.querySelector('#adresGoster'),
+            riskBakiyeGoster:       konteyner.querySelector('#riskBakiyeGoster'),
             hataKutusu:             konteyner.querySelector('#hataKutusu'),
             yukleniyorOverlay:      konteyner.querySelector('#yukleniyorOverlay'),
             acikFaturaListesiInline: konteyner.querySelector('#acikFaturaListesiInline'),

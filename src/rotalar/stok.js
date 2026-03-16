@@ -117,13 +117,108 @@ router.get('/ara', async (req, res) => {
 });
 
 /**
+ * Risk sayfasi cache
+ */
+let riskCache = null;
+let riskCacheZamani = null;
+
+async function riskVerisiYukle() {
+    if (riskCache && riskCacheZamani && (Date.now() - riskCacheZamani < CACHE_SURESI)) {
+        return riskCache;
+    }
+
+    const auth = new google.auth.JWT(
+        GOOGLE_SERVICE_ACCOUNT_EMAIL,
+        null,
+        GOOGLE_PRIVATE_KEY,
+        [
+            'https://www.googleapis.com/auth/spreadsheets.readonly',
+            'https://www.googleapis.com/auth/drive.readonly'
+        ]
+    );
+
+    const drive = google.drive({ version: 'v3', auth });
+    const driveYanit = await drive.files.list({
+        q: `name='${PRGSHEET_NAME}' and mimeType='application/vnd.google-apps.spreadsheet'`,
+        fields: 'files(id, name)',
+        spaces: 'drive'
+    });
+
+    if (!driveYanit.data.files || driveYanit.data.files.length === 0) {
+        throw new Error('PRGsheet bulunamad\u0131');
+    }
+
+    const spreadsheetId = driveYanit.data.files[0].id;
+    const sheets = google.sheets({ version: 'v4', auth });
+    const yanit = await sheets.spreadsheets.values.get({
+        spreadsheetId: spreadsheetId,
+        range: 'Risk'
+    });
+
+    const satirlar = yanit.data.values || [];
+    if (satirlar.length <= 1) {
+        throw new Error('Risk sayfas\u0131 bo\u015f');
+    }
+
+    const basliklar = satirlar[0];
+    const veriler = [];
+    for (let i = 1; i < satirlar.length; i++) {
+        const satir = satirlar[i];
+        const kayit = {};
+        for (let j = 0; j < basliklar.length; j++) {
+            kayit[basliklar[j]] = satir[j] || '';
+        }
+        veriler.push(kayit);
+    }
+
+    riskCache = { basliklar, veriler };
+    riskCacheZamani = Date.now();
+    return riskCache;
+}
+
+/**
+ * GET /api/stok/risk/:cariKod
+ * PRGsheet Risk sayfasindan cari hesap koduna gore risk bakiyesi
+ */
+router.get('/risk/:cariKod', async (req, res) => {
+    try {
+        const cariKod = decodeURIComponent(req.params.cariKod).trim();
+        if (!cariKod) {
+            return res.json({ success: false, message: 'Cari kodu eksik' });
+        }
+
+        const { veriler } = await riskVerisiYukle();
+        const bulunan = veriler.find(kayit => {
+            return (kayit['Cari hesap kodu'] || '').trim() === cariKod;
+        });
+
+        if (!bulunan) {
+            return res.json({ success: true, bulundu: false });
+        }
+
+        return res.json({
+            success: true,
+            bulundu: true,
+            risk: bulunan['Risk'] || '0',
+            cari_adi: bulunan['Cari hesap ad\u0131'] || ''
+        });
+
+    } catch (error) {
+        console.error('Risk sorgulama hatas\u0131:', error.message);
+        return res.json({ success: false, message: 'Risk verisi y\u00fcklenemedi: ' + error.message });
+    }
+});
+
+/**
  * GET /api/stok/cache-temizle
  * Cache'i temizle (yeni veri çekmek için)
  */
 router.get('/cache-temizle', (req, res) => {
     stokCache = null;
     cacheZamani = null;
-    res.json({ success: true, message: 'Stok cache temizlendi' });
+    riskCache = null;
+    riskCacheZamani = null;
+    res.json({ success: true, message: 'Stok ve risk cache temizlendi' });
 });
 
 module.exports = router;
