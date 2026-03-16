@@ -216,7 +216,7 @@ window.Views.sayimOkut = (function() {
                 break;
             case 'topluOkut':
                 e.stopPropagation();
-                topluOkut(hedef.dataset.stokKod, hedef.dataset.malzemeAdi);
+                topluOkut(hedef.dataset.stokKod, hedef.dataset.malzemeAdi, parseInt(hedef.dataset.beklenen) || 0);
                 break;
             case 'raporGoster': raporGoster(); break;
             case 'sayimiKapat': sayimiKapat(); break;
@@ -336,7 +336,7 @@ window.Views.sayimOkut = (function() {
 
         var durumIkon = durumSinifi === 'status-green'
             ? ''
-            : '<button class="btn-malzeme-oku" data-action="topluOkut" data-stok-kod="' + escAttr(kalem.stok_kod) + '" data-malzeme-adi="' + malzemeAdi + '"></button>';
+            : '<button class="btn-malzeme-oku" data-action="topluOkut" data-stok-kod="' + escAttr(kalem.stok_kod) + '" data-malzeme-adi="' + malzemeAdi + '" data-beklenen="' + beklenen + '"></button>';
 
         return '<div class="malzeme-item-wrapper">' +
             durumIkon +
@@ -432,17 +432,73 @@ window.Views.sayimOkut = (function() {
     }
 
     // ─── Toplu Okut ───────────────────────────────────────────────
-    async function topluOkut(stokKod, malzemeAdi) {
+    function topluOkut(stokKod, malzemeAdi, beklenen) {
         if (!stokKod || _islemDevamEdiyor) return;
-        if (!confirm('"' + malzemeAdi + '" i\u00e7in eksik paketlerin t\u00fcm\u00fc okunmu\u015f say\u0131ls\u0131n m\u0131?')) return;
 
+        if (beklenen > 1) {
+            // Adet secim dialogu goster
+            topluOkutDialog(stokKod, malzemeAdi, beklenen);
+        } else {
+            // Beklenen 0 veya 1 ise direkt confirm
+            if (!confirm('"' + malzemeAdi + '" tamamlans\u0131n m\u0131?')) return;
+            topluOkutGonder(stokKod);
+        }
+    }
+
+    function topluOkutDialog(stokKod, malzemeAdi, beklenen) {
+        var modal = document.createElement('div');
+        modal.className = 'sayim-rapor-modal';
+        modal.innerHTML =
+            '<div class="sayim-rapor-icerik" style="max-width:340px;">' +
+                '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">' +
+                    '<h3 style="margin:0; font-size:16px;">Toplu Tamamla</h3>' +
+                    '<button class="sayim-rapor-kapat">\u2715</button>' +
+                '</div>' +
+                '<div style="font-size:14px; color:#333; margin-bottom:12px;">' + escAttr(malzemeAdi) + '</div>' +
+                '<div style="margin-bottom:12px;">' +
+                    '<label style="font-size:13px; color:#666; display:block; margin-bottom:4px;">Ka\u00e7 adet tamamlans\u0131n?</label>' +
+                    '<input type="number" id="topluOkutAdet" class="form-input" value="' + beklenen + '" min="1" max="999" style="width:120px; text-align:center; font-size:18px; font-weight:600;">' +
+                '</div>' +
+                '<button id="topluOkutOnayBtn" class="buton buton-basari" style="width:100%;">Tamamla</button>' +
+            '</div>';
+
+        document.body.appendChild(modal);
+
+        var adetInput = modal.querySelector('#topluOkutAdet');
+        adetInput.focus();
+        adetInput.select();
+
+        modal.querySelector('.sayim-rapor-kapat').addEventListener('click', function() {
+            document.body.removeChild(modal);
+        });
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) document.body.removeChild(modal);
+        });
+
+        modal.querySelector('#topluOkutOnayBtn').addEventListener('click', function() {
+            var adet = parseInt(adetInput.value) || 0;
+            if (adet < 1) { adetInput.focus(); return; }
+            document.body.removeChild(modal);
+            topluOkutGonder(stokKod, adet);
+        });
+
+        adetInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                modal.querySelector('#topluOkutOnayBtn').click();
+            }
+        });
+    }
+
+    async function topluOkutGonder(stokKod, adet) {
         _islemDevamEdiyor = true;
         yukleniyorGoster();
         try {
+            var body = { oturum_id: _oturumId, stok_kod: stokKod };
+            if (adet) body.adet = adet;
             var yanit = await fetch('/api/sayim/toplu-okut', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ oturum_id: _oturumId, stok_kod: stokKod })
+                body: JSON.stringify(body)
             });
             if (!yanit.ok) {
                 sonMesajGoster('Sunucu hatas\u0131 (' + yanit.status + ')', 'hata');

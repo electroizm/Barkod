@@ -591,10 +591,12 @@ router.post('/toplu-okut', async function(req, res) {
     try {
         var oturum_param = req.body.oturum_id;
         var stok_kod = (req.body.stok_kod || '').trim();
+        var kullaniciAdet = req.body.adet ? parseInt(req.body.adet) : null;
         var kullanici = req.body.kullanici || req.session.kullanici?.kullaniciAdi || 'bilinmiyor';
 
         if (!oturum_param) return res.json({ success: false, message: 'Oturum ID eksik' });
         if (!stok_kod) return res.json({ success: false, message: 'Stok kodu eksik' });
+        if (kullaniciAdet !== null && kullaniciAdet < 1) return res.json({ success: false, message: 'Adet en az 1 olmali' });
 
         var client = await getSupabaseClient();
         if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
@@ -648,9 +650,15 @@ router.post('/toplu-okut', async function(req, res) {
         });
         var sayilanAdet = urunSayisiHesapla(stokBilgi);
 
-        var eksikAdet = Math.max(0, beklenenAdet - sayilanAdet);
-        if (eksikAdet <= 0) {
-            return res.json({ success: false, message: 'Bu urun zaten tamamlanmis (sayilan: ' + sayilanAdet + ', beklenen: ' + beklenenAdet + ')' });
+        // Kullanici adet belirttiyse onu kullan, yoksa eksik hesapla
+        var eklenecekAdet;
+        if (kullaniciAdet !== null) {
+            eklenecekAdet = kullaniciAdet;
+        } else {
+            eklenecekAdet = Math.max(0, beklenenAdet - sayilanAdet);
+            if (eklenecekAdet <= 0) {
+                return res.json({ success: false, message: 'Bu urun zaten tamamlanmis (sayilan: ' + sayilanAdet + ', beklenen: ' + beklenenAdet + ')' });
+            }
         }
 
         // Manuel kayit olarak ekle
@@ -664,7 +672,7 @@ router.post('/toplu-okut', async function(req, res) {
             paket_toplam: null,
             malzeme_no_qr: null,
             manuel: true,
-            adet: eksikAdet,
+            adet: eklenecekAdet,
             kullanici: kullanici,
             created_at: new Date().toISOString()
         };
@@ -690,9 +698,9 @@ router.post('/toplu-okut', async function(req, res) {
 
         return res.json({
             success: true,
-            message: malzemeAdi + ' x' + eksikAdet + ' tamamlandi',
+            message: malzemeAdi + ' x' + eklenecekAdet + ' tamamlandi',
             stok_kod: stok_kod,
-            eklenen_adet: eksikAdet
+            eklenen_adet: eklenecekAdet
         });
 
     } catch (err) {
@@ -1054,7 +1062,7 @@ router.get('/csv-indir/:id', async function(req, res) {
             var ad = (sayilan && sayilan.malzemeAdi) || (beklenen && beklenen.malzemeAdi) || kod;
             var malzemeKodu = (beklenen && beklenen.malzemeKodu) || '';
 
-            satirlar.push([kod, '"' + malzemeKodu.replace(/"/g, '""') + '"', '"' + ad.replace(/"/g, '""') + '"', beklenenAdet, sayilanAdet, fark, durum].join(';'));
+            satirlar.push([kod, '"' + ad.replace(/"/g, '""') + '"', beklenenAdet, sayilanAdet, durum, '"' + malzemeKodu.replace(/"/g, '""') + '"', fark].join(';'));
         });
 
         satirlar.sort(function(a, b) {
@@ -1064,7 +1072,7 @@ router.get('/csv-indir/:id', async function(req, res) {
         var dosyaAdi = 'sayim_' + (oturum.sayim_kodu || oturum.lokasyon) + '.csv';
 
         var csvIcerik = '\uFEFF';
-        csvIcerik += 'Stok Kod;Malzeme Kodu;Urun Adi;Beklenen;Sayilan;Fark;Durum\n';
+        csvIcerik += 'Stok Kod;Urun Adi;Beklenen;Sayilan;Durum;Malzeme Kodu;Fark\n';
         csvIcerik += satirlar.join('\n');
 
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
