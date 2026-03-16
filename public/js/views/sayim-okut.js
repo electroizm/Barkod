@@ -453,19 +453,22 @@ window.Views.sayimOkut = (function() {
     // ─── Toplu Okut ───────────────────────────────────────────────
     function topluOkut(stokKod, malzemeAdi, kalan) {
         if (!stokKod || _islemDevamEdiyor) return;
-
-        if (kalan === 1) {
-            // Kalan 1 ise direkt tamamla (dialog yok)
-            topluOkutGonder(stokKod, 1);
-        } else {
-            // Kalan 0 veya 1'den buyuk ise adet secim dialogu goster
-            topluOkutDialog(stokKod, malzemeAdi, kalan);
-        }
+        topluOkutDialog(stokKod, malzemeAdi, kalan);
     }
 
     function topluOkutDialog(stokKod, malzemeAdi, kalan) {
         var modal = document.createElement('div');
         modal.className = 'sayim-rapor-modal';
+
+        var adetSecimHtml = '';
+        if (kalan !== 1) {
+            adetSecimHtml =
+                '<div style="margin-bottom:12px;">' +
+                    '<label style="font-size:13px; color:#666; display:block; margin-bottom:4px;">Ka\u00e7 adet tamamlans\u0131n?</label>' +
+                    '<input type="number" id="topluOkutAdet" class="form-input" value="' + kalan + '" min="1" max="999" style="width:120px; text-align:center; font-size:18px; font-weight:600;">' +
+                '</div>';
+        }
+
         modal.innerHTML =
             '<div class="sayim-rapor-icerik" style="max-width:340px;">' +
                 '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">' +
@@ -474,18 +477,17 @@ window.Views.sayimOkut = (function() {
                 '</div>' +
                 '<div style="font-size:14px; color:#333; margin-bottom:8px;">' + escAttr(malzemeAdi) + '</div>' +
                 '<div style="font-size:13px; color:#666; margin-bottom:12px;">Kalan: ' + kalan + '</div>' +
-                '<div style="margin-bottom:12px;">' +
-                    '<label style="font-size:13px; color:#666; display:block; margin-bottom:4px;">Ka\u00e7 adet tamamlans\u0131n?</label>' +
-                    '<input type="number" id="topluOkutAdet" class="form-input" value="' + kalan + '" min="1" max="999" style="width:120px; text-align:center; font-size:18px; font-weight:600;">' +
-                '</div>' +
+                adetSecimHtml +
                 '<button id="topluOkutOnayBtn" class="buton buton-basari" style="width:100%;">Tamamla</button>' +
             '</div>';
 
         document.body.appendChild(modal);
 
         var adetInput = modal.querySelector('#topluOkutAdet');
-        adetInput.focus();
-        adetInput.select();
+        if (adetInput) {
+            adetInput.focus();
+            adetInput.select();
+        }
 
         modal.querySelector('.sayim-rapor-kapat').addEventListener('click', function() {
             document.body.removeChild(modal);
@@ -495,17 +497,19 @@ window.Views.sayimOkut = (function() {
         });
 
         modal.querySelector('#topluOkutOnayBtn').addEventListener('click', function() {
-            var adet = parseInt(adetInput.value) || 0;
-            if (adet < 1) { adetInput.focus(); return; }
+            var adet = adetInput ? (parseInt(adetInput.value) || 0) : kalan;
+            if (adet < 1) { if (adetInput) adetInput.focus(); return; }
             document.body.removeChild(modal);
             topluOkutGonder(stokKod, adet);
         });
 
-        adetInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                modal.querySelector('#topluOkutOnayBtn').click();
-            }
-        });
+        if (adetInput) {
+            adetInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    modal.querySelector('#topluOkutOnayBtn').click();
+                }
+            });
+        }
     }
 
     async function topluOkutGonder(stokKod, adet) {
