@@ -568,7 +568,6 @@ window.Views.sayimOkut = (function() {
                 var ad = s['Malzeme Ad\u0131'] || stokKod;
                 return '<div class="sayim-arama-item" data-action="aramaSecim" data-stok-kod="' + escAttr(stokKod) + '" data-malzeme-adi="' + escAttr(ad) + '">' +
                     '<div style="font-weight:500;">' + escAttr(ad) + '</div>' +
-                    '<div style="font-size:12px; color:#666;">' + escAttr(stokKod) + '</div>' +
                 '</div>';
             }).join('');
 
