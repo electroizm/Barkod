@@ -148,7 +148,7 @@ window.Views['teslimat'] = (function() {
                         if (riskData.success && riskData.bulundu && riskData.risk) {
                             var riskNum = parseFloat(String(riskData.risk).replace(/[^\d.-]/g, '')) || 0;
                             var riskFormatli = Math.round(riskNum).toLocaleString('tr-TR');
-                            el.riskBakiyeGoster.textContent = 'Risk: ' + riskFormatli + '\u20BA';
+                            el.riskBakiyeGoster.textContent = 'Bakiye: ' + riskFormatli + '\u20BA';
                             el.riskBakiyeGoster.style.display = 'inline-block';
                             el.riskBakiyeGoster.style.background = '#fee2e2';
                             el.riskBakiyeGoster.style.padding = '4px 12px';
