@@ -127,5 +127,8 @@
         }
     }
 
+    // iOS AudioContext: ilk kullanici dokunusunda uyandir
+    SesYoneticisi.kullaniciEtkilesimiYakala();
+
     oturumKontrolVeBaslat();
 })();

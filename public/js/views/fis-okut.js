@@ -203,9 +203,11 @@ function FisOkutmaOlustur(y) {
                         okumaSonrasi: qrOkut
                     });
 
-                    // QRafter'dan bekleyen barkod varsa isle
+                    // QRafter'dan bekleyen barkod varsa isle (kisa gecikme: AudioContext resume icin)
                     if (bekleyenQrCode && bekleyenQrCode !== '{CODE}' && bekleyenQrCode !== '%7BCODE%7D') {
-                        barkodOkuyucu.barkodIsle(bekleyenQrCode);
+                        setTimeout(function() {
+                            barkodOkuyucu.barkodIsle(bekleyenQrCode);
+                        }, 300);
                     }
 
                     // Progress bar'i barkod-alt-satir icine tasi

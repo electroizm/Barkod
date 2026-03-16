@@ -21,9 +21,24 @@ const SesYoneticisi = {
         }
         // Suspended durumundaysa resume et (iOS/Chrome autoplay policy)
         if (this._ctx.state === 'suspended') {
-            this._ctx.resume();
+            this._ctx.resume().catch(function() {});
         }
         return this._ctx;
+    },
+
+    // Kullanici etkilesimi sirasinda AudioContext'i uyandir (iOS icin)
+    kullaniciEtkilesimiYakala() {
+        var self = this;
+        function uyandir() {
+            var ctx = self._contextAl();
+            if (ctx && ctx.state === 'suspended') {
+                ctx.resume().catch(function() {});
+            }
+            document.removeEventListener('touchstart', uyandir);
+            document.removeEventListener('click', uyandir);
+        }
+        document.addEventListener('touchstart', uyandir, { once: true });
+        document.addEventListener('click', uyandir, { once: true });
     },
 
     sesliGeriBildirim(tip) {
