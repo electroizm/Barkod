@@ -402,16 +402,22 @@ window.Views.sayimOkut = (function() {
                         '</div>';
                     }).join('');
                 }
-                if (d.manuel_adet > 0) {
-                    html += '<div style="grid-column:1/-1; padding:8px 0 4px; font-size:13px; color:#2980b9; font-weight:500;">Manuel Okutma: ' + d.manuel_adet + '</div>';
-                }
-                // Kalan gosterimi (parent malzeme-item'dan beklenen/sayilan oku)
+                // Manuel Okutma + Kalan ayni satirda
                 var malzemeItem = document.querySelector('.malzeme-item[data-stok-kod="' + stokKod + '"]');
+                var kalanStr = '';
                 if (malzemeItem) {
                     var bek = parseInt(malzemeItem.dataset.beklenen) || 0;
                     var say = parseInt(malzemeItem.dataset.sayilan) || 0;
                     var kal = Math.max(0, bek - say);
-                    html += '<div style="grid-column:1/-1; padding:4px 0; font-size:13px; color:#e67e22; font-weight:500;">Kalan: ' + kal + '</div>';
+                    kalanStr = '<span style="color:#e67e22;">Kalan: ' + kal + '</span>';
+                }
+                if (d.manuel_adet > 0) {
+                    html += '<div style="grid-column:1/-1; padding:8px 0 4px; font-size:13px; font-weight:500; display:flex; justify-content:space-between;">' +
+                        '<span style="color:#2980b9;">Manuel Okutma: ' + d.manuel_adet + '</span>' +
+                        kalanStr +
+                    '</div>';
+                } else if (kalanStr) {
+                    html += '<div style="grid-column:1/-1; padding:8px 0 4px; font-size:13px; font-weight:500;">' + kalanStr + '</div>';
                 }
                 if (!html) {
                     html = '<div class="paket-yukleniyor">Hen\u00fcz okuma yok</div>';
