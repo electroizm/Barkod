@@ -566,7 +566,7 @@ window.Views.sayimOkut = (function() {
             el.aramaListesi.innerHTML = sonuclar.map(function(s) {
                 var stokKod = Object.values(s)[0]?.toString() || '';
                 var ad = s['Malzeme Ad\u0131'] || stokKod;
-                return '<div class="sayim-arama-item" data-action="aramaSecim" data-stok-kod="' + escAttr(stokKod) + '" data-malzeme-adi="' + escAttr(ad) + '">' +
+                return '<div class="sayim-arama-item" data-action="aramaSecim" data-stok-kod="' + escAttr(stokKod) + '" data-malzeme-adi="' + escAttr(ad) + '" style="padding:10px;">' +
                     '<div style="font-weight:500;">' + escAttr(ad) + '</div>' +
                 '</div>';
             }).join('');
@@ -582,9 +582,7 @@ window.Views.sayimOkut = (function() {
 
         el.aramaListesi.innerHTML = '';
         el.manuelSecilen.style.display = 'block';
-        el.secilenUrunBilgi.innerHTML =
-            '<strong>' + escAttr(malzemeAdi) + '</strong><br>' +
-            '<span style="font-size:13px; color:#666;">' + escAttr(stokKod) + '</span>';
+        el.secilenUrunBilgi.innerHTML = '<strong>' + escAttr(malzemeAdi) + '</strong>';
         el.manuelSecilen.dataset.stokKod = stokKod;
         el.manuelSecilen.dataset.malzemeAdi = malzemeAdi;
         el.manuelAdet.value = '1';

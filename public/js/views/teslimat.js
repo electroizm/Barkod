@@ -146,15 +146,16 @@ window.Views['teslimat'] = (function() {
                         var riskResponse = await fetch('/api/stok/risk/' + encodeURIComponent(mevcutFatura.cari_kodu));
                         var riskData = await riskResponse.json();
                         if (riskData.success && riskData.bulundu && riskData.risk) {
-                            var riskTutar = riskData.risk;
-                            el.riskBakiyeGoster.textContent = 'Kalan Bakiye : ' + riskTutar + ' TL';
+                            var riskNum = parseFloat(String(riskData.risk).replace(/[^\d.-]/g, '')) || 0;
+                            var riskFormatli = Math.round(riskNum).toLocaleString('tr-TR');
+                            el.riskBakiyeGoster.textContent = 'Risk: ' + riskFormatli + '\u20BA';
                             el.riskBakiyeGoster.style.display = 'inline-block';
-                            el.riskBakiyeGoster.style.background = '#fee2e2';
+                            el.riskBakiyeGoster.style.background = '#ef4444';
                             el.riskBakiyeGoster.style.padding = '4px 12px';
                             el.riskBakiyeGoster.style.borderRadius = '6px';
                             el.riskBakiyeGoster.style.fontSize = '14px';
                             el.riskBakiyeGoster.style.fontWeight = '600';
-                            el.riskBakiyeGoster.style.color = '#7c3aed';
+                            el.riskBakiyeGoster.style.color = '#000';
                         }
                     } catch (e) {
                         // Risk bilgisi alinamadiysa sessizce devam et
