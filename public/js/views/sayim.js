@@ -187,8 +187,8 @@ window.Views.sayim = (function() {
                 return;
             }
             el.acikListe.innerHTML = veri.sayimlar.map(function(s) {
-                var kod = s.sayim_kodu || s.id.substring(0, 8);
-                return '<div class="sayim-item sayim-item-acik" data-action="sayimAc" data-sayim-kodu="' + (s.sayim_kodu || s.id) + '">' +
+                var kod = s.id;
+                return '<div class="sayim-item sayim-item-acik" data-action="sayimAc" data-sayim-kodu="' + (s.id) + '">' +
                     '<div class="sayim-item-tarih">' + kod + '</div>' +
                     '<div class="sayim-item-detay">' + (s.toplam_cesit || 0) + ' \u00e7e\u015fit, ' + (s.toplam_adet || 0) + ' okuma - ' + (s.kullanici || '') + '</div>' +
                 '</div>';
@@ -222,13 +222,13 @@ window.Views.sayim = (function() {
                 return;
             }
             el.kapatilanListe.innerHTML = veri.sayimlar.map(function(s) {
-                var kod = s.sayim_kodu || s.id.substring(0, 8);
+                var kod = s.id;
                 return '<div class="sayim-item sayim-item-kapatilan">' +
                     '<div class="sayim-item-tarih">' + kod + ' - ' + (s.kullanici || '') + '</div>' +
                     '<div class="sayim-item-detay">' + (s.toplam_cesit || 0) + ' \u00e7e\u015fit, ' + (s.toplam_adet || 0) + ' okuma</div>' +
                     '<div class="sayim-item-butonlar">' +
-                        '<button data-action="sayimRapor" data-sayim-kodu="' + (s.sayim_kodu || s.id) + '" class="sayim-mini-btn sayim-mini-rapor">Rapor</button>' +
-                        '<button data-action="sayimCsv" data-sayim-kodu="' + (s.sayim_kodu || s.id) + '" class="sayim-mini-btn sayim-mini-csv">CSV \u0130ndir</button>' +
+                        '<button data-action="sayimRapor" data-sayim-kodu="' + (s.id) + '" class="sayim-mini-btn sayim-mini-rapor">Rapor</button>' +
+                        '<button data-action="sayimCsv" data-sayim-kodu="' + (s.id) + '" class="sayim-mini-btn sayim-mini-csv">CSV \u0130ndir</button>' +
                     '</div>' +
                 '</div>';
             }).join('');

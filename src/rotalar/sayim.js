@@ -53,14 +53,14 @@ async function sayimKoduUret(client) {
     // O gune ait mevcut sayimlari say
     var { data, error } = await client
         .from('sayim_oturumlari')
-        .select('sayim_kodu')
-        .like('sayim_kodu', prefix + '%')
-        .order('sayim_kodu', { ascending: false })
+        .select('id')
+        .like('id', prefix + '%')
+        .order('id', { ascending: false })
         .limit(1);
 
     var sira = 1;
     if (!error && data && data.length > 0) {
-        var sonKod = data[0].sayim_kodu;
+        var sonKod = data[0].id;
         var sonSira = parseInt(sonKod.split('-')[1]) || 0;
         sira = sonSira + 1;
     }
@@ -68,77 +68,6 @@ async function sayimKoduUret(client) {
     return prefix + String(sira).padStart(2, '0');
 }
 
-/**
- * Parametre UUID mi yoksa sayim_kodu mu? Cozumle ve UUID dondur.
- */
-async function oturumIdCozumle(parametre, client) {
-    if (!parametre) return null;
-
-    // UUID formati: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    var uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (uuidRegex.test(parametre)) {
-        return parametre;
-    }
-
-    // sayim_kodu olarak ara
-    var { data, error } = await client
-        .from('sayim_oturumlari')
-        .select('id')
-        .eq('sayim_kodu', parametre)
-        .single();
-
-    if (error || !data) return null;
-    return data.id;
-}
-
-/**
- * Eski kayitlara sayim_kodu ata (null olanlari doldur)
- */
-async function sayimKoduBackfill(sayimlar, client) {
-    if (!sayimlar || sayimlar.length === 0) return sayimlar;
-    for (var i = 0; i < sayimlar.length; i++) {
-        var s = sayimlar[i];
-        if (!s.sayim_kodu) {
-            // Oturum baslangic tarihinden sayim_kodu uret
-            var tarih = new Date(s.baslangic || s.created_at || Date.now());
-            var yy = String(tarih.getFullYear()).slice(-2);
-            var mm = String(tarih.getMonth() + 1).padStart(2, '0');
-            var dd = String(tarih.getDate()).padStart(2, '0');
-            var tarihKodu = yy + mm + dd;
-            var yeniKod = await sayimKoduUretTarihli(tarihKodu, client);
-
-            var { error } = await client
-                .from('sayim_oturumlari')
-                .update({ sayim_kodu: yeniKod })
-                .eq('id', s.id);
-
-            if (!error) {
-                s.sayim_kodu = yeniKod;
-            }
-        }
-    }
-    return sayimlar;
-}
-
-/**
- * Belirli bir tarih kodu icin sayim_kodu uret
- */
-async function sayimKoduUretTarihli(tarihKodu, client) {
-    var prefix = tarihKodu + '-';
-    var { data } = await client
-        .from('sayim_oturumlari')
-        .select('sayim_kodu')
-        .like('sayim_kodu', prefix + '%')
-        .order('sayim_kodu', { ascending: false })
-        .limit(1);
-
-    var sira = 1;
-    if (data && data.length > 0 && data[0].sayim_kodu) {
-        var sonSira = parseInt(data[0].sayim_kodu.split('-')[1]) || 0;
-        sira = sonSira + 1;
-    }
-    return prefix + String(sira).padStart(2, '0');
-}
 
 // ─── Cache Fonksiyonlari ───────────────────────────────────────────
 
@@ -289,11 +218,11 @@ router.post('/oturum-olustur', async function(req, res) {
         var { data, error } = await client
             .from('sayim_oturumlari')
             .insert({
+                id: sayimKodu,
                 lokasyon: lokasyon,
                 lokasyon_kodu: LOKASYON_KODLARI[lokasyon],
                 kullanici: kullanici,
-                durum: 'acik',
-                sayim_kodu: sayimKodu
+                durum: 'acik'
             })
             .select()
             .single();
@@ -303,7 +232,7 @@ router.post('/oturum-olustur', async function(req, res) {
             return res.json({ success: false, message: 'Oturum olusturulamadi: ' + error.message });
         }
 
-        return res.json({ success: true, oturum_id: data.id, sayim_kodu: sayimKodu, lokasyon: lokasyon });
+        return res.json({ success: true, oturum_id: sayimKodu, sayim_kodu: sayimKodu, lokasyon: lokasyon });
 
     } catch (err) {
         console.error('Sayim oturum olusturma hata:', err);
@@ -330,9 +259,6 @@ router.get('/acik-sayimlar/:lokasyon', async function(req, res) {
         if (error) {
             return res.json({ success: false, message: 'Sayimlar yuklenemedi: ' + error.message });
         }
-
-        // Eski kayitlara sayim_kodu ata
-        await sayimKoduBackfill(data, client);
 
         return res.json({ success: true, sayimlar: data || [] });
 
@@ -365,9 +291,6 @@ router.get('/kapatilan-sayimlar/:lokasyon', async function(req, res) {
             return res.json({ success: false, message: 'Sayimlar yuklenemedi: ' + error.message });
         }
 
-        // Eski kayitlara sayim_kodu ata
-        await sayimKoduBackfill(data, client);
-
         return res.json({ success: true, sayimlar: data || [] });
 
     } catch (err) {
@@ -392,8 +315,7 @@ router.post('/qr-okut', async function(req, res) {
         var client = await getSupabaseClient();
         if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi', hata_tipi: 'DB_CONNECTION' });
 
-        var oturum_id = await oturumIdCozumle(oturum_param, client);
-        if (!oturum_id) return res.json({ success: false, message: 'Sayim oturumu bulunamadi', hata_tipi: 'INVALID_OTURUM' });
+        var oturum_id = oturum_param;
 
         // QR validasyon (GS1 only)
         var qrBilgi = qrKodValidasyon(qr_kod);
@@ -522,8 +444,7 @@ router.post('/manuel-ekle', async function(req, res) {
         var client = await getSupabaseClient();
         if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
 
-        var oturum_id = await oturumIdCozumle(oturum_param, client);
-        if (!oturum_id) return res.json({ success: false, message: 'Sayim oturumu bulunamadi' });
+        var oturum_id = oturum_param;
 
         var okumaKaydi = {
             oturum_id: oturum_id,
@@ -601,8 +522,7 @@ router.post('/toplu-okut', async function(req, res) {
         var client = await getSupabaseClient();
         if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
 
-        var oturum_id = await oturumIdCozumle(oturum_param, client);
-        if (!oturum_id) return res.json({ success: false, message: 'Sayim oturumu bulunamadi' });
+        var oturum_id = oturum_param;
 
         // Oturum bilgisi (lokasyon lazim)
         var { data: oturum } = await client
@@ -719,8 +639,7 @@ router.get('/oturum-durumu/:id', async function(req, res) {
         var client = await getSupabaseClient();
         if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
 
-        var oturumId = await oturumIdCozumle(parametre, client);
-        if (!oturumId) return res.json({ success: false, message: 'Sayim oturumu bulunamadi' });
+        var oturumId = parametre;
 
         // Oturum bilgisi
         var { data: oturum, error: oturumError } = await client
@@ -825,8 +744,7 @@ router.post('/kapat/:id', async function(req, res) {
         var client = await getSupabaseClient();
         if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
 
-        var oturumId = await oturumIdCozumle(parametre, client);
-        if (!oturumId) return res.json({ success: false, message: 'Sayim oturumu bulunamadi' });
+        var oturumId = parametre;
 
         var { data: oturum, error: oturumError } = await client
             .from('sayim_oturumlari')
@@ -883,8 +801,7 @@ router.get('/rapor/:id', async function(req, res) {
         var client = await getSupabaseClient();
         if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
 
-        var oturumId = await oturumIdCozumle(parametre, client);
-        if (!oturumId) return res.json({ success: false, message: 'Sayim oturumu bulunamadi' });
+        var oturumId = parametre;
 
         var { data: oturum } = await client
             .from('sayim_oturumlari')
@@ -1003,12 +920,11 @@ router.get('/csv-indir/:id', async function(req, res) {
         var client = await getSupabaseClient();
         if (!client) return res.status(500).send('Veritabani baglantisi kurulamadi');
 
-        var oturumId = await oturumIdCozumle(parametre, client);
-        if (!oturumId) return res.status(404).send('Sayim oturumu bulunamadi');
+        var oturumId = parametre;
 
         var { data: oturum } = await client
             .from('sayim_oturumlari')
-            .select('lokasyon, baslangic, sayim_kodu')
+            .select('lokasyon, baslangic')
             .eq('id', oturumId)
             .single();
 
@@ -1069,7 +985,7 @@ router.get('/csv-indir/:id', async function(req, res) {
             return a.localeCompare(b, 'tr');
         });
 
-        var dosyaAdi = 'sayim_' + (oturum.sayim_kodu || oturum.lokasyon) + '.csv';
+        var dosyaAdi = 'sayim_' + oturumId + '.csv';
 
         var csvIcerik = '\uFEFF';
         csvIcerik += 'Stok Kod;Urun Adi;Beklenen;Sayilan;Durum;Malzeme Kodu;Fark\n';
@@ -1134,8 +1050,7 @@ router.get('/sayim-durumu/:id', async function(req, res) {
         var client = await getSupabaseClient();
         if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
 
-        var oturumId = await oturumIdCozumle(parametre, client);
-        if (!oturumId) return res.json({ success: false, message: 'Sayim oturumu bulunamadi' });
+        var oturumId = parametre;
 
         // Oturum bilgisi
         var { data: oturum } = await client
@@ -1254,7 +1169,7 @@ router.get('/sayim-durumu/:id', async function(req, res) {
 
         return res.json({
             success: true,
-            sayim_kodu: oturum.sayim_kodu,
+            sayim_kodu: oturum.id,
             lokasyon: oturum.lokasyon,
             durum: oturum.durum,
             tamamlanma_yuzdesi: yuzde,
@@ -1282,8 +1197,7 @@ router.get('/sayim-paket-detay/:oturumId/:stokKod', async function(req, res) {
         var client = await getSupabaseClient();
         if (!client) return res.json({ success: false, message: 'Veritabani baglantisi kurulamadi' });
 
-        var oturumId = await oturumIdCozumle(oturumParam, client);
-        if (!oturumId) return res.json({ success: false, message: 'Oturum bulunamadi' });
+        var oturumId = oturumParam;
 
         var { data: okumalar } = await client
             .from('sayim_okumalari')
