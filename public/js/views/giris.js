@@ -125,8 +125,11 @@ window.Views.giris = {
                         }
                     }
 
-                    // SPA navigasyon
-                    window.AppRouter.git('/anasayfa');
+                    // SPA navigasyon - returnTo varsa oraya, yoksa anasayfaya
+                    var params = new URLSearchParams(window.location.search);
+                    var returnTo = params.get('returnTo');
+                    var hedef = (returnTo && returnTo.startsWith('/') && returnTo !== '/giris') ? returnTo : '/anasayfa';
+                    window.AppRouter.git(hedef);
                 } else {
                     hataMesaji.textContent = veri.mesaj;
                     hataMesaji.classList.remove('gizle');

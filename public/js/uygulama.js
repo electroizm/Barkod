@@ -106,17 +106,21 @@
                     }
                 }
 
-                // Giris sayfasindaysa anasayfaya yonlendir
+                // Giris sayfasindaysa hedef sayfaya yonlendir
                 var yol = window.location.pathname;
                 if (yol === '/giris' || yol === '/') {
-                    history.replaceState(null, '', '/anasayfa');
+                    var params = new URLSearchParams(window.location.search);
+                    var returnTo = params.get('returnTo');
+                    var hedef = (returnTo && returnTo.startsWith('/') && returnTo !== '/giris') ? returnTo : '/anasayfa';
+                    history.replaceState(null, '', hedef);
                 }
                 router.baslat();
             } else {
                 // Giris yapilmamis
                 var yol = window.location.pathname;
                 if (yol !== '/giris') {
-                    history.replaceState(null, '', '/giris');
+                    var returnTo = yol + window.location.search;
+                    history.replaceState(null, '', '/giris?returnTo=' + encodeURIComponent(returnTo));
                 }
                 router.baslat();
             }
