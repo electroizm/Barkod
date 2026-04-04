@@ -1329,11 +1329,7 @@ router.get('/acik-oturumlar', async (req, res) => {
             });
         }
 
-        // Tüm oturumları ve okuma sayılarını getir
-        const { data: oturumlar, error: oturumHata } = await client
-            .from('nakliye_fisleri')
-            .select('oturum_id, plaka, created_at, paket_sayisi')
-            .order('created_at', { ascending: false });
+        const { data, error: oturumHata } = await client.rpc('nakliye_acik_oturumlar_getir', { gun_sayisi: 7 });
 
         if (oturumHata) {
             return res.status(500).json({
@@ -1342,48 +1338,10 @@ router.get('/acik-oturumlar', async (req, res) => {
             });
         }
 
-        // Oturumları grupla ve toplam paketi hesapla
-        const oturumGruplari = {};
-        for (const kayit of oturumlar || []) {
-            if (!oturumGruplari[kayit.oturum_id]) {
-                oturumGruplari[kayit.oturum_id] = {
-                    oturum_id: kayit.oturum_id,
-                    plaka: kayit.plaka,
-                    tarih: kayit.created_at,
-                    toplam_paket: 0
-                };
-            }
-            oturumGruplari[kayit.oturum_id].toplam_paket += parseInt(kayit.paket_sayisi) || 0;
-        }
-
-        // Her oturum için okunan paket sayısını al
-        const acikOturumlar = [];
-        for (const oturumId of Object.keys(oturumGruplari)) {
-            const { count, error: countError } = await client
-                .from('nakliye_fisleri_okumalari')
-                .select('*', { count: 'exact', head: true })
-                .eq('oturum_id', oturumId);
-
-            const okunanPaket = countError ? 0 : (count || 0);
-            const oturum = oturumGruplari[oturumId];
-
-            // Açık oturum = okunan < toplam
-            if (okunanPaket < oturum.toplam_paket) {
-                acikOturumlar.push({
-                    ...oturum,
-                    okunan_paket: okunanPaket,
-                    kalan_paket: oturum.toplam_paket - okunanPaket
-                });
-            }
-        }
-
-        // Tarihe göre sırala (en yeni önce)
-        acikOturumlar.sort((a, b) => new Date(b.tarih) - new Date(a.tarih));
-
         return res.json({
             success: true,
-            oturumlar: acikOturumlar,
-            toplam: acikOturumlar.length
+            oturumlar: data || [],
+            toplam: (data || []).length
         });
 
     } catch (error) {
@@ -1410,11 +1368,7 @@ router.get('/kapatilan-oturumlar', async (req, res) => {
             });
         }
 
-        // Tüm oturumları ve paket sayılarını getir
-        const { data: oturumlar, error: oturumHata } = await client
-            .from('nakliye_fisleri')
-            .select('oturum_id, plaka, created_at, paket_sayisi')
-            .order('created_at', { ascending: false });
+        const { data, error: oturumHata } = await client.rpc('nakliye_kapatilan_oturumlar_getir', { gun_sayisi: 7 });
 
         if (oturumHata) {
             return res.status(500).json({
@@ -1423,47 +1377,10 @@ router.get('/kapatilan-oturumlar', async (req, res) => {
             });
         }
 
-        // Oturumları grupla ve toplam paketi hesapla
-        const oturumGruplari = {};
-        for (const kayit of oturumlar || []) {
-            if (!oturumGruplari[kayit.oturum_id]) {
-                oturumGruplari[kayit.oturum_id] = {
-                    oturum_id: kayit.oturum_id,
-                    plaka: kayit.plaka,
-                    tarih: kayit.created_at,
-                    toplam_paket: 0
-                };
-            }
-            oturumGruplari[kayit.oturum_id].toplam_paket += parseInt(kayit.paket_sayisi) || 0;
-        }
-
-        // Her oturum için okunan paket sayısını al
-        const kapatilanOturumlar = [];
-        for (const oturumId of Object.keys(oturumGruplari)) {
-            const { count, error: countError } = await client
-                .from('nakliye_fisleri_okumalari')
-                .select('*', { count: 'exact', head: true })
-                .eq('oturum_id', oturumId);
-
-            const okunanPaket = countError ? 0 : (count || 0);
-            const oturum = oturumGruplari[oturumId];
-
-            // Kapatılan oturum = okunan >= toplam
-            if (okunanPaket >= oturum.toplam_paket) {
-                kapatilanOturumlar.push({
-                    ...oturum,
-                    okunan_paket: okunanPaket
-                });
-            }
-        }
-
-        // Tarihe göre sırala (en yeni önce)
-        kapatilanOturumlar.sort((a, b) => new Date(b.tarih) - new Date(a.tarih));
-
         return res.json({
             success: true,
-            oturumlar: kapatilanOturumlar,
-            toplam: kapatilanOturumlar.length
+            oturumlar: data || [],
+            toplam: (data || []).length
         });
 
     } catch (error) {
