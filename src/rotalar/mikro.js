@@ -150,7 +150,7 @@ function cachedeProductCodeBul(faturaNo, productCode) {
 function cachedeSatinalmaKalemIdBul(faturaNo, satinalmaKalemId) {
     const cache = faturaCache.get(faturaNo);
     if (!cache) return null;
-    return cache.kalemler.find(k => k.bag_kodu === satinalmaKalemId);
+    return cache.kalemler.find(k => k.satinalma_kalem_id === satinalmaKalemId);
 }
 
 /**
