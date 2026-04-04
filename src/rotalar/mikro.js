@@ -318,11 +318,7 @@ router.get('/acik-faturalar', async (req, res) => {
             });
         }
 
-        // Tüm faturaları grupla
-        const { data: faturalar, error } = await client
-            .from('satis_faturasi')
-            .select('evrakno_seri, evrakno_sira, tarih, cari_adi, miktar, paket_sayisi, malzeme_adi, product_desc')
-            .order('evrakno_sira', { ascending: false });
+        const { data, error } = await client.rpc('acik_faturalar_getir', { gun_sayisi: 7 });
 
         if (error) {
             return res.status(500).json({
@@ -331,57 +327,10 @@ router.get('/acik-faturalar', async (req, res) => {
             });
         }
 
-        // Faturaları grupla
-        const faturaGruplari = {};
-        for (const kayit of faturalar || []) {
-            const key = `${kayit.evrakno_seri}-${kayit.evrakno_sira}`;
-            if (!faturaGruplari[key]) {
-                faturaGruplari[key] = {
-                    evrakno_seri: kayit.evrakno_seri,
-                    evrakno_sira: kayit.evrakno_sira,
-                    tarih: kayit.tarih,
-                    cari_adi: kayit.cari_adi,
-                    toplam_paket: 0,
-                    kalemler: []
-                };
-            }
-            // Her kalem için miktar * paket_sayisi
-            const miktar = parseFloat(kayit.miktar) || 1;
-            const paketSayisi = parseInt(kayit.paket_sayisi) || 1;
-            faturaGruplari[key].toplam_paket += Math.ceil(miktar * paketSayisi);
-            faturaGruplari[key].kalemler.push(Math.ceil(miktar) + ' - ' + (kayit.malzeme_adi || kayit.product_desc || 'Bilinmeyen'));
-        }
-
-        // Her fatura için okunan paket sayısını al
-        const acikFaturalar = [];
-        for (const key of Object.keys(faturaGruplari)) {
-            const fatura = faturaGruplari[key];
-
-            // satis_faturasi_okumalari tablosundan okunan sayısını al
-            const { count, error: countError } = await client
-                .from('satis_faturasi_okumalari')
-                .select('*', { count: 'exact', head: true })
-                .eq('fatura_no', fatura.evrakno_sira);
-
-            const okunanPaket = countError ? 0 : (count || 0);
-
-            // Açık fatura = okunan < toplam
-            if (okunanPaket < fatura.toplam_paket) {
-                acikFaturalar.push({
-                    ...fatura,
-                    okunan_paket: okunanPaket,
-                    kalan_paket: fatura.toplam_paket - okunanPaket
-                });
-            }
-        }
-
-        // Tarihe göre sırala
-        acikFaturalar.sort((a, b) => b.evrakno_sira - a.evrakno_sira);
-
         return res.json({
             success: true,
-            faturalar: acikFaturalar,
-            toplam: acikFaturalar.length
+            faturalar: data || [],
+            toplam: (data || []).length
         });
 
     } catch (error) {
@@ -986,16 +935,7 @@ router.get('/kapatilan-faturalar', async (req, res) => {
             });
         }
 
-        // Son 2 günün faturalarını getir
-        const ikiGunOnce = new Date();
-        ikiGunOnce.setDate(ikiGunOnce.getDate() - 2);
-        const tarihFiltre = ikiGunOnce.toISOString().split('T')[0];
-
-        const { data: faturalar, error } = await client
-            .from('satis_faturasi')
-            .select('evrakno_seri, evrakno_sira, tarih, cari_adi, miktar, paket_sayisi, malzeme_adi, product_desc')
-            .gte('tarih', tarihFiltre)
-            .order('evrakno_sira', { ascending: false });
+        const { data, error } = await client.rpc('kapatilan_faturalar_getir', { gun_sayisi: 7 });
 
         if (error) {
             return res.status(500).json({
@@ -1004,54 +944,10 @@ router.get('/kapatilan-faturalar', async (req, res) => {
             });
         }
 
-        // Faturaları grupla
-        const faturaGruplari = {};
-        for (const kayit of faturalar || []) {
-            const key = `${kayit.evrakno_seri}-${kayit.evrakno_sira}`;
-            if (!faturaGruplari[key]) {
-                faturaGruplari[key] = {
-                    evrakno_seri: kayit.evrakno_seri,
-                    evrakno_sira: kayit.evrakno_sira,
-                    tarih: kayit.tarih,
-                    cari_adi: kayit.cari_adi,
-                    toplam_paket: 0,
-                    kalemler: []
-                };
-            }
-            const miktar = parseFloat(kayit.miktar) || 1;
-            const paketSayisi = parseInt(kayit.paket_sayisi) || 1;
-            faturaGruplari[key].toplam_paket += Math.ceil(miktar * paketSayisi);
-            faturaGruplari[key].kalemler.push(Math.ceil(miktar) + ' - ' + (kayit.malzeme_adi || kayit.product_desc || 'Bilinmeyen'));
-        }
-
-        // Her fatura için okunan paket sayısını al
-        const kapatilanFaturalar = [];
-        for (const key of Object.keys(faturaGruplari)) {
-            const fatura = faturaGruplari[key];
-
-            const { count, error: countError } = await client
-                .from('satis_faturasi_okumalari')
-                .select('*', { count: 'exact', head: true })
-                .eq('fatura_no', fatura.evrakno_sira);
-
-            const okunanPaket = countError ? 0 : (count || 0);
-
-            // Kapatılan fatura = okunan >= toplam
-            if (okunanPaket >= fatura.toplam_paket && fatura.toplam_paket > 0) {
-                kapatilanFaturalar.push({
-                    ...fatura,
-                    okunan_paket: okunanPaket
-                });
-            }
-        }
-
-        // Sırala
-        kapatilanFaturalar.sort((a, b) => b.evrakno_sira - a.evrakno_sira);
-
         return res.json({
             success: true,
-            faturalar: kapatilanFaturalar,
-            toplam: kapatilanFaturalar.length
+            faturalar: data || [],
+            toplam: (data || []).length
         });
 
     } catch (error) {
