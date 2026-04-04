@@ -1037,12 +1037,19 @@ router.post('/on-kayit-barkod-bilgi', async (req, res) => {
         let productDesc = null;
         let paketSayisi = paketToplam;
 
-        // Stok sayfasından malzeme adını bul
+        // Stok sayfasından malzeme adını bul (10 haneli kod ile, bulamazsa 18 haneli ile dene)
         try {
-            const stokResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/api/stok/ara?q=${encodeURIComponent(stokKod)}`);
-            const stokData = await stokResponse.json();
+            let stokResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/api/stok/ara?q=${encodeURIComponent(stokKod)}`);
+            let stokData = await stokResponse.json();
             if (stokData.success && stokData.sonuclar && stokData.sonuclar.length > 0) {
                 malzemeAdi = stokData.sonuclar[0]['Malzeme Adı'] || stokKod;
+            } else {
+                // 18 haneli tam malzeme no ile dene
+                stokResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/api/stok/ara?q=${encodeURIComponent(qrBilgi.malzemeNo)}`);
+                stokData = await stokResponse.json();
+                if (stokData.success && stokData.sonuclar && stokData.sonuclar.length > 0) {
+                    malzemeAdi = stokData.sonuclar[0]['Malzeme Adı'] || stokKod;
+                }
             }
         } catch (e) { /* fallback to stokKod */ }
 

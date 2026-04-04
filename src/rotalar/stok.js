@@ -95,11 +95,10 @@ router.get('/ara', async (req, res) => {
 
         const sonuclar = veriler.filter(kayit => {
             const malzemeAdi = (kayit['Malzeme Adı'] || '').toUpperCase();
-            const stokKod = Object.values(kayit)[0]?.toString().toUpperCase() || '';
-            const tumMetin = malzemeAdi + ' ' + stokKod;
+            const sapKodu = (kayit['SAP Kodu'] || '').toString().toUpperCase();
+            const tumMetin = malzemeAdi + ' ' + sapKodu;
             return kelimeler.every(kelime => {
                 // Kısa sayısal kelimeler (1-3 hane) için kelime sınırı kontrolü
-                // Böylece "6" sadece " 6 " veya "6 KAPAKLI" ile eşleşir, stok kodu içindeki "6" ile değil
                 if (/^\d{1,3}$/.test(kelime)) {
                     const regex = new RegExp('\\b' + kelime + '\\b');
                     return regex.test(tumMetin);
