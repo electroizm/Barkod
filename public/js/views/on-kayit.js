@@ -267,7 +267,7 @@ window.Views['on-kayit'] = (function() {
                         '<div class="bekleyen-adi">' + (okuma.malzeme_adi || okuma.stok_kod) + '</div>' +
                     '</div>' +
                     '<div class="bekleyen-alt">' +
-                        '<div class="bekleyen-detay">' + okuma.stok_kod + ' | P' + okuma.paket_sira + '/' + okuma.paket_sayisi + '</div>' +
+                        '<div class="bekleyen-detay">P' + okuma.paket_sira + '</div>' +
                         '<select class="depo-select' + depoKaydedildi + '" data-id="' + okuma.id + '">' +
                             '<option value="">Depo</option>' +
                             '<option value="100"' + (okuma.depo == 100 ? ' selected' : '') + '>100 - DEPO</option>' +

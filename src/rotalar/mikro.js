@@ -318,7 +318,7 @@ router.get('/acik-faturalar', async (req, res) => {
             });
         }
 
-        const { data, error } = await client.rpc('acik_faturalar_getir', { gun_sayisi: 7 });
+        const { data, error } = await client.rpc('acik_faturalar_getir', { gun_sayisi: 17 });
 
         if (error) {
             return res.status(500).json({
@@ -935,7 +935,7 @@ router.get('/kapatilan-faturalar', async (req, res) => {
             });
         }
 
-        const { data, error } = await client.rpc('kapatilan_faturalar_getir', { gun_sayisi: 7 });
+        const { data, error } = await client.rpc('kapatilan_faturalar_getir', { gun_sayisi: 17 });
 
         if (error) {
             return res.status(500).json({
@@ -1037,26 +1037,7 @@ router.post('/on-kayit-barkod-bilgi', async (req, res) => {
         let productDesc = null;
         let paketSayisi = paketToplam;
 
-        try {
-            const dogtasResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/api/dogtas/urun-paketleri`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ stokKodlari: [stokKod] })
-            });
-            const dogtasData = await dogtasResponse.json();
-
-            if (dogtasData.success && dogtasData.sonuclar && dogtasData.sonuclar.length > 0) {
-                const sonuc = dogtasData.sonuclar[0];
-                if (sonuc.basarili && sonuc.veri) {
-                    productDesc = sonuc.veri.productDesc;
-                    paketSayisi = sonuc.veri.paketSayisi || paketToplam;
-                }
-            }
-        } catch (apiError) {
-            console.error('Doğtaş API hatası (ön kayıt):', apiError.message);
-        }
-
-        // Stok arama ile malzeme adını bul
+        // Stok sayfasından malzeme adını bul
         try {
             const stokResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/api/stok/ara?q=${encodeURIComponent(stokKod)}`);
             const stokData = await stokResponse.json();

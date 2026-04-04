@@ -700,7 +700,7 @@ router.get('/acik-fisler', async (req, res) => {
             return res.status(500).json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
         }
 
-        const { data, error } = await client.rpc('cikis_acik_fisler_getir', { gun_sayisi: 7 });
+        const { data, error } = await client.rpc('cikis_acik_fisler_getir', { gun_sayisi: 17 });
 
         if (error) {
             return res.status(500).json({ success: false, message: 'Fiş listesi hatası: ' + error.message });
@@ -725,7 +725,7 @@ router.get('/kapatilan-fisler', async (req, res) => {
             return res.status(500).json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
         }
 
-        const { data, error } = await client.rpc('cikis_kapatilan_fisler_getir', { gun_sayisi: 7 });
+        const { data, error } = await client.rpc('cikis_kapatilan_fisler_getir', { gun_sayisi: 17 });
 
         if (error) {
             return res.status(500).json({ success: false, message: 'Fiş listesi hatası: ' + error.message });

@@ -1329,7 +1329,7 @@ router.get('/acik-oturumlar', async (req, res) => {
             });
         }
 
-        const { data, error: oturumHata } = await client.rpc('nakliye_acik_oturumlar_getir', { gun_sayisi: 7 });
+        const { data, error: oturumHata } = await client.rpc('nakliye_acik_oturumlar_getir', { gun_sayisi: 17 });
 
         if (oturumHata) {
             return res.status(500).json({
@@ -1368,7 +1368,7 @@ router.get('/kapatilan-oturumlar', async (req, res) => {
             });
         }
 
-        const { data, error: oturumHata } = await client.rpc('nakliye_kapatilan_oturumlar_getir', { gun_sayisi: 7 });
+        const { data, error: oturumHata } = await client.rpc('nakliye_kapatilan_oturumlar_getir', { gun_sayisi: 17 });
 
         if (oturumHata) {
             return res.status(500).json({
