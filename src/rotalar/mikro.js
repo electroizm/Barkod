@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { createClient } = require('@supabase/supabase-js');
 const { qrKodParsele, qrKodHash, qrKodValidasyon } = require('../utils/qr-parser');
+const { stokVerisiYukle } = require('./stok');
 
 // Supabase client
 let supabase = null;
@@ -1037,19 +1038,16 @@ router.post('/on-kayit-barkod-bilgi', async (req, res) => {
         let productDesc = null;
         let paketSayisi = paketToplam;
 
-        // Stok sayfasından malzeme adını bul (10 haneli kod ile, bulamazsa 18 haneli ile dene)
+        // Stok sayfasından malzeme adını bul
         try {
-            let stokResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/api/stok/ara?q=${encodeURIComponent(stokKod)}`);
-            let stokData = await stokResponse.json();
-            if (stokData.success && stokData.sonuclar && stokData.sonuclar.length > 0) {
-                malzemeAdi = stokData.sonuclar[0]['Malzeme Adı'] || stokKod;
-            } else {
-                // 18 haneli tam malzeme no ile dene
-                stokResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/api/stok/ara?q=${encodeURIComponent(qrBilgi.malzemeNo)}`);
-                stokData = await stokResponse.json();
-                if (stokData.success && stokData.sonuclar && stokData.sonuclar.length > 0) {
-                    malzemeAdi = stokData.sonuclar[0]['Malzeme Adı'] || stokKod;
-                }
+            const { veriler } = await stokVerisiYukle();
+            const arananlar = [stokKod.toUpperCase(), qrBilgi.malzemeNo.toUpperCase()];
+            const bulunan = veriler.find(kayit => {
+                const sapKodu = (kayit['SAP Kodu'] || '').toString().toUpperCase();
+                return arananlar.some(a => sapKodu.includes(a) || a.includes(sapKodu));
+            });
+            if (bulunan) {
+                malzemeAdi = bulunan['Malzeme Adı'] || stokKod;
             }
         } catch (e) { /* fallback to stokKod */ }
 
