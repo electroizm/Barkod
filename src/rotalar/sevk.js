@@ -705,62 +705,13 @@ router.get('/acik-fisler', async (req, res) => {
             return res.status(500).json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
         }
 
-        const { data: fisler, error } = await client
-            .from('sevk_fisi')
-            .select('evrakno_seri, evrakno_sira, tarih, evrak_adi, miktar, paket_sayisi, cikis_depo, giris_depo, malzeme_adi')
-            .order('evrakno_sira', { ascending: false });
+        const { data, error } = await client.rpc('sevk_acik_fisler_getir', { gun_sayisi: 7 });
 
         if (error) {
             return res.status(500).json({ success: false, message: 'Fiş listesi hatası: ' + error.message });
         }
 
-        const fisGruplari = {};
-        for (const kayit of fisler || []) {
-            const key = `${kayit.evrakno_seri || ''}-${kayit.evrakno_sira}`;
-            if (!fisGruplari[key]) {
-                fisGruplari[key] = {
-                    evrakno_seri: kayit.evrakno_seri,
-                    evrakno_sira: kayit.evrakno_sira,
-                    tarih: kayit.tarih,
-                    evrak_adi: kayit.evrak_adi,
-                    cikis_depo: kayit.cikis_depo,
-                    giris_depo: kayit.giris_depo,
-                    toplam_paket: 0,
-                    kalemler: []
-                };
-            }
-            const miktar = parseFloat(kayit.miktar) || 1;
-            const paketSayisi = parseInt(kayit.paket_sayisi) || 1;
-            fisGruplari[key].toplam_paket += Math.ceil(miktar * paketSayisi);
-            const kalemStr = Math.ceil(miktar) + ' - ' + (kayit.malzeme_adi || 'Bilinmeyen');
-            if (!fisGruplari[key].kalemler.includes(kalemStr)) {
-                fisGruplari[key].kalemler.push(kalemStr);
-            }
-        }
-
-        const acikFisler = [];
-        for (const key of Object.keys(fisGruplari)) {
-            const fis = fisGruplari[key];
-
-            const { count, error: countError } = await client
-                .from('sevk_fisi_okumalari')
-                .select('*', { count: 'exact', head: true })
-                .eq('fis_no', fis.evrakno_sira);
-
-            const okunanPaket = countError ? 0 : (count || 0);
-
-            if (okunanPaket < fis.toplam_paket) {
-                acikFisler.push({
-                    ...fis,
-                    okunan_paket: okunanPaket,
-                    kalan_paket: fis.toplam_paket - okunanPaket
-                });
-            }
-        }
-
-        acikFisler.sort((a, b) => b.evrakno_sira - a.evrakno_sira);
-
-        return res.json({ success: true, fisler: acikFisler, toplam: acikFisler.length });
+        return res.json({ success: true, fisler: data || [], toplam: (data || []).length });
 
     } catch (error) {
         console.error('Açık fişler hatası:', error);
@@ -779,63 +730,13 @@ router.get('/kapatilan-fisler', async (req, res) => {
             return res.status(500).json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
         }
 
-        const ikiGunOnce = new Date();
-        ikiGunOnce.setDate(ikiGunOnce.getDate() - 2);
-        const tarihFiltre = ikiGunOnce.toISOString().split('T')[0];
-
-        const { data: fisler, error } = await client
-            .from('sevk_fisi')
-            .select('evrakno_seri, evrakno_sira, tarih, evrak_adi, miktar, paket_sayisi, cikis_depo, giris_depo, malzeme_adi')
-            .gte('tarih', tarihFiltre)
-            .order('evrakno_sira', { ascending: false });
+        const { data, error } = await client.rpc('sevk_kapatilan_fisler_getir', { gun_sayisi: 7 });
 
         if (error) {
             return res.status(500).json({ success: false, message: 'Fiş listesi hatası: ' + error.message });
         }
 
-        const fisGruplari = {};
-        for (const kayit of fisler || []) {
-            const key = `${kayit.evrakno_seri || ''}-${kayit.evrakno_sira}`;
-            if (!fisGruplari[key]) {
-                fisGruplari[key] = {
-                    evrakno_seri: kayit.evrakno_seri,
-                    evrakno_sira: kayit.evrakno_sira,
-                    tarih: kayit.tarih,
-                    evrak_adi: kayit.evrak_adi,
-                    cikis_depo: kayit.cikis_depo,
-                    giris_depo: kayit.giris_depo,
-                    toplam_paket: 0,
-                    kalemler: []
-                };
-            }
-            const miktar = parseFloat(kayit.miktar) || 1;
-            const paketSayisi = parseInt(kayit.paket_sayisi) || 1;
-            fisGruplari[key].toplam_paket += Math.ceil(miktar * paketSayisi);
-            const kalemStr = Math.ceil(miktar) + ' - ' + (kayit.malzeme_adi || 'Bilinmeyen');
-            if (!fisGruplari[key].kalemler.includes(kalemStr)) {
-                fisGruplari[key].kalemler.push(kalemStr);
-            }
-        }
-
-        const kapatilanFisler = [];
-        for (const key of Object.keys(fisGruplari)) {
-            const fis = fisGruplari[key];
-
-            const { count, error: countError } = await client
-                .from('sevk_fisi_okumalari')
-                .select('*', { count: 'exact', head: true })
-                .eq('fis_no', fis.evrakno_sira);
-
-            const okunanPaket = countError ? 0 : (count || 0);
-
-            if (okunanPaket >= fis.toplam_paket && fis.toplam_paket > 0) {
-                kapatilanFisler.push({ ...fis, okunan_paket: okunanPaket });
-            }
-        }
-
-        kapatilanFisler.sort((a, b) => b.evrakno_sira - a.evrakno_sira);
-
-        return res.json({ success: true, fisler: kapatilanFisler, toplam: kapatilanFisler.length });
+        return res.json({ success: true, fisler: data || [], toplam: (data || []).length });
 
     } catch (error) {
         console.error('Kapatılan fişler hatası:', error);

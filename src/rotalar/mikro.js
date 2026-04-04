@@ -145,7 +145,7 @@ function cachedeProductCodeBul(faturaNo, productCode) {
 }
 
 /**
- * Cache'den kalem bul (bag_kodu ile - kişiye özel ürünler)
+ * Cache'den kalem bul (satinalma_kalem_id ile - kişiye özel ürünler)
  */
 function cachedeSatinalmaKalemIdBul(faturaNo, satinalmaKalemId) {
     const cache = faturaCache.get(faturaNo);
