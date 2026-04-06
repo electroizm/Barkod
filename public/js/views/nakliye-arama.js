@@ -64,6 +64,9 @@ window.Views['nakliye-arama'] = {
             '<button id="devamBtn" class="buton" style="margin-top: 20px;" disabled>' +
                 'Nakliyeyi Y\u00fckle (<span id="seciliSayisi">0</span>)' +
             '</button>' +
+            '<button id="acikEklemeBtn" class="buton buton-ikincil" style="margin-top: 10px;" disabled>' +
+                'A\u00e7\u0131k Nakliye Ekleme' +
+            '</button>' +
             '<a href="/fis/nakliye-okutma" id="nakliyeOkutmaBtn" class="buton" style="margin-top: 10px; display: block; text-align: center;">' +
                 'Nakliye Okutma' +
             '</a>' +
@@ -82,6 +85,7 @@ window.Views['nakliye-arama'] = {
         var sonucListe = konteyner.querySelector('#sonucListe');
         var sonucIstatistik = konteyner.querySelector('#sonucIstatistik');
         var devamBtn = konteyner.querySelector('#devamBtn');
+        var acikEklemeBtn = konteyner.querySelector('#acikEklemeBtn');
         var seciliSayisiSpan = konteyner.querySelector('#seciliSayisi');
         var yukleniyorOverlay = konteyner.querySelector('#yukleniyorNakliye');
         var hataMesajEl = konteyner.querySelector('#hataMesaj');
@@ -128,6 +132,7 @@ window.Views['nakliye-arama'] = {
             var sayi = self._seciliNakliyeler.size;
             seciliSayisiSpan.textContent = sayi;
             devamBtn.disabled = sayi === 0;
+            acikEklemeBtn.disabled = sayi === 0;
             var secimDurumu = konteyner.querySelector('#secimDurumu');
             if (secimDurumu) {
                 secimDurumu.textContent = sayi > 0 ? sayi + ' se\u00e7ili' : '';
@@ -375,6 +380,85 @@ window.Views['nakliye-arama'] = {
         };
         devamBtn.addEventListener('click', this._devamHandler);
 
+        // Açık Nakliye Ekleme butonu
+        this._acikEklemeHandler = async function() {
+            if (self._seciliNakliyeler.size === 0) {
+                alert('L\u00fctfen en az bir nakliye se\u00e7in');
+                return;
+            }
+
+            var oturumId = prompt('Hangi oturuma eklemek istiyorsunuz?\n\n\u00d6rnek: 260406-01\n\nOturum numaras\u0131n\u0131 girin:');
+            if (!oturumId || !oturumId.trim()) return;
+            oturumId = oturumId.trim();
+
+            var seciliVeriler = Array.from(self._seciliNakliyeler).map(function(idx) {
+                return self._aramaSonuclari[idx];
+            });
+
+            var tumKalemler = [];
+            seciliVeriler.forEach(function(nakliye) {
+                if (nakliye.kalemler && Array.isArray(nakliye.kalemler)) {
+                    tumKalemler.push.apply(tumKalemler, nakliye.kalemler);
+                }
+            });
+
+            var toplamPaket = tumKalemler.reduce(function(toplam, kalem) {
+                return toplam + (parseInt(kalem.productPackages) || 0);
+            }, 0);
+
+            var onay = confirm(
+                '"' + oturumId + '" oturumuna ekleme yap\u0131lacak.\n\n' +
+                'Se\u00e7ilen nakliye says\u0131: ' + seciliVeriler.length + '\n' +
+                'Toplam paket: ' + toplamPaket + '\n\n' +
+                'Zaten bu oturumda kay\u0131tl\u0131 kalemler atlanacak.\n\nDevam etmek istiyor musunuz?'
+            );
+            if (!onay) return;
+
+            yukleniyorGoster();
+
+            try {
+                var kullaniciBilgiEl = document.getElementById('kullaniciBilgi');
+                var kullanici = (kullaniciBilgiEl && kullaniciBilgiEl.textContent && kullaniciBilgiEl.textContent.trim()) || 'bilinmiyor';
+
+                var response = await fetch('/api/supabase/nakliye-ekle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        oturumId: oturumId,
+                        kalemler: tumKalemler,
+                        kullanici: kullanici
+                    })
+                });
+
+                var data = await response.json();
+
+                if (data.success) {
+                    var devam = confirm('Ba\u015far\u0131l\u0131!\n\n' + data.message + '\n\nNakliye Okutma sayfas\u0131na gitmek ister misiniz?');
+                    if (devam) {
+                        AppRouter.git('/fis/nakliye-okutma?oturum=' + data.oturumId);
+                    } else {
+                        self._seciliNakliyeler.clear();
+                        konteyner.querySelectorAll('.nakliye-checkbox').forEach(function(cb) {
+                            cb.checked = false;
+                            var satir = cb.closest('.sonuc-satir');
+                            if (satir) satir.classList.remove('secili');
+                        });
+                        var tumunuSecCb = konteyner.querySelector('#tumunuSec');
+                        if (tumunuSecCb) tumunuSecCb.checked = false;
+                        seciliSayisiniGuncelle();
+                    }
+                } else {
+                    alert('Hata!\n\n' + (data.message || 'Bir hata olu\u015ftu'));
+                }
+            } catch (error) {
+                console.error('A\u00e7\u0131k ekleme hatas\u0131:', error);
+                alert('Ba\u011flant\u0131 hatas\u0131!\n\nSunucuya ba\u011flan\u0131lamad\u0131. L\u00fctfen tekrar deneyin.');
+            } finally {
+                yukleniyorGizle();
+            }
+        };
+        acikEklemeBtn.addEventListener('click', this._acikEklemeHandler);
+
         // Arama butonu
         this._aramaBtnHandler = function() { aramaYap(); };
         aramaBtn.addEventListener('click', this._aramaBtnHandler);
@@ -455,6 +539,7 @@ window.Views['nakliye-arama'] = {
         fabrikaDepolariYukle();
 
         this._devamBtn = devamBtn;
+        this._acikEklemeBtn = acikEklemeBtn;
         this._aramaBtn = aramaBtn;
         this._nakliyeNoInput = nakliyeNoInput;
     },
@@ -462,6 +547,9 @@ window.Views['nakliye-arama'] = {
     unmount() {
         if (this._devamBtn) {
             this._devamBtn.removeEventListener('click', this._devamHandler);
+        }
+        if (this._acikEklemeBtn) {
+            this._acikEklemeBtn.removeEventListener('click', this._acikEklemeHandler);
         }
         if (this._aramaBtn) {
             this._aramaBtn.removeEventListener('click', this._aramaBtnHandler);
@@ -473,9 +561,11 @@ window.Views['nakliye-arama'] = {
         this._seciliNakliyeler = null;
         this._fabrikaDepoMap = {};
         this._devamBtn = null;
+        this._acikEklemeBtn = null;
         this._aramaBtn = null;
         this._nakliyeNoInput = null;
         this._devamHandler = null;
+        this._acikEklemeHandler = null;
         this._aramaBtnHandler = null;
         this._enterHandler = null;
     }

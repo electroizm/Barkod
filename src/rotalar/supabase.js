@@ -424,6 +424,133 @@ router.post('/nakliye-yukle', async (req, res) => {
 });
 
 /**
+ * Açık Oturuma Nakliye Ekleme
+ * POST /api/supabase/nakliye-ekle
+ *
+ * Body: { oturumId: "260406-01", kalemler: [...], kullanici: "..." }
+ * - oturumId mevcut olmalı
+ * - (nakliye_no, belge_tarihi) çifti o oturumda yoksa ekle, varsa atla
+ */
+router.post('/nakliye-ekle', async (req, res) => {
+    try {
+        const { oturumId, kalemler, kullanici } = req.body;
+
+        if (!oturumId || !oturumId.trim()) {
+            return res.json({ success: false, message: 'Oturum ID gerekli' });
+        }
+        if (!kalemler || !Array.isArray(kalemler) || kalemler.length === 0) {
+            return res.json({ success: false, message: 'Kaydedilecek kalem bulunamadı' });
+        }
+
+        const client = await getSupabaseClient();
+        if (!client) {
+            return res.json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
+        }
+
+        const temizOturumId = oturumId.trim();
+
+        // Oturum mevcut mu kontrol et
+        const { data: mevcutOturum, error: oturumHatasi } = await client
+            .from('nakliye_fisleri')
+            .select('oturum_id')
+            .eq('oturum_id', temizOturumId)
+            .limit(1);
+
+        if (oturumHatasi) {
+            return res.json({ success: false, message: 'Veritabanı kontrol hatası: ' + oturumHatasi.message });
+        }
+        if (!mevcutOturum || mevcutOturum.length === 0) {
+            return res.json({ success: false, message: `"${temizOturumId}" numaralı oturum bulunamadı` });
+        }
+
+        // O oturumda zaten kayıtlı (nakliye_no, belge_tarihi) çiftlerini al
+        const { data: mevcutKayitlar, error: kayitHatasi } = await client
+            .from('nakliye_fisleri')
+            .select('nakliye_no, belge_tarihi')
+            .eq('oturum_id', temizOturumId);
+
+        if (kayitHatasi) {
+            return res.json({ success: false, message: 'Mevcut kayıt sorgulama hatası: ' + kayitHatasi.message });
+        }
+
+        // Zaten kayıtlı çiftleri Set'e al
+        const mevcutCiftler = new Set(
+            (mevcutKayitlar || []).map(k => `${k.nakliye_no}__${k.belge_tarihi}`)
+        );
+
+        // Yeni (henüz eklenmemiş) kalemleri filtrele
+        const yeniKalemler = kalemler.filter(kalem => {
+            const cift = `${kalem.distributionDocumentNumber}__${kalem.documanetDate || ''}`;
+            return !mevcutCiftler.has(cift);
+        });
+
+        if (yeniKalemler.length === 0) {
+            return res.json({
+                success: false,
+                message: 'Seçili nakliyeler zaten bu oturumda kayıtlı'
+            });
+        }
+
+        // Kayıtları oluştur
+        const kayitlar = yeniKalemler.map(kalem => {
+            const satinalmaNo = kalem.referenceDocumentNumber || '';
+            const satinalmaKalemNo = kalem.referenceItemNumber || '';
+            const satinalmaKalemId = satinalmaNo + satinalmaKalemNo;
+
+            return {
+                oturum_id: temizOturumId,
+                nakliye_no: kalem.distributionDocumentNumber || '',
+                plaka: kalem.shipmentVehicleLicensePlate || '',
+                sofor_adi: kalem.shipmentVehicleDriverName || '',
+                belge_tarihi: kalem.documanetDate || '',
+                depo_yeri: kalem.storageLocation || '',
+                alici: kalem.receiver || '',
+                fiili_hareket_tarihi: kalem.actualGoodsMovementDate || '',
+                fatura_numarasi: kalem.invoceNumber || '',
+                satinalma_no: satinalmaNo,
+                satinalma_kalem_no: satinalmaKalemNo,
+                satinalma_kalem_id: satinalmaKalemId,
+                ean: kalem.ean || '',
+                malzeme_no: kalem.materialNumber || '',
+                malzeme_adi: kalem.materialName || '',
+                miktar: kalem.materialQuantity || '',
+                hacim: kalem.materialVolume || '',
+                paket_sayisi_toplam: kalem.productPackages || '',
+                paket_sayisi: hesaplaPaketSayisi(kalem.productPackages, kalem.materialQuantity),
+                kullanici: kullanici || 'bilinmiyor'
+            };
+        });
+
+        const { data, error } = await client
+            .from('nakliye_fisleri')
+            .insert(kayitlar)
+            .select();
+
+        if (error) {
+            return res.json({ success: false, message: 'Kayıt sırasında hata: ' + error.message });
+        }
+
+        const atlalanSayisi = kalemler.length - yeniKalemler.length;
+        let mesaj = `${kayitlar.length} kalem "${temizOturumId}" oturumuna eklendi`;
+        if (atlalanSayisi > 0) {
+            mesaj += `. ${atlalanSayisi} kalem zaten kayıtlı olduğu için atlandı.`;
+        }
+
+        return res.json({
+            success: true,
+            message: mesaj,
+            kayitSayisi: kayitlar.length,
+            oturumId: temizOturumId,
+            atlalanSayisi,
+            data
+        });
+
+    } catch (error) {
+        return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
+    }
+});
+
+/**
  * Oturum Bilgilerini Getir
  * GET /api/supabase/oturum/:oturumId
  */

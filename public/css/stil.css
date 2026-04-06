@@ -97,6 +97,14 @@ body {
     background-color: #2980b9;
 }
 
+.buton-ikincil {
+    background-color: #7f8c8d;
+}
+
+.buton-ikincil:hover {
+    background-color: #636e72;
+}
+
 .buton-tehlike {
     background-color: #e74c3c;
 }
