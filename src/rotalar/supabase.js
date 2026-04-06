@@ -355,10 +355,10 @@ router.post('/nakliye-yukle', async (req, res) => {
         // Gelen kalemlerdeki benzersiz nakliye_no'ları al
         const nakliyeNolari = [...new Set(kalemler.map(k => k.distributionDocumentNumber).filter(Boolean))];
 
-        // Daha önce kaydedilmiş nakliye_no'ları kontrol et
+        // Daha önce kaydedilmiş (nakliye_no, belge_tarihi) çiftlerini kontrol et
         const { data: mevcutKayitlar, error: kontrolHatasi } = await client
             .from('nakliye_fisleri')
-            .select('nakliye_no')
+            .select('nakliye_no, belge_tarihi')
             .in('nakliye_no', nakliyeNolari);
 
         if (kontrolHatasi) {
@@ -368,17 +368,19 @@ router.post('/nakliye-yukle', async (req, res) => {
             });
         }
 
-        // Daha önce kaydedilmiş nakliye_no'ları bul
-        const kaydedilmisNakliyeler = new Set(mevcutKayitlar?.map(k => k.nakliye_no) || []);
+        // Daha önce kaydedilmiş (nakliye_no, belge_tarihi) çiftleri
+        const kaydedilmisCiftler = new Set(
+            (mevcutKayitlar || []).map(k => `${k.nakliye_no}__${k.belge_tarihi}`)
+        );
 
-        // Kaydedilmemiş kalemleri filtrele
+        // Kaydedilmemiş kalemleri filtrele — aynı nakliye_no ama farklı tarih geçebilir
         const yeniKalemler = kalemler.filter(kalem =>
-            !kaydedilmisNakliyeler.has(kalem.distributionDocumentNumber)
+            !kaydedilmisCiftler.has(`${kalem.distributionDocumentNumber}__${kalem.documanetDate || ''}`)
         );
 
         // Tüm nakliyeler zaten kaydedilmişse
         if (yeniKalemler.length === 0) {
-            const atlalanNakliyeler = [...kaydedilmisNakliyeler].join(', ');
+            const atlalanNakliyeler = [...new Set(kalemler.map(k => k.distributionDocumentNumber))].join(', ');
             return res.json({
                 success: false,
                 message: `Bu nakliyeler daha önce kaydedilmiş: ${atlalanNakliyeler}`
@@ -490,9 +492,13 @@ router.post('/nakliye-ekle', async (req, res) => {
         });
 
         if (yeniKalemler.length === 0) {
+            // Tüm kalemler zaten bu oturumda mevcut — hata değil, bilgi
             return res.json({
-                success: false,
-                message: 'Seçili nakliyeler zaten bu oturumda kayıtlı'
+                success: true,
+                message: `Seçilen tüm kalemler zaten "${temizOturumId}" oturumunda kayıtlı`,
+                kayitSayisi: 0,
+                oturumId: temizOturumId,
+                atlalanSayisi: kalemler.length
             });
         }
 
