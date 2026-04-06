@@ -3,6 +3,9 @@
 -- HATA: toplam_paket = SUM(paket_sayisi)        → birim başına paket (233)
 -- DÜZELTME: toplam_paket = SUM(paket_sayisi_toplam) → gerçek toplam paket (356)
 
+DROP FUNCTION IF EXISTS nakliye_acik_oturumlar_getir(integer);
+DROP FUNCTION IF EXISTS nakliye_kapatilan_oturumlar_getir(integer);
+
 CREATE OR REPLACE FUNCTION nakliye_acik_oturumlar_getir(gun_sayisi INT DEFAULT 17)
 RETURNS TABLE(
     oturum_id TEXT,
