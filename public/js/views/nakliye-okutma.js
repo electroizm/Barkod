@@ -148,7 +148,7 @@ window.Views['nakliye-okutma'] = (function() {
                     return '<div class="oturum-item" data-action="oturumSecAcik" data-oturum="' + oturum.oturum_id + '">' +
                         '<div class="oturum-item-baslik">' + oturum.oturum_id + '</div>' +
                         '<div class="oturum-item-detay">' + (oturum.plaka || '-') + ' | ' + tarih + '</div>' +
-                        '<div class="oturum-item-kalan">' + oturum.kalan_paket + ' paket kald\u0131 (' + oturum.okunan_paket + '/' + oturum.toplam_paket + ')</div>' +
+                        '<div class="oturum-item-kalan">' + ((oturum.toplam_paket || 0) - (oturum.okunan_paket || 0)) + ' paket kald\u0131 (' + oturum.okunan_paket + '/' + oturum.toplam_paket + ')</div>' +
                     '</div>';
                 }).join('');
             } else {
