@@ -288,6 +288,46 @@ function hesaplaPaketSayisi(paketSayisiToplam, miktar) {
 }
 
 /**
+ * Kalem verisini nakliye_fisleri kaydına dönüştür
+ * materialUnit "M" (metre) ise miktar ve paket sayısı 1 olarak set edilir,
+ * çünkü metrelik ürünler tek barkod okuması ile teslim alınır.
+ */
+function kalemKayitOlustur(kalem, oturumId, kullanici) {
+    const satinalmaNo = kalem.referenceDocumentNumber || '';
+    const satinalmaKalemNo = kalem.referenceItemNumber || '';
+    const satinalmaKalemId = satinalmaNo + satinalmaKalemNo;
+
+    const birimM = (kalem.materialUnit || '').trim().toUpperCase() === 'M';
+
+    const miktar = birimM ? '1' : (kalem.materialQuantity || '');
+    const paketSayisiToplam = birimM ? '1' : (kalem.productPackages || '');
+    const paketSayisi = birimM ? '1' : hesaplaPaketSayisi(kalem.productPackages, kalem.materialQuantity);
+
+    return {
+        oturum_id: oturumId,
+        nakliye_no: kalem.distributionDocumentNumber || '',
+        plaka: kalem.shipmentVehicleLicensePlate || '',
+        sofor_adi: kalem.shipmentVehicleDriverName || '',
+        belge_tarihi: kalem.documanetDate || '',
+        depo_yeri: kalem.storageLocation || '',
+        alici: kalem.receiver || '',
+        fiili_hareket_tarihi: kalem.actualGoodsMovementDate || '',
+        fatura_numarasi: kalem.invoceNumber || '',
+        satinalma_no: satinalmaNo,
+        satinalma_kalem_no: satinalmaKalemNo,
+        satinalma_kalem_id: satinalmaKalemId,
+        ean: kalem.ean || '',
+        malzeme_no: kalem.materialNumber || '',
+        malzeme_adi: kalem.materialName || '',
+        miktar,
+        hacim: kalem.materialVolume || '',
+        paket_sayisi_toplam: paketSayisiToplam,
+        paket_sayisi: paketSayisi,
+        kullanici: kullanici || 'bilinmiyor'
+    };
+}
+
+/**
  * Nakliye Yükleme Kaydet
  * POST /api/supabase/nakliye-yukle
  *
@@ -349,42 +389,7 @@ router.post('/nakliye-yukle', async (req, res) => {
         const oturumId = await yeniOturumIdOlustur(client);
 
         // Her kalemi veritabanına kaydet
-        const kayitlar = yeniKalemler.map(kalem => {
-            // Satınalma No + Kalem No birleştir (kişiye özel ürün eşleştirmesi için)
-            const satinalmaNo = kalem.referenceDocumentNumber || '';
-            const satinalmaKalemNo = kalem.referenceItemNumber || '';
-            const satinalmaKalemId = satinalmaNo + satinalmaKalemNo;
-
-            return {
-                // Oturum ID
-                oturum_id: oturumId,
-
-                // Nakliye bilgileri
-                nakliye_no: kalem.distributionDocumentNumber || '',
-                plaka: kalem.shipmentVehicleLicensePlate || '',
-                sofor_adi: kalem.shipmentVehicleDriverName || '',
-                belge_tarihi: kalem.documanetDate || '',
-                depo_yeri: kalem.storageLocation || '',
-                alici: kalem.receiver || '',
-
-                // Kalem bilgileri (Türkçe sütun adları)
-                fiili_hareket_tarihi: kalem.actualGoodsMovementDate || '',
-                fatura_numarasi: kalem.invoceNumber || '',
-                satinalma_no: satinalmaNo,
-                satinalma_kalem_no: satinalmaKalemNo,
-                satinalma_kalem_id: satinalmaKalemId,
-                ean: kalem.ean || '',
-                malzeme_no: kalem.materialNumber || '',
-                malzeme_adi: kalem.materialName || '',
-                miktar: kalem.materialQuantity || '',
-                hacim: kalem.materialVolume || '',
-                paket_sayisi_toplam: kalem.productPackages || '',
-                paket_sayisi: hesaplaPaketSayisi(kalem.productPackages, kalem.materialQuantity),
-
-                // Kullanıcı bilgisi
-                kullanici: kullanici || 'bilinmiyor'
-            };
-        });
+        const kayitlar = yeniKalemler.map(kalem => kalemKayitOlustur(kalem, oturumId, kullanici));
 
         // Toplu insert
         const { data, error } = await client
@@ -492,34 +497,7 @@ router.post('/nakliye-ekle', async (req, res) => {
         }
 
         // Kayıtları oluştur
-        const kayitlar = yeniKalemler.map(kalem => {
-            const satinalmaNo = kalem.referenceDocumentNumber || '';
-            const satinalmaKalemNo = kalem.referenceItemNumber || '';
-            const satinalmaKalemId = satinalmaNo + satinalmaKalemNo;
-
-            return {
-                oturum_id: temizOturumId,
-                nakliye_no: kalem.distributionDocumentNumber || '',
-                plaka: kalem.shipmentVehicleLicensePlate || '',
-                sofor_adi: kalem.shipmentVehicleDriverName || '',
-                belge_tarihi: kalem.documanetDate || '',
-                depo_yeri: kalem.storageLocation || '',
-                alici: kalem.receiver || '',
-                fiili_hareket_tarihi: kalem.actualGoodsMovementDate || '',
-                fatura_numarasi: kalem.invoceNumber || '',
-                satinalma_no: satinalmaNo,
-                satinalma_kalem_no: satinalmaKalemNo,
-                satinalma_kalem_id: satinalmaKalemId,
-                ean: kalem.ean || '',
-                malzeme_no: kalem.materialNumber || '',
-                malzeme_adi: kalem.materialName || '',
-                miktar: kalem.materialQuantity || '',
-                hacim: kalem.materialVolume || '',
-                paket_sayisi_toplam: kalem.productPackages || '',
-                paket_sayisi: hesaplaPaketSayisi(kalem.productPackages, kalem.materialQuantity),
-                kullanici: kullanici || 'bilinmiyor'
-            };
-        });
+        const kayitlar = yeniKalemler.map(kalem => kalemKayitOlustur(kalem, temizOturumId, kullanici));
 
         const { data, error } = await client
             .from('nakliye_fisleri')
