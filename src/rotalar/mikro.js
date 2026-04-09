@@ -1483,4 +1483,120 @@ router.post('/on-kayit-eslestir', async (req, res) => {
     }
 });
 
+// ═══════════════════════════════════════════════════════════
+// SEVK ÖN KAYIT — sevk_on_kayit tablosu (on_kayit_okumalar'dan bağımsız)
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * POST /api/mikro/sevk-on-kayit-okuma-kaydet
+ */
+router.post('/sevk-on-kayit-okuma-kaydet', async (req, res) => {
+    try {
+        const { stok_kod, malzeme_adi, product_desc, paket_sayisi, paket_sira, qr_kod, kullanici, depo } = req.body;
+        if (!stok_kod || !paket_sira) return res.json({ success: false, message: 'Stok kodu ve paket sırası gerekli' });
+        if (!depo) return res.json({ success: false, message: 'Grup (depo) seçimi gerekli' });
+
+        const client = await getSupabaseClient();
+        if (!client) return res.json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
+
+        if (qr_kod) {
+            const { data: existing } = await client
+                .from('sevk_on_kayit')
+                .select('id')
+                .eq('qr_kod', qr_kod)
+                .eq('durum', 'bekliyor')
+                .limit(1);
+            if (existing && existing.length > 0)
+                return res.json({ success: false, message: 'Bu QR kod zaten okutulmuş!' });
+        }
+
+        const { data, error } = await client
+            .from('sevk_on_kayit')
+            .insert({ stok_kod, malzeme_adi: malzeme_adi || stok_kod, product_desc: product_desc || null,
+                paket_sayisi: paket_sayisi || 1, paket_sira, qr_kod: qr_kod || null,
+                kullanici: kullanici || 'bilinmiyor', depo: parseInt(depo), durum: 'bekliyor' })
+            .select();
+
+        if (error) return res.json({ success: false, message: 'Kayıt hatası: ' + error.message });
+        return res.json({ success: true, message: `${malzeme_adi || stok_kod} P${paket_sira} kaydedildi`, kayit: data?.[0] });
+    } catch (error) {
+        return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
+    }
+});
+
+/**
+ * POST /api/mikro/sevk-on-kayit-manuel-okuma
+ */
+router.post('/sevk-on-kayit-manuel-okuma', async (req, res) => {
+    try {
+        const { stok_kod, malzeme_adi, product_desc, paket_sayisi, kullanici, depo } = req.body;
+        if (!stok_kod) return res.json({ success: false, message: 'Stok kodu gerekli' });
+        if (!depo) return res.json({ success: false, message: 'Grup (depo) seçimi gerekli' });
+
+        const client = await getSupabaseClient();
+        if (!client) return res.json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
+
+        const batchId = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+        const paketAdet = parseInt(paket_sayisi) || 1;
+        const kayitlar = [];
+        for (let ps = 1; ps <= paketAdet; ps++) {
+            kayitlar.push({
+                stok_kod, malzeme_adi: malzeme_adi || stok_kod, product_desc: product_desc || null,
+                paket_sayisi: paketAdet, paket_sira: ps,
+                qr_kod: `MANUEL_SEVK_${stok_kod}_P${ps}_${batchId}`,
+                kullanici: kullanici || 'bilinmiyor', depo: parseInt(depo), durum: 'bekliyor'
+            });
+        }
+
+        const { error } = await client.from('sevk_on_kayit').insert(kayitlar);
+        if (error) return res.json({ success: false, message: 'Kayıt hatası: ' + error.message });
+        return res.json({ success: true, message: `${malzeme_adi || stok_kod} - ${paketAdet} paket eklendi`, eklenen_paket: paketAdet });
+    } catch (error) {
+        return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
+    }
+});
+
+/**
+ * GET /api/mikro/sevk-on-kayit-bekleyenler
+ */
+router.get('/sevk-on-kayit-bekleyenler', async (req, res) => {
+    try {
+        const client = await getSupabaseClient();
+        if (!client) return res.json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
+
+        const { data, error } = await client
+            .from('sevk_on_kayit')
+            .select('*')
+            .eq('durum', 'bekliyor')
+            .order('created_at', { ascending: false });
+
+        if (error) return res.json({ success: false, message: 'Sorgu hatası: ' + error.message });
+        return res.json({ success: true, okumalar: data || [], toplam: (data || []).length });
+    } catch (error) {
+        return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
+    }
+});
+
+/**
+ * DELETE /api/mikro/sevk-on-kayit-okuma/:id
+ */
+router.delete('/sevk-on-kayit-okuma/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const client = await getSupabaseClient();
+        if (!client) return res.json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
+
+        const { error } = await client
+            .from('sevk_on_kayit')
+            .delete()
+            .eq('id', parseInt(id))
+            .eq('durum', 'bekliyor');
+
+        if (error) return res.json({ success: false, message: 'Silme hatası: ' + error.message });
+        return res.json({ success: true, message: 'Okuma silindi' });
+    } catch (error) {
+        return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
+    }
+});
+
 module.exports = router;
