@@ -739,9 +739,11 @@ function FisOkutmaOlustur(y) {
                 else hataGoster('L\u00fctfen fi\u015f numaras\u0131 girin');
                 break;
             case 'acikFisler':
+                if (el.onKayitGrupAlani) el.onKayitGrupAlani.style.display = 'none';
                 acikFisleriGoster();
                 break;
             case 'kapatilanFisler':
+                if (el.onKayitGrupAlani) el.onKayitGrupAlani.style.display = 'none';
                 kapatilanFisleriGoster();
                 break;
             case 'onKayitAc':
