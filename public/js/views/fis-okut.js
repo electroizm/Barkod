@@ -65,7 +65,21 @@ function FisOkutmaOlustur(y) {
                 '<button type="button" class="ara-btn" data-action="fisAra">' + y.araButonMetni + '</button>' +
                 '<button type="button" id="acikFisBtn" class="acik-fis-btn" data-action="acikFisler">' + y.acikFisButonMetni + '</button>' +
                 '<button type="button" id="kapatilanFisBtn" class="kapatilan-fis-btn" data-action="kapatilanFisler">' + y.kapatilanFisButonMetni + '</button>' +
-                (y.onKayitYolu ? '<a href="' + y.onKayitYolu + '" class="buton" style="margin-top:10px;display:block;text-align:center;">Sevk \u00d6n Kay\u0131t</a>' : '') +
+                (y.onKayitYolu ?
+                    '<button type="button" class="acik-fis-btn" data-action="onKayitAc" style="margin-top:10px;">Sevk \u00d6n Kay\u0131t</button>' +
+                    '<div id="onKayitGrupAlani" style="display:none;margin-top:10px;">' +
+                        '<div class="fis-liste">' +
+                            '<div class="fis-item" data-action="onKayitGrupSec" data-depo="300">' +
+                                '<div class="fis-item-baslik">DEPO \u2192 EXC</div>' +
+                                '<div class="fis-item-detay">100 - DEPO >> 300 - EXC</div>' +
+                            '</div>' +
+                            '<div class="fis-item" data-action="onKayitGrupSec" data-depo="200">' +
+                                '<div class="fis-item-baslik">DEPO \u2192 \u015eUBE</div>' +
+                                '<div class="fis-item-detay">100 - DEPO >> 200 - \u015eUBE</div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>'
+                : '') +
                 '<div id="acikFisListesiInline" style="display:none;margin-top:10px;">' +
                     '<div id="acikFisListesi" class="fis-liste"></div>' +
                 '</div>' +
@@ -730,6 +744,15 @@ function FisOkutmaOlustur(y) {
             case 'kapatilanFisler':
                 kapatilanFisleriGoster();
                 break;
+            case 'onKayitAc':
+                if (el.onKayitGrupAlani) {
+                    el.onKayitGrupAlani.style.display =
+                        el.onKayitGrupAlani.style.display === 'none' ? 'block' : 'none';
+                }
+                break;
+            case 'onKayitGrupSec':
+                if (window.AppRouter) window.AppRouter.git('/sevk-on-kayit?depo=' + hedef.dataset.depo);
+                break;
             case 'fisSecimAcik':
                 el.acikFisListesiInline.style.display = 'none';
                 fisYukle(hedef.dataset.fis);
@@ -786,7 +809,8 @@ function FisOkutmaOlustur(y) {
             acikFisListesi:          konteyner.querySelector('#acikFisListesi'),
             kapatilanFisBtn:         konteyner.querySelector('#kapatilanFisBtn'),
             kapatilanFisListesiInline: konteyner.querySelector('#kapatilanFisListesiInline'),
-            kapatilanFisListesi:     konteyner.querySelector('#kapatilanFisListesi')
+            kapatilanFisListesi:     konteyner.querySelector('#kapatilanFisListesi'),
+            onKayitGrupAlani:        konteyner.querySelector('#onKayitGrupAlani')
         };
 
         // Event delegation - tek handler tum butonlar icin

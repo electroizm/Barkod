@@ -1,7 +1,7 @@
 /**
  * Sevk Ön Kayıt View
- * Akış: 1) Grup seç (DEPO→EXC / DEPO→ŞUBE)  2) Barkod/Manuel okut  3) CSV indir
- * Veriler: sevk_on_kayit tablosu (on_kayit_okumalar'dan bağımsız)
+ * URL param ile: /sevk-on-kayit?depo=300 → direkt tarama ekranı
+ * Param yoksa: grup seçim ekranı
  */
 window.Views = window.Views || {};
 window.Views['sevk-on-kayit'] = (function() {
@@ -15,11 +15,7 @@ window.Views['sevk-on-kayit'] = (function() {
     var mesajZamanlayici = null;
     var okunanQrler = new Set();
     var islemDevamEdiyor = false;
-
-    // Seçili hedef grup: null = henüz seçilmedi, '300' = EXC, '200' = ŞUBE
-    var aktifDepo = null;
-    // Görüntülenen grup sekmesi
-    var aktifGrupTab = '300';
+    var aktifDepo = null;   // '300' veya '200'
 
     var GRUPLAR = [
         { depo: '300', ad: 'DEPO \u2192 EXC',  dosyaAdi: 'DEPO -> EXC.csv' },
@@ -32,62 +28,48 @@ window.Views['sevk-on-kayit'] = (function() {
     function kullaniciAl() {
         return document.getElementById('kullaniciBilgi')?.textContent || 'bilinmiyor';
     }
+    function grupAdi(depo) {
+        var g = GRUPLAR.find(function(x) { return x.depo === depo; });
+        return g ? g.ad : depo;
+    }
 
-    // ─── HTML ────────────────────────────────────────────────
-    function htmlOlustur() {
+    // ─── GRUP SEÇİM EKRANI (param yokken) ────────────────────
+    function secimEkraniHtml() {
         var grupBtnHtml = GRUPLAR.map(function(g) {
             return '<button type="button" class="ara-btn" data-action="hedefSec" data-depo="' + g.depo + '">' +
                 g.ad + '</button>';
         }).join('');
+        return '<h1 class="baslik">Sevk \u00d6n Kay\u0131t</h1>' +
+            '<div id="sonucMesaj" style="display:none;"></div>' +
+            '<div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">' + grupBtnHtml + '</div>';
+    }
 
-        var grupTabHtml = GRUPLAR.map(function(g) {
-            var aktif = g.depo === aktifGrupTab;
-            return '<div style="display:flex;gap:8px;align-items:stretch;">' +
-                '<button type="button" class="ara-btn" data-action="grupTabDegistir" data-depo="' + g.depo + '" ' +
-                    'style="flex:1;margin-top:0;' + (aktif ? '' : 'opacity:0.55;') + '">' + g.ad + '</button>' +
-                '<button type="button" class="csv-btn" data-action="csvIndir" data-depo="' + g.depo + '">.csv</button>' +
-                '</div>';
-        }).join('');
-
-        return '' +
-            '<h1 class="baslik">Sevk \u00d6n Kay\u0131t</h1>' +
+    // ─── TARAMA EKRANI ────────────────────────────────────────
+    function taramaEkraniHtml(depo) {
+        return '<h1 class="baslik">' + grupAdi(depo) + '</h1>' +
             '<div id="sonucMesaj" style="display:none;"></div>' +
 
-            // ── 1) Hedef seçim ──
-            '<div id="hedefSecimAlani">' +
-                '<div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">' + grupBtnHtml + '</div>' +
+            '<div class="tab-container">' +
+                '<button type="button" class="tab-btn aktif" data-action="tabDegistir" data-tab="barkod">Barkod Okutma</button>' +
+                '<button type="button" class="tab-btn" data-action="tabDegistir" data-tab="manuel">Manuel Okutma</button>' +
             '</div>' +
 
-            // ── 2) Tarama alanı (hedef seçilmeden gizli) ──
-            '<div id="taramaAlani" style="display:none;">' +
-
-                '<div id="aktifHedefBilgi" style="margin-bottom:12px;padding:10px 14px;' +
-                    'background:#e8f5e9;border-radius:8px;font-weight:600;font-size:15px;">' +
-                '</div>' +
-
-                '<div class="tab-container">' +
-                    '<button type="button" class="tab-btn aktif" data-action="tabDegistir" data-tab="barkod">Barkod Okutma</button>' +
-                    '<button type="button" class="tab-btn" data-action="tabDegistir" data-tab="manuel">Manuel Okutma</button>' +
-                '</div>' +
-                '<div class="tab-icerik aktif" id="tab-barkod">' +
-                    '<div class="okuma-alani" id="barkodOkuyucuAlani"></div>' +
-                '</div>' +
-                '<div class="tab-icerik" id="tab-manuel">' +
-                    '<input type="text" class="arama-input" id="aramaInput" placeholder="Malzeme ad\u0131 veya stok kodu...">' +
-                    '<div class="arama-sonuc" id="aramaSonuc"></div>' +
-                '</div>' +
-
-                '<button type="button" class="buton buton-ikincil" data-action="hedefDegistir" ' +
-                    'style="margin-top:14px;font-size:14px;">Hedef De\u011fi\u015ftir</button>' +
+            '<div class="tab-icerik aktif" id="tab-barkod">' +
+                '<div class="okuma-alani" id="barkodOkuyucuAlani"></div>' +
             '</div>' +
 
-            // ── 3) Grup listeleri + CSV ──
-            '<div style="margin-top:20px;">' +
-                '<div style="display:flex;flex-direction:column;gap:12px;">' +
-                    grupTabHtml +
-                '</div>' +
-                '<div id="grupIcerik" style="margin-top:10px;"></div>' +
-            '</div>';
+            '<div class="tab-icerik" id="tab-manuel">' +
+                '<input type="text" class="arama-input" id="aramaInput" placeholder="Malzeme ad\u0131 veya stok kodu...">' +
+                '<div class="arama-sonuc" id="aramaSonuc"></div>' +
+            '</div>' +
+
+            '<div style="margin-top:16px;">' +
+                '<div class="bekleyen-baslik">Okunan Malzemeler <span id="okunanSayisi"></span></div>' +
+                '<div id="bekleyenListe"></div>' +
+            '</div>' +
+
+            '<button type="button" class="csv-btn" data-action="csvIndir" ' +
+                'style="width:100%;margin-top:14px;padding:13px;font-size:16px;">.csv \u0130ndir</button>';
     }
 
     // ─── Mesaj ───────────────────────────────────────────────
@@ -102,76 +84,23 @@ window.Views['sevk-on-kayit'] = (function() {
         if (tip === 'basari') {
             if (window.SesYoneticisi) SesYoneticisi.sesliGeriBildirim('basarili');
             mesajZamanlayici = setTimeout(function() { el.style.display = 'none'; }, 4000);
-        } else if (tip === 'hata' || tip === 'tekrar') {
-            if (window.SesYoneticisi) SesYoneticisi.sesliGeriBildirim(tip === 'tekrar' ? 'tekrar' : 'hata');
+        } else if (tip === 'hata') {
+            if (window.SesYoneticisi) SesYoneticisi.sesliGeriBildirim('hata');
+        } else if (tip === 'tekrar') {
+            if (window.SesYoneticisi) SesYoneticisi.sesliGeriBildirim('tekrar');
         }
     }
 
-    // ─── Hedef Seçimi ────────────────────────────────────────
-    function hedefSec(depo) {
-        aktifDepo = depo;
-        aktifGrupTab = depo;
-
-        var grup = GRUPLAR.find(function(g) { return g.depo === depo; });
-        var hedefBilgi = document.getElementById('aktifHedefBilgi');
-        if (hedefBilgi && grup) hedefBilgi.textContent = '\u2192 Hedef: ' + grup.ad;
-
-        var hedefAlani = document.getElementById('hedefSecimAlani');
-        var taramaAlani = document.getElementById('taramaAlani');
-        if (hedefAlani) hedefAlani.style.display = 'none';
-        if (taramaAlani) taramaAlani.style.display = 'block';
-
-        // Grup sekmesini senkronize et
-        if (_konteyner) {
-            _konteyner.querySelectorAll('.grup-tab').forEach(function(b) {
-                b.classList.toggle('aktif', b.dataset.depo === depo);
-            });
-        }
-
-        // Barkod okuyucuyu başlat
-        if (!barkodOkuyucu) {
-            var barkodAlani = document.getElementById('barkodOkuyucuAlani');
-            if (barkodAlani && window.BarkodOkuyucu) {
-                barkodOkuyucu = new BarkodOkuyucu(barkodAlani, function(kod) {
-                    barkodOkut(kod);
-                });
-            }
-        }
-
-        grupIcerikGoster();
-    }
-
-    function hedefDegistir() {
-        // Taramayı durdur, hedef seçim ekranına dön
-        if (barkodOkuyucu) { barkodOkuyucu.destroy(); barkodOkuyucu = null; }
-        aktifDepo = null;
-        var hedefAlani = document.getElementById('hedefSecimAlani');
-        var taramaAlani = document.getElementById('taramaAlani');
-        if (hedefAlani) hedefAlani.style.display = 'block';
-        if (taramaAlani) taramaAlani.style.display = 'none';
-    }
-
-    // ─── Okutma Tab ──────────────────────────────────────────
+    // ─── Tab Değiştir ────────────────────────────────────────
     function tabDegistir(tabAdi) {
         if (!_konteyner) return;
-        _konteyner.querySelectorAll('.tab-btn:not(.grup-tab)').forEach(function(b) { b.classList.remove('aktif'); });
+        _konteyner.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('aktif'); });
         _konteyner.querySelectorAll('.tab-icerik').forEach(function(t) { t.classList.remove('aktif'); });
         var aktifBtn = _konteyner.querySelector('.tab-btn[data-tab="' + tabAdi + '"]');
         var aktifIcerik = document.getElementById('tab-' + tabAdi);
         if (aktifBtn) aktifBtn.classList.add('aktif');
         if (aktifIcerik) aktifIcerik.classList.add('aktif');
         if (tabAdi === 'barkod' && barkodOkuyucu) barkodOkuyucu.odaklan();
-    }
-
-    // ─── Grup Tab ────────────────────────────────────────────
-    function grupTabDegistir(depo) {
-        aktifGrupTab = depo;
-        if (_konteyner) {
-            _konteyner.querySelectorAll('[data-action="grupTabDegistir"]').forEach(function(b) {
-                b.style.opacity = b.dataset.depo === depo ? '1' : '0.55';
-            });
-        }
-        grupIcerikGoster();
     }
 
     // ─── Barkod Okutma ───────────────────────────────────────
@@ -200,6 +129,7 @@ window.Views['sevk-on-kayit'] = (function() {
             if (!bilgi.success) {
                 mesajGoster(bilgi.message, 'hata');
                 if (barkodOkuyucu) barkodOkuyucu.odaklan();
+                islemDevamEdiyor = false;
                 return;
             }
 
@@ -222,12 +152,12 @@ window.Views['sevk-on-kayit'] = (function() {
             if (kayit.success) {
                 okunanQrler.add(qrKod);
                 mesajGoster(bilgi.malzeme_adi + ' P' + bilgi.paket_sira + '/' + bilgi.paket_sayisi, 'basari');
-                grupIcerikGoster();
+                listeYenile();
             } else {
                 mesajGoster(kayit.message, 'hata');
             }
         } catch (error) {
-            mesajGoster('Ba\u011flant\u0131 hatas\u0131: ' + error.message, 'hata');
+            mesajGoster('Bağlantı hatası: ' + error.message, 'hata');
         } finally {
             islemDevamEdiyor = false;
         }
@@ -240,10 +170,10 @@ window.Views['sevk-on-kayit'] = (function() {
         var sonucEl = document.getElementById('aramaSonuc');
         if (!sonucEl) return;
         if (!sorgu || sorgu.length < 2) {
-            sonucEl.innerHTML = '<div class="bos-mesaj">En az 2 karakter yaz\u0131n.</div>';
+            sonucEl.innerHTML = '<div class="bos-mesaj">En az 2 karakter yazın.</div>';
             return;
         }
-        sonucEl.innerHTML = '<div class="yukleniyor-kucuk">Aran\u0131yor...</div>';
+        sonucEl.innerHTML = '<div class="yukleniyor-kucuk">Aranıyor...</div>';
         try {
             var response = await fetch('/api/stok/ara?q=' + encodeURIComponent(sorgu));
             var data = await response.json();
@@ -252,7 +182,7 @@ window.Views['sevk-on-kayit'] = (function() {
                 return;
             }
             sonucEl.innerHTML = data.sonuclar.slice(0, 20).map(function(kayit) {
-                var malzemeAdi = kayit['Malzeme Adi'] || kayit['Malzeme Ad\u0131'] || '-';
+                var malzemeAdi = kayit['Malzeme Adi'] || kayit['Malzeme Adı'] || '-';
                 var stokKod = kayit['SAP Kodu'] || Object.values(kayit)[0] || '';
                 return '<div class="arama-item" data-action="manuelSec" data-stok-kod="' + escAttr(stokKod) +
                     '" data-malzeme-adi="' + escAttr(malzemeAdi) + '">' +
@@ -266,7 +196,7 @@ window.Views['sevk-on-kayit'] = (function() {
     }
 
     async function manuelOkut(stokKod, malzemeAdi) {
-        if (!aktifDepo) { mesajGoster('Önce hedef grup seçin', 'hata'); return; }
+        if (!aktifDepo) return;
         mesajGoster('Paket bilgisi alınıyor...', '');
         try {
             var paketSayisi = 1;
@@ -307,7 +237,7 @@ window.Views['sevk-on-kayit'] = (function() {
                 var aramaSonuc = document.getElementById('aramaSonuc');
                 if (aramaInput) aramaInput.value = '';
                 if (aramaSonuc) aramaSonuc.innerHTML = '';
-                grupIcerikGoster();
+                listeYenile();
             } else {
                 mesajGoster(data.message, 'hata');
             }
@@ -316,31 +246,17 @@ window.Views['sevk-on-kayit'] = (function() {
         }
     }
 
-    // ─── Grup İçerik ─────────────────────────────────────────
-    async function grupIcerikGoster() {
-        var icerikEl = document.getElementById('grupIcerik');
-        if (!icerikEl) return;
+    // ─── Liste Yenile ─────────────────────────────────────────
+    async function listeYenile() {
+        var listeEl = document.getElementById('bekleyenListe');
+        var sayiEl = document.getElementById('okunanSayisi');
+        if (!listeEl) return;
 
         try {
             var response = await fetch('/api/mikro/sevk-on-kayit-bekleyenler');
             var data = await response.json();
             var tumOkumalar = (data.success ? data.okumalar : []) || [];
-
-            // Grup sekmesi sayılarını güncelle
-            GRUPLAR.forEach(function(g) {
-                var sayac = tumOkumalar.filter(function(o) { return String(o.depo) === g.depo; }).length;
-                var btn = _konteyner && _konteyner.querySelector('.grup-tab[data-depo="' + g.depo + '"]');
-                if (btn) btn.textContent = g.ad + (sayac > 0 ? ' (' + sayac + ')' : '');
-            });
-
-            var filtrelenmis = tumOkumalar.filter(function(o) {
-                return String(o.depo) === aktifGrupTab;
-            });
-
-            if (filtrelenmis.length === 0) {
-                icerikEl.innerHTML = '<div class="bos-mesaj">Bu grupta kayıt yok.</div>';
-                return;
-            }
+            var filtrelenmis = tumOkumalar.filter(function(o) { return String(o.depo) === aktifDepo; });
 
             // Malzeme koduna göre grupla
             var gruplu = {};
@@ -353,10 +269,18 @@ window.Views['sevk-on-kayit'] = (function() {
                 gruplu[key].idler.push(o.id);
             });
 
+            var toplam = Object.keys(gruplu).length;
+            if (sayiEl) sayiEl.textContent = toplam > 0 ? '(' + filtrelenmis.length + ' paket, ' + toplam + ' çeşit)' : '';
+
+            if (filtrelenmis.length === 0) {
+                listeEl.innerHTML = '<div class="bos-mesaj">Henüz okutma yapılmadı.</div>';
+                return;
+            }
+
             var html = '<table style="width:100%;border-collapse:collapse;font-size:14px;">' +
                 '<thead><tr>' +
-                    '<th style="text-align:left;padding:6px 8px;border-bottom:2px solid #ddd;">Malzeme Ad\u0131</th>' +
-                    '<th style="text-align:left;padding:6px 8px;border-bottom:2px solid #ddd;">Malzeme Kodu</th>' +
+                    '<th style="text-align:left;padding:6px 8px;border-bottom:2px solid #ddd;">Malzeme Adı</th>' +
+                    '<th style="text-align:left;padding:6px 8px;border-bottom:2px solid #ddd;font-family:monospace;">Kod</th>' +
                     '<th style="text-align:center;padding:6px 8px;border-bottom:2px solid #ddd;">Adet</th>' +
                     '<th style="padding:6px 8px;border-bottom:2px solid #ddd;"></th>' +
                 '</tr></thead><tbody>';
@@ -364,51 +288,52 @@ window.Views['sevk-on-kayit'] = (function() {
             Object.values(gruplu).forEach(function(m) {
                 html += '<tr>' +
                     '<td style="padding:6px 8px;border-bottom:1px solid #eee;">' + escAttr(m.malzeme_adi) + '</td>' +
-                    '<td style="padding:6px 8px;border-bottom:1px solid #eee;font-family:monospace;">' + escAttr(m.stok_kod) + '</td>' +
+                    '<td style="padding:6px 8px;border-bottom:1px solid #eee;font-family:monospace;font-size:12px;">' + escAttr(m.stok_kod) + '</td>' +
                     '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;font-weight:bold;">' + m.adet + '</td>' +
                     '<td style="padding:4px 8px;border-bottom:1px solid #eee;">' +
-                        '<button type="button" class="sil-btn" data-action="grupSil" data-stok-kod="' + escAttr(m.stok_kod) +
+                        '<button type="button" class="sil-btn" data-action="kayitSil" data-stok-kod="' + escAttr(m.stok_kod) +
                             '" style="font-size:12px;padding:3px 8px;">Sil</button>' +
                     '</td>' +
                 '</tr>';
             });
 
             html += '</tbody></table>';
-            icerikEl.innerHTML = html;
+            listeEl.innerHTML = html;
 
         } catch (error) {
-            icerikEl.innerHTML = '<div class="bos-mesaj">Yükleme hatası: ' + error.message + '</div>';
+            listeEl.innerHTML = '<div class="bos-mesaj">Yükleme hatası: ' + error.message + '</div>';
         }
     }
 
-    // ─── Grup Sil (stok koduna ait tüm satırlar) ─────────────
-    async function grupSil(stokKod) {
+    // ─── Kayıt Sil ───────────────────────────────────────────
+    async function kayitSil(stokKod) {
         if (!confirm('"' + stokKod + '" kodlu tüm kayıtlar silinsin mi?')) return;
         try {
-            // Tüm id'leri çek, tek tek sil
             var response = await fetch('/api/mikro/sevk-on-kayit-bekleyenler');
             var data = await response.json();
-            var hedefler = (data.okumalar || []).filter(function(o) { return o.stok_kod === stokKod; });
+            var hedefler = (data.okumalar || []).filter(function(o) {
+                return o.stok_kod === stokKod && String(o.depo) === aktifDepo;
+            });
             await Promise.all(hedefler.map(function(o) {
                 return fetch('/api/mikro/sevk-on-kayit-okuma/' + o.id, { method: 'DELETE' });
             }));
-            grupIcerikGoster();
+            listeYenile();
         } catch (e) {
             mesajGoster('Silme hatası: ' + e.message, 'hata');
         }
     }
 
     // ─── CSV İndir ───────────────────────────────────────────
-    async function csvIndir(depo) {
-        var grup = GRUPLAR.find(function(g) { return g.depo === depo; });
+    async function csvIndir() {
+        var grup = GRUPLAR.find(function(g) { return g.depo === aktifDepo; });
         if (!grup) return;
         try {
             var response = await fetch('/api/mikro/sevk-on-kayit-bekleyenler');
             var data = await response.json();
             var okumalar = (data.success ? data.okumalar : []) || [];
-            var filtrelenmis = okumalar.filter(function(o) { return String(o.depo) === depo; });
+            var filtrelenmis = okumalar.filter(function(o) { return String(o.depo) === aktifDepo; });
             if (filtrelenmis.length === 0) {
-                mesajGoster('Bu grupta indirilecek kayıt yok.', 'hata');
+                mesajGoster('İndirilecek kayıt yok.', 'hata');
                 return;
             }
             var gruplu = {};
@@ -417,7 +342,6 @@ window.Views['sevk-on-kayit'] = (function() {
                 if (!gruplu[key]) gruplu[key] = 0;
                 gruplu[key]++;
             });
-            // Başlık yok, malzeme kodu + "-0" suffix, tırnaksız
             var satirlar = [];
             Object.keys(gruplu).sort().forEach(function(stokKod) {
                 satirlar.push(stokKod + '-0;' + gruplu[stokKod]);
@@ -438,50 +362,71 @@ window.Views['sevk-on-kayit'] = (function() {
         }
     }
 
+    // ─── Tarama Ekranını Başlat ───────────────────────────────
+    function taramaBaslat(depo) {
+        aktifDepo = depo;
+        if (!_konteyner) return;
+        _konteyner.innerHTML = taramaEkraniHtml(depo);
+
+        // Event delegation yeniden bağla
+        _konteyner.removeEventListener('click', _delegeHandler);
+        _delegeHandler = tikIsle;
+        _konteyner.addEventListener('click', _delegeHandler);
+
+        // Barkod okuyucu
+        var barkodAlani = document.getElementById('barkodOkuyucuAlani');
+        if (barkodAlani && window.BarkodOkuyucu) {
+            barkodOkuyucu = new BarkodOkuyucu(barkodAlani, function(kod) { barkodOkut(kod); });
+        }
+
+        // Manuel arama input
+        var aramaInput = document.getElementById('aramaInput');
+        if (aramaInput) {
+            _aramaHandler = function() {
+                var sorgu = aramaInput.value.trim();
+                if (aramaZamanlayici) clearTimeout(aramaZamanlayici);
+                aramaZamanlayici = setTimeout(function() { urunAra(sorgu); }, 300);
+            };
+            _enterHandler = function(e) {
+                if (e.key === 'Enter') urunAra(aramaInput.value.trim());
+            };
+            aramaInput.addEventListener('input', _aramaHandler);
+            aramaInput.addEventListener('keypress', _enterHandler);
+        }
+
+        listeYenile();
+    }
+
     // ─── Event Delegation ────────────────────────────────────
     function tikIsle(e) {
         var hedef = e.target.closest('[data-action]');
         if (!hedef) return;
         var aksiyon = hedef.dataset.action;
-        if      (aksiyon === 'hedefSec')       hedefSec(hedef.dataset.depo);
-        else if (aksiyon === 'hedefDegistir')  hedefDegistir();
-        else if (aksiyon === 'tabDegistir')    tabDegistir(hedef.dataset.tab);
-        else if (aksiyon === 'grupTabDegistir') grupTabDegistir(hedef.dataset.depo);
-        else if (aksiyon === 'csvIndir')       csvIndir(hedef.dataset.depo);
-        else if (aksiyon === 'manuelSec')      manuelOkut(hedef.dataset.stokKod, hedef.dataset.malzemeAdi);
-        else if (aksiyon === 'grupSil')        grupSil(hedef.dataset.stokKod);
+        if      (aksiyon === 'hedefSec')   taramaBaslat(hedef.dataset.depo);
+        else if (aksiyon === 'tabDegistir') tabDegistir(hedef.dataset.tab);
+        else if (aksiyon === 'manuelSec')  manuelOkut(hedef.dataset.stokKod, hedef.dataset.malzemeAdi);
+        else if (aksiyon === 'kayitSil')   kayitSil(hedef.dataset.stokKod);
+        else if (aksiyon === 'csvIndir')   csvIndir();
     }
 
     // ─── Mount / Unmount ─────────────────────────────────────
     return {
-        mount: function(konteyner) {
+        mount: function(konteyner, params) {
             _konteyner = konteyner;
             okunanQrler = new Set();
             islemDevamEdiyor = false;
             aktifDepo = null;
-            aktifGrupTab = '300';
+            barkodOkuyucu = null;
 
-            konteyner.innerHTML = htmlOlustur();
-
-            _delegeHandler = tikIsle.bind(this);
-            konteyner.addEventListener('click', _delegeHandler);
-
-            var aramaInput = document.getElementById('aramaInput');
-            if (aramaInput) {
-                _aramaHandler = function() {
-                    var sorgu = aramaInput.value.trim();
-                    if (aramaZamanlayici) clearTimeout(aramaZamanlayici);
-                    aramaZamanlayici = setTimeout(function() { urunAra(sorgu); }, 300);
-                };
-                _enterHandler = function(e) {
-                    if (e.key === 'Enter') urunAra(aramaInput.value.trim());
-                };
-                aramaInput.addEventListener('input', _aramaHandler);
-                aramaInput.addEventListener('keypress', _enterHandler);
+            // URL'den depo parametresi varsa direkt tarama ekranı
+            if (params && params.depo && (params.depo === '300' || params.depo === '200')) {
+                taramaBaslat(params.depo);
+            } else {
+                // Grup seçim ekranı
+                konteyner.innerHTML = secimEkraniHtml();
+                _delegeHandler = tikIsle;
+                konteyner.addEventListener('click', _delegeHandler);
             }
-
-            // İlk yükleme — mevcut bekleyen kayıtları göster
-            grupIcerikGoster();
         },
 
         unmount: function() {
@@ -498,7 +443,6 @@ window.Views['sevk-on-kayit'] = (function() {
             _delegeHandler = null;
             _aramaHandler = null;
             _enterHandler = null;
-            okunanQrler = new Set();
         }
     };
 })();
