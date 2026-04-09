@@ -1655,7 +1655,8 @@ router.post('/sevk-on-kayit-eslestir', async (req, res) => {
                     dbKod.startsWith(stokKod) ||
                     stokKod.startsWith(dbKod) ||
                     dbKod.substring(0, 10) === stokKod.substring(0, 10);
-                const depoEslesme = !k.cikis_depo_no || parseInt(k.cikis_depo_no) === bekleyenDepo;
+                // bekleyenDepo = giris_depo_no (300=EXC, 200=ŞUBE)
+                const depoEslesme = !k.giris_depo_no || parseInt(k.giris_depo_no) === bekleyenDepo;
                 return stokEslesme && depoEslesme;
             });
 
