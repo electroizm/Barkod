@@ -41,9 +41,12 @@ window.Views['sevk-on-kayit'] = (function() {
         }).join('');
 
         var grupTabHtml = GRUPLAR.map(function(g) {
-            return '<button type="button" class="tab-btn grup-tab' + (g.depo === aktifGrupTab ? ' aktif' : '') +
-                '" data-action="grupTabDegistir" data-depo="' + g.depo + '">' + g.ad + '</button>' +
-                '<button type="button" class="csv-btn" data-action="csvIndir" data-depo="' + g.depo + '">.csv</button>';
+            var aktif = g.depo === aktifGrupTab;
+            return '<div style="display:flex;gap:8px;align-items:stretch;">' +
+                '<button type="button" class="ara-btn" data-action="grupTabDegistir" data-depo="' + g.depo + '" ' +
+                    'style="flex:1;margin-top:0;' + (aktif ? '' : 'opacity:0.55;') + '">' + g.ad + '</button>' +
+                '<button type="button" class="csv-btn" data-action="csvIndir" data-depo="' + g.depo + '">.csv</button>' +
+                '</div>';
         }).join('');
 
         return '' +
@@ -80,7 +83,7 @@ window.Views['sevk-on-kayit'] = (function() {
 
             // ── 3) Grup listeleri + CSV ──
             '<div style="margin-top:20px;">' +
-                '<div class="tab-container" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">' +
+                '<div style="display:flex;flex-direction:column;gap:12px;">' +
                     grupTabHtml +
                 '</div>' +
                 '<div id="grupIcerik" style="margin-top:10px;"></div>' +
@@ -164,8 +167,8 @@ window.Views['sevk-on-kayit'] = (function() {
     function grupTabDegistir(depo) {
         aktifGrupTab = depo;
         if (_konteyner) {
-            _konteyner.querySelectorAll('.grup-tab').forEach(function(b) {
-                b.classList.toggle('aktif', b.dataset.depo === depo);
+            _konteyner.querySelectorAll('[data-action="grupTabDegistir"]').forEach(function(b) {
+                b.style.opacity = b.dataset.depo === depo ? '1' : '0.55';
             });
         }
         grupIcerikGoster();
