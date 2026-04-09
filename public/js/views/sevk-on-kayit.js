@@ -16,8 +16,8 @@ window.Views['sevk-on-kayit'] = (function() {
     var aktifGrupTab = '300'; // '300' = EXC, '200' = SUBE
 
     var GRUPLAR = [
-        { depo: '300', ad: '100 - DEPO \u2192 300 - EXC',  dosyaAdi: '100-DEPO-300-EXC.csv' },
-        { depo: '200', ad: '100 - DEPO \u2192 200 - \u015eUBE', dosyaAdi: '100-DEPO-200-SUBE.csv' }
+        { depo: '300', ad: '100 - DEPO \u2192 300 - EXC',  dosyaAdi: 'DEPO -> EXC.csv' },
+        { depo: '200', ad: '100 - DEPO \u2192 200 - \u015eUBE', dosyaAdi: 'DEPO -> SUBE.csv' }
     ];
 
     function escAttr(s) {
@@ -369,10 +369,10 @@ window.Views['sevk-on-kayit'] = (function() {
                 gruplu[key]++;
             });
 
-            // CSV oluştur — BOM ile UTF-8
-            var satirlar = ['"Malzeme Kodu";"Adet"'];
+            // CSV oluştur — BOM ile UTF-8, başlık satırı yok
+            var satirlar = [];
             Object.keys(gruplu).sort().forEach(function(stokKod) {
-                satirlar.push('"' + stokKod + '";"' + gruplu[stokKod] + '"');
+                satirlar.push('"' + stokKod + '-0";"' + gruplu[stokKod] + '"');
             });
             var csvIcerik = '\uFEFF' + satirlar.join('\r\n');
 
