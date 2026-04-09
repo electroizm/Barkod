@@ -36,7 +36,7 @@ window.Views['sevk-on-kayit'] = (function() {
     // ─── HTML ────────────────────────────────────────────────
     function htmlOlustur() {
         var grupBtnHtml = GRUPLAR.map(function(g) {
-            return '<button type="button" class="hedef-btn" data-action="hedefSec" data-depo="' + g.depo + '">' +
+            return '<button type="button" class="ara-btn" data-action="hedefSec" data-depo="' + g.depo + '">' +
                 g.ad + '</button>';
         }).join('');
 
@@ -52,8 +52,7 @@ window.Views['sevk-on-kayit'] = (function() {
 
             // ── 1) Hedef seçim ──
             '<div id="hedefSecimAlani">' +
-                '<p style="font-size:15px;font-weight:600;margin:0 0 12px;">Okutma yap\u0131lacak hedefi se\u00e7in:</p>' +
-                '<div style="display:flex;gap:12px;flex-wrap:wrap;">' + grupBtnHtml + '</div>' +
+                '<div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">' + grupBtnHtml + '</div>' +
             '</div>' +
 
             // ── 2) Tarama alanı (hedef seçilmeden gizli) ──
