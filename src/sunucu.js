@@ -24,7 +24,7 @@ const spaRotalar = ['/giris', '/anasayfa', '/cikis-islemleri', '/giris-islemleri
                     '/stok', '/sayim', '/ayarlar', '/fis/nakliye-arama',
                     '/sevk', '/fis/diger-giris', '/fis/nakliye-okutma',
                     '/fis/teslimat', '/fis/nakliye-okut', '/fis/teslimat-okut', '/fis/on-kayit',
-                    '/fis/diger-cikis', '/sayim/okut'];
+                    '/fis/diger-cikis', '/sayim/okut', '/sevk-on-kayit'];
 
 // .html guard: SPA redirect + bilinmeyen .html engelleme (express.static'ten ONCE calisir)
 uygulama.use((istek, yanit, sonraki) => {

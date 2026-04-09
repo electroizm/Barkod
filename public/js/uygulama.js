@@ -38,6 +38,7 @@
     router.ekle('/fis/nakliye-okut',    { baslik: 'Nakliye Okut',          modul: 'nakliye-okut',   ustCubuk: false, geriButon: true, anaYol: '/fis/nakliye-okutma' });
     router.ekle('/fis/teslimat-okut',  { baslik: 'Teslimat Okut',         modul: 'teslimat-okut',  ustCubuk: false, geriButon: true, anaYol: '/fis/teslimat' });
     router.ekle('/fis/on-kayit',       { baslik: '\u00d6n Kay\u0131t',    modul: 'on-kayit',       ustCubuk: false, geriButon: true, anaYol: '/anasayfa' });
+    router.ekle('/sevk-on-kayit',      { baslik: 'Sevk \u00d6n Kay\u0131t', modul: 'sevk-on-kayit', ustCubuk: false, geriButon: true, anaYol: '/sevk' });
     router.ekle('/fis/diger-cikis',    { baslik: '\u00c7\u0131k\u0131\u015f Fi\u015fi', modul: 'diger-cikis',    ustCubuk: true,  geriButon: true, anaYol: '/cikis-islemleri' });
     router.ekle('/sayim/okut',         { baslik: 'Say\u0131m Okutma',                  modul: 'sayimOkut',      ustCubuk: false, geriButon: true, anaYol: '/sayim' });
 

@@ -65,6 +65,7 @@ function FisOkutmaOlustur(y) {
                 '<button type="button" class="ara-btn" data-action="fisAra">' + y.araButonMetni + '</button>' +
                 '<button type="button" id="acikFisBtn" class="acik-fis-btn" data-action="acikFisler">' + y.acikFisButonMetni + '</button>' +
                 '<button type="button" id="kapatilanFisBtn" class="kapatilan-fis-btn" data-action="kapatilanFisler">' + y.kapatilanFisButonMetni + '</button>' +
+                (y.onKayitYolu ? '<a href="' + y.onKayitYolu + '" class="buton" style="margin-top:10px;display:block;text-align:center;">Sevk \u00d6n Kay\u0131t</a>' : '') +
                 '<div id="acikFisListesiInline" style="display:none;margin-top:10px;">' +
                     '<div id="acikFisListesi" class="fis-liste"></div>' +
                 '</div>' +
@@ -865,7 +866,8 @@ window.Views['sevk'] = FisOkutmaOlustur({
     apiPrefix:             '/api/sevk',
     cachePrefix:           'sevk_fis_cache_',
     depoAlani:             'cikis_depo',
-    sayfaYolu:             '/sevk'
+    sayfaYolu:             '/sevk',
+    onKayitYolu:           '/sevk-on-kayit'
 });
 
 window.Views['diger-giris'] = FisOkutmaOlustur({
