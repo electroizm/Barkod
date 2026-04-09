@@ -371,15 +371,15 @@ window.Views['sevk-on-kayit'] = (function() {
                 mesajGoster('İndirilecek kayıt yok.', 'hata');
                 return;
             }
-            var gruplu = {};
+            // Benzersiz stok kodları — her ürün 1 satır, adet her zaman 1
+            var stokKodlar = [];
             filtrelenmis.forEach(function(o) {
                 var key = o.stok_kod || '';
-                if (!gruplu[key]) gruplu[key] = 0;
-                gruplu[key]++;
+                if (key && stokKodlar.indexOf(key) === -1) stokKodlar.push(key);
             });
-            var satirlar = [];
-            Object.keys(gruplu).sort().forEach(function(stokKod) {
-                satirlar.push(stokKod + '-0;' + gruplu[stokKod]);
+            stokKodlar.sort();
+            var satirlar = stokKodlar.map(function(stokKod) {
+                return stokKod + '-0;1';
             });
             var csvIcerik = '\uFEFF' + satirlar.join('\r\n');
             var blob = new Blob([csvIcerik], { type: 'text/csv;charset=utf-8;' });
