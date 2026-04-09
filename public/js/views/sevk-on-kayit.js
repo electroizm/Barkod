@@ -415,10 +415,10 @@ window.Views['sevk-on-kayit'] = (function() {
                 if (!gruplu[key]) gruplu[key] = 0;
                 gruplu[key]++;
             });
-            // Başlık yok, malzeme kodu düz (no -0)
+            // Başlık yok, malzeme kodu + "-0" suffix, tırnaksız
             var satirlar = [];
             Object.keys(gruplu).sort().forEach(function(stokKod) {
-                satirlar.push('"' + stokKod + '";"' + gruplu[stokKod] + '"');
+                satirlar.push(stokKod + '-0;' + gruplu[stokKod]);
             });
             var csvIcerik = '\uFEFF' + satirlar.join('\r\n');
             var blob = new Blob([csvIcerik], { type: 'text/csv;charset=utf-8;' });
