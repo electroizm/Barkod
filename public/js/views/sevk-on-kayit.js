@@ -19,8 +19,8 @@ window.Views['sevk-on-kayit'] = (function() {
     var aktifDepo = null;   // '300' veya '200'
 
     var GRUPLAR = [
-        { depo: '300', ad: 'DEPO \u2192 EXC',  dosyaAdi: 'DEPO -> EXC.csv' },
-        { depo: '200', ad: 'DEPO \u2192 \u015eUBE', dosyaAdi: 'DEPO -> SUBE.csv' }
+        { depo: '300', ad: 'DEPO \u2192 EXC',  dosyaAdi: 'DEPO_EXC.csv' },
+        { depo: '200', ad: 'DEPO \u2192 \u015eUBE', dosyaAdi: 'DEPO_SUBE.csv' }
     ];
 
     function escAttr(s) {
