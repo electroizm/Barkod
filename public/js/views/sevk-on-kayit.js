@@ -2,6 +2,7 @@
  * Sevk Ön Kayıt View
  * URL param ile: /sevk-on-kayit?depo=300 → direkt tarama ekranı
  * Param yoksa: grup seçim ekranı
+ * on-kayit.js yapısıyla aynı: BarkodOkuyucu + checkbox liste + Sevk Fişi Eşleştir
  */
 window.Views = window.Views || {};
 window.Views['sevk-on-kayit'] = (function() {
@@ -9,7 +10,7 @@ window.Views['sevk-on-kayit'] = (function() {
     var _konteyner = null;
     var _delegeHandler = null;
     var _aramaHandler = null;
-    var _enterHandler = null;
+    var _evrakEnterHandler = null;
     var barkodOkuyucu = null;
     var aramaZamanlayici = null;
     var mesajZamanlayici = null;
@@ -33,7 +34,7 @@ window.Views['sevk-on-kayit'] = (function() {
         return g ? g.ad : depo;
     }
 
-    // ─── GRUP SEÇİM EKRANI (param yokken) ────────────────────
+    // ─── GRUP SEÇİM EKRANI ───────────────────────────────────
     function secimEkraniHtml() {
         var grupBtnHtml = GRUPLAR.map(function(g) {
             return '<button type="button" class="ara-btn" data-action="hedefSec" data-depo="' + g.depo + '">' +
@@ -44,7 +45,7 @@ window.Views['sevk-on-kayit'] = (function() {
             '<div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">' + grupBtnHtml + '</div>';
     }
 
-    // ─── TARAMA EKRANI ────────────────────────────────────────
+    // ─── TARAMA EKRANI (on-kayit.js stili) ───────────────────
     function taramaEkraniHtml(depo) {
         return '<h1 class="baslik">' + grupAdi(depo) + '</h1>' +
             '<div id="sonucMesaj" style="display:none;"></div>' +
@@ -63,9 +64,16 @@ window.Views['sevk-on-kayit'] = (function() {
                 '<div class="arama-sonuc" id="aramaSonuc"></div>' +
             '</div>' +
 
-            '<div style="margin-top:16px;">' +
-                '<div class="bekleyen-baslik">Okunan Malzemeler <span id="okunanSayisi"></span></div>' +
-                '<div id="bekleyenListe"></div>' +
+            '<div class="bekleyen-baslik">' +
+                '<input type="checkbox" id="hepsiniSecCheckbox" data-action="hepsiniSec" style="margin-right:8px;cursor:pointer;">' +
+                'Bekleyen Okumalar <span id="bekleyenSayisi"></span>' +
+            '</div>' +
+            '<div id="bekleyenListe"></div>' +
+
+            '<div class="eslestir-alan" id="eslestirAlani" style="display:none;">' +
+                '<div class="eslestir-baslik">Sevk Fi\u015fi E\u015fle\u015ftir</div>' +
+                '<input type="text" class="eslestir-input" id="evrakNoInput" placeholder="Sevk Fi\u015fi No Gir" style="width:100%;margin-bottom:10px;">' +
+                '<button type="button" class="eslestir-btn" data-action="eslestir" id="eslestirBtn" style="width:100%;">PRG Sevk Fi\u015fi - E\u015fle\u015ftir</button>' +
             '</div>' +
 
             '<button type="button" class="csv-btn" data-action="csvIndir" ' +
@@ -91,7 +99,7 @@ window.Views['sevk-on-kayit'] = (function() {
         }
     }
 
-    // ─── Tab Değiştir ────────────────────────────────────────
+    // ─── Tab ─────────────────────────────────────────────────
     function tabDegistir(tabAdi) {
         if (!_konteyner) return;
         _konteyner.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('aktif'); });
@@ -152,7 +160,7 @@ window.Views['sevk-on-kayit'] = (function() {
             if (kayit.success) {
                 okunanQrler.add(qrKod);
                 mesajGoster(bilgi.malzeme_adi + ' P' + bilgi.paket_sira + '/' + bilgi.paket_sayisi, 'basari');
-                listeYenile();
+                bekleyenleriYukle();
             } else {
                 mesajGoster(kayit.message, 'hata');
             }
@@ -237,7 +245,7 @@ window.Views['sevk-on-kayit'] = (function() {
                 var aramaSonuc = document.getElementById('aramaSonuc');
                 if (aramaInput) aramaInput.value = '';
                 if (aramaSonuc) aramaSonuc.innerHTML = '';
-                listeYenile();
+                bekleyenleriYukle();
             } else {
                 mesajGoster(data.message, 'hata');
             }
@@ -246,11 +254,12 @@ window.Views['sevk-on-kayit'] = (function() {
         }
     }
 
-    // ─── Liste Yenile ─────────────────────────────────────────
-    async function listeYenile() {
-        var listeEl = document.getElementById('bekleyenListe');
-        var sayiEl = document.getElementById('okunanSayisi');
-        if (!listeEl) return;
+    // ─── Bekleyen Okumalar (on-kayit stili checkbox liste) ───
+    async function bekleyenleriYukle() {
+        var bekleyenListe = document.getElementById('bekleyenListe');
+        var bekleyenSayisi = document.getElementById('bekleyenSayisi');
+        var eslestirAlani = document.getElementById('eslestirAlani');
+        if (!bekleyenListe) return;
 
         try {
             var response = await fetch('/api/mikro/sevk-on-kayit-bekleyenler');
@@ -258,68 +267,94 @@ window.Views['sevk-on-kayit'] = (function() {
             var tumOkumalar = (data.success ? data.okumalar : []) || [];
             var filtrelenmis = tumOkumalar.filter(function(o) { return String(o.depo) === aktifDepo; });
 
-            // Malzeme koduna göre grupla
-            var gruplu = {};
-            filtrelenmis.forEach(function(o) {
-                var key = o.stok_kod || '';
-                if (!gruplu[key]) {
-                    gruplu[key] = { malzeme_adi: o.malzeme_adi || key, stok_kod: key, adet: 0, idler: [] };
-                }
-                gruplu[key].adet++;
-                gruplu[key].idler.push(o.id);
-            });
-
-            var toplam = Object.keys(gruplu).length;
-            if (sayiEl) sayiEl.textContent = toplam > 0 ? '(' + filtrelenmis.length + ' paket, ' + toplam + ' çeşit)' : '';
-
             if (filtrelenmis.length === 0) {
-                listeEl.innerHTML = '<div class="bos-mesaj">Henüz okutma yapılmadı.</div>';
+                bekleyenListe.innerHTML = '<div class="bos-mesaj">Bekleyen okuma yok.</div>';
+                if (bekleyenSayisi) bekleyenSayisi.textContent = '';
+                if (eslestirAlani) eslestirAlani.style.display = 'none';
                 return;
             }
 
-            var html = '<table style="width:100%;border-collapse:collapse;font-size:14px;">' +
-                '<thead><tr>' +
-                    '<th style="text-align:left;padding:6px 8px;border-bottom:2px solid #ddd;">Malzeme Adı</th>' +
-                    '<th style="text-align:left;padding:6px 8px;border-bottom:2px solid #ddd;font-family:monospace;">Kod</th>' +
-                    '<th style="text-align:center;padding:6px 8px;border-bottom:2px solid #ddd;">Adet</th>' +
-                    '<th style="padding:6px 8px;border-bottom:2px solid #ddd;"></th>' +
-                '</tr></thead><tbody>';
+            if (bekleyenSayisi) bekleyenSayisi.textContent = '(' + filtrelenmis.length + ' paket)';
+            if (eslestirAlani) eslestirAlani.style.display = 'block';
 
-            Object.values(gruplu).forEach(function(m) {
-                html += '<tr>' +
-                    '<td style="padding:6px 8px;border-bottom:1px solid #eee;">' + escAttr(m.malzeme_adi) + '</td>' +
-                    '<td style="padding:6px 8px;border-bottom:1px solid #eee;font-family:monospace;font-size:12px;">' + escAttr(m.stok_kod) + '</td>' +
-                    '<td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;font-weight:bold;">' + m.adet + '</td>' +
-                    '<td style="padding:4px 8px;border-bottom:1px solid #eee;">' +
-                        '<button type="button" class="sil-btn" data-action="kayitSil" data-stok-kod="' + escAttr(m.stok_kod) +
-                            '" style="font-size:12px;padding:3px 8px;">Sil</button>' +
-                    '</td>' +
-                '</tr>';
-            });
-
-            html += '</tbody></table>';
-            listeEl.innerHTML = html;
-
+            bekleyenListe.innerHTML = filtrelenmis.map(function(okuma) {
+                return '<div class="bekleyen-item" data-id="' + okuma.id + '">' +
+                    '<div class="bekleyen-ust">' +
+                        '<input type="checkbox" class="bekleyen-checkbox" data-action="checkboxToggle" data-id="' + okuma.id + '">' +
+                        '<div class="bekleyen-adi">' + escAttr(okuma.malzeme_adi || okuma.stok_kod) + '</div>' +
+                    '</div>' +
+                    '<div class="bekleyen-alt">' +
+                        '<div class="bekleyen-detay">P' + okuma.paket_sira + ' / ' + escAttr(okuma.stok_kod) + '</div>' +
+                        '<button type="button" class="sil-btn" data-action="okumaySil" data-id="' + okuma.id + '">Sil</button>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
         } catch (error) {
-            listeEl.innerHTML = '<div class="bos-mesaj">Yükleme hatası: ' + error.message + '</div>';
+            bekleyenListe.innerHTML = '<div class="bos-mesaj">Yükleme hatası: ' + error.message + '</div>';
         }
     }
 
-    // ─── Kayıt Sil ───────────────────────────────────────────
-    async function kayitSil(stokKod) {
-        if (!confirm('"' + stokKod + '" kodlu tüm kayıtlar silinsin mi?')) return;
+    // ─── Okuma Sil ───────────────────────────────────────────
+    async function okumaySil(id) {
         try {
-            var response = await fetch('/api/mikro/sevk-on-kayit-bekleyenler');
+            var response = await fetch('/api/mikro/sevk-on-kayit-okuma/' + id, { method: 'DELETE' });
             var data = await response.json();
-            var hedefler = (data.okumalar || []).filter(function(o) {
-                return o.stok_kod === stokKod && String(o.depo) === aktifDepo;
-            });
-            await Promise.all(hedefler.map(function(o) {
-                return fetch('/api/mikro/sevk-on-kayit-okuma/' + o.id, { method: 'DELETE' });
-            }));
-            listeYenile();
+            if (data.success) {
+                mesajGoster(data.message, 'basari');
+                bekleyenleriYukle();
+            } else {
+                mesajGoster(data.message, 'hata');
+            }
         } catch (e) {
             mesajGoster('Silme hatası: ' + e.message, 'hata');
+        }
+    }
+
+    // ─── Eşleştir ────────────────────────────────────────────
+    async function eslestir() {
+        var evrakNoInput = document.getElementById('evrakNoInput');
+        var eslestirBtn = document.getElementById('eslestirBtn');
+        var evrakNo = evrakNoInput ? evrakNoInput.value.trim() : '';
+
+        if (!evrakNo) { mesajGoster('Sevk fişi numarası girin', 'hata'); return; }
+
+        var seciliCheckboxlar = document.querySelectorAll('.bekleyen-checkbox:checked');
+        if (seciliCheckboxlar.length === 0) {
+            mesajGoster('Eşleştirmek için en az bir ürün seçin', 'hata');
+            return;
+        }
+
+        var seciliIdler = [];
+        seciliCheckboxlar.forEach(function(cb) { seciliIdler.push(parseInt(cb.dataset.id)); });
+
+        if (eslestirBtn) { eslestirBtn.disabled = true; eslestirBtn.textContent = 'Eşleştiriliyor...'; }
+
+        try {
+            var response = await fetch('/api/mikro/sevk-on-kayit-eslestir', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    evrakno_sira: evrakNo,
+                    kullanici: kullaniciAl(),
+                    secili_idler: seciliIdler
+                })
+            });
+            var data = await response.json();
+
+            if (data.success) {
+                mesajGoster(data.message, 'basari');
+                if (evrakNoInput) evrakNoInput.value = '';
+                bekleyenleriYukle();
+            } else {
+                mesajGoster(data.message, 'hata');
+            }
+        } catch (error) {
+            mesajGoster('Hata: ' + error.message, 'hata');
+        } finally {
+            if (eslestirBtn) {
+                eslestirBtn.disabled = false;
+                eslestirBtn.textContent = 'PRG Sevk Fi\u015fi - E\u015fle\u015ftir';
+            }
         }
     }
 
@@ -356,7 +391,7 @@ window.Views['sevk-on-kayit'] = (function() {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            mesajGoster(grup.dosyaAdi + ' indirildi (' + Object.keys(gruplu).length + ' çeşit)', 'basari');
+            mesajGoster(grup.dosyaAdi + ' indirildi', 'basari');
         } catch (error) {
             mesajGoster('CSV hatası: ' + error.message, 'hata');
         }
@@ -368,16 +403,18 @@ window.Views['sevk-on-kayit'] = (function() {
         if (!_konteyner) return;
         _konteyner.innerHTML = taramaEkraniHtml(depo);
 
-        // Event delegation yeniden bağla
         _konteyner.removeEventListener('click', _delegeHandler);
         _delegeHandler = tikIsle;
         _konteyner.addEventListener('click', _delegeHandler);
 
-        // Barkod okuyucu
-        var barkodAlani = document.getElementById('barkodOkuyucuAlani');
-        if (barkodAlani && window.BarkodOkuyucu) {
-            barkodOkuyucu = new BarkodOkuyucu(barkodAlani, function(kod) { barkodOkut(kod); });
-        }
+        // Barkod okuyucu (on-kayit.js ile aynı options yapısı)
+        barkodOkuyucu = new BarkodOkuyucu('#barkodOkuyucuAlani', {
+            otomatikOkuma: true,
+            kameraAktif: true,
+            gs1Dogrulama: true,
+            hataGosterici: function(hata) { mesajGoster(hata, 'hata'); },
+            okumaSonrasi: barkodOkut
+        });
 
         // Manuel arama input
         var aramaInput = document.getElementById('aramaInput');
@@ -387,14 +424,19 @@ window.Views['sevk-on-kayit'] = (function() {
                 if (aramaZamanlayici) clearTimeout(aramaZamanlayici);
                 aramaZamanlayici = setTimeout(function() { urunAra(sorgu); }, 300);
             };
-            _enterHandler = function(e) {
-                if (e.key === 'Enter') urunAra(aramaInput.value.trim());
-            };
             aramaInput.addEventListener('input', _aramaHandler);
-            aramaInput.addEventListener('keypress', _enterHandler);
         }
 
-        listeYenile();
+        // Evrak no enter
+        var evrakNoInput = document.getElementById('evrakNoInput');
+        if (evrakNoInput) {
+            _evrakEnterHandler = function(e) {
+                if (e.key === 'Enter') eslestir();
+            };
+            evrakNoInput.addEventListener('keypress', _evrakEnterHandler);
+        }
+
+        bekleyenleriYukle();
     }
 
     // ─── Event Delegation ────────────────────────────────────
@@ -402,11 +444,26 @@ window.Views['sevk-on-kayit'] = (function() {
         var hedef = e.target.closest('[data-action]');
         if (!hedef) return;
         var aksiyon = hedef.dataset.action;
-        if      (aksiyon === 'hedefSec')   taramaBaslat(hedef.dataset.depo);
-        else if (aksiyon === 'tabDegistir') tabDegistir(hedef.dataset.tab);
-        else if (aksiyon === 'manuelSec')  manuelOkut(hedef.dataset.stokKod, hedef.dataset.malzemeAdi);
-        else if (aksiyon === 'kayitSil')   kayitSil(hedef.dataset.stokKod);
-        else if (aksiyon === 'csvIndir')   csvIndir();
+        switch (aksiyon) {
+            case 'hedefSec':    taramaBaslat(hedef.dataset.depo); break;
+            case 'tabDegistir': tabDegistir(hedef.dataset.tab); break;
+            case 'manuelSec':   manuelOkut(hedef.dataset.stokKod, hedef.dataset.malzemeAdi); break;
+            case 'hepsiniSec':
+                var secili = hedef.checked;
+                document.querySelectorAll('.bekleyen-checkbox').forEach(function(cb) {
+                    cb.checked = secili;
+                    var item = cb.closest('.bekleyen-item');
+                    if (item) item.classList.toggle('secili', secili);
+                });
+                break;
+            case 'checkboxToggle':
+                var item = hedef.closest('.bekleyen-item');
+                if (item) item.classList.toggle('secili', hedef.checked);
+                break;
+            case 'okumaySil':   okumaySil(hedef.dataset.id); break;
+            case 'eslestir':    eslestir(); break;
+            case 'csvIndir':    csvIndir(); break;
+        }
     }
 
     // ─── Mount / Unmount ─────────────────────────────────────
@@ -418,11 +475,9 @@ window.Views['sevk-on-kayit'] = (function() {
             aktifDepo = null;
             barkodOkuyucu = null;
 
-            // URL'den depo parametresi varsa direkt tarama ekranı
             if (params && params.depo && (params.depo === '300' || params.depo === '200')) {
                 taramaBaslat(params.depo);
             } else {
-                // Grup seçim ekranı
                 konteyner.innerHTML = secimEkraniHtml();
                 _delegeHandler = tikIsle;
                 konteyner.addEventListener('click', _delegeHandler);
@@ -433,16 +488,17 @@ window.Views['sevk-on-kayit'] = (function() {
             if (barkodOkuyucu) { barkodOkuyucu.destroy(); barkodOkuyucu = null; }
             if (_konteyner && _delegeHandler) _konteyner.removeEventListener('click', _delegeHandler);
             var aramaInput = document.getElementById('aramaInput');
-            if (aramaInput) {
-                if (_aramaHandler) aramaInput.removeEventListener('input', _aramaHandler);
-                if (_enterHandler) aramaInput.removeEventListener('keypress', _enterHandler);
-            }
+            if (aramaInput && _aramaHandler) aramaInput.removeEventListener('input', _aramaHandler);
+            var evrakNoInput = document.getElementById('evrakNoInput');
+            if (evrakNoInput && _evrakEnterHandler) evrakNoInput.removeEventListener('keypress', _evrakEnterHandler);
             if (aramaZamanlayici) clearTimeout(aramaZamanlayici);
             if (mesajZamanlayici) clearTimeout(mesajZamanlayici);
             _konteyner = null;
             _delegeHandler = null;
             _aramaHandler = null;
-            _enterHandler = null;
+            _evrakEnterHandler = null;
+            okunanQrler = new Set();
+            islemDevamEdiyor = false;
         }
     };
 })();

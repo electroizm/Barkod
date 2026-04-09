@@ -1599,4 +1599,121 @@ router.delete('/sevk-on-kayit-okuma/:id', async (req, res) => {
     }
 });
 
+/**
+ * POST /api/mikro/sevk-on-kayit-eslestir
+ * Seçili sevk_on_kayit kayıtlarını sevk_fisi tablosuyla eşleştirir,
+ * sevk_fisi_okumalari'na ekler ve sevk_on_kayit'ten siler.
+ */
+router.post('/sevk-on-kayit-eslestir', async (req, res) => {
+    try {
+        const { evrakno_sira, kullanici, secili_idler } = req.body;
+
+        if (!evrakno_sira)
+            return res.json({ success: false, message: 'Evrak numarası gerekli' });
+        if (!secili_idler || !Array.isArray(secili_idler) || secili_idler.length === 0)
+            return res.json({ success: false, message: 'Eşleştirilecek ürün seçilmedi' });
+
+        const client = await getSupabaseClient();
+        if (!client)
+            return res.json({ success: false, message: 'Veritabanı bağlantısı kurulamadı' });
+
+        // 1. Seçili sevk_on_kayit kayıtlarını al
+        const { data: bekleyenler, error: bekleyenError } = await client
+            .from('sevk_on_kayit')
+            .select('*')
+            .eq('durum', 'bekliyor')
+            .in('id', secili_idler);
+
+        if (bekleyenError || !bekleyenler || bekleyenler.length === 0)
+            return res.json({ success: false, message: 'Bekleyen okuma bulunamadı' });
+
+        // 2. sevk_fisi kalemlerini al
+        const { data: kalemler, error: kalemError } = await client
+            .from('sevk_fisi')
+            .select('*')
+            .eq('evrakno_sira', parseInt(evrakno_sira));
+
+        if (kalemError || !kalemler || kalemler.length === 0)
+            return res.json({
+                success: false,
+                message: `Evrak no ${evrakno_sira} için sevk fişi bulunamadı. Fişin Supabase'e aktarıldığından emin olun.`
+            });
+
+        // 3. Her okumayı sevk_fisi kalemiyle eşleştir (stok_kod + depo)
+        const eslesen = [];
+        const eslesmeyen = [];
+        const batchId = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
+
+        for (const bekleyen of bekleyenler) {
+            const stokKod = (bekleyen.stok_kod || '').trim();
+            const bekleyenDepo = parseInt(bekleyen.depo);
+
+            const kalem = kalemler.find(k => {
+                if (!k.stok_kod) return false;
+                const dbKod = k.stok_kod.trim();
+                const stokEslesme = dbKod === stokKod ||
+                    dbKod.startsWith(stokKod) ||
+                    stokKod.startsWith(dbKod) ||
+                    dbKod.substring(0, 10) === stokKod.substring(0, 10);
+                const depoEslesme = !k.cikis_depo_no || parseInt(k.cikis_depo_no) === bekleyenDepo;
+                return stokEslesme && depoEslesme;
+            });
+
+            if (kalem) eslesen.push({ bekleyen, kalem });
+            else eslesmeyen.push(bekleyen);
+        }
+
+        if (eslesen.length === 0) {
+            const adlar = [...new Set(eslesmeyen.map(e => e.malzeme_adi || e.stok_kod))];
+            return res.json({ success: false, message: `Eşleşen ürün bulunamadı: ${adlar.join(', ')}` });
+        }
+
+        // 4. sevk_fisi_okumalari'na ekle
+        const okumaKayitlari = eslesen.map((e, index) => ({
+            fis_no: parseInt(evrakno_sira),
+            kalem_id: e.kalem.id,
+            qr_kod: e.bekleyen.qr_kod || `SEVKONKAYIT_${evrakno_sira}_${e.kalem.id}_P${e.bekleyen.paket_sira}_${batchId}_${index}`,
+            stok_kod: e.kalem.stok_kod,
+            paket_sira: e.bekleyen.paket_sira,
+            paket_toplam: e.bekleyen.paket_sayisi,
+            depo: parseInt(e.bekleyen.depo),
+            kullanici: kullanici || e.bekleyen.kullanici || 'bilinmiyor',
+            created_at: new Date().toISOString()
+        }));
+
+        const { error: insertError } = await client
+            .from('sevk_fisi_okumalari')
+            .insert(okumaKayitlari);
+
+        if (insertError) {
+            console.error('Sevk ön kayıt eşleştirme insert hatası:', insertError);
+            return res.json({ success: false, message: 'Okuma kayıt hatası: ' + insertError.message });
+        }
+
+        // 5. Eşleşen sevk_on_kayit kayıtlarını sil
+        const eslesenIdler = eslesen.map(e => e.bekleyen.id);
+        const { error: deleteError } = await client
+            .from('sevk_on_kayit')
+            .delete()
+            .in('id', eslesenIdler);
+
+        if (deleteError) {
+            console.error('Sevk_on_kayit silme hatası:', deleteError);
+        }
+
+        const eslesemeyenAdlar = [...new Set(eslesmeyen.map(e => e.malzeme_adi || e.stok_kod))];
+        return res.json({
+            success: true,
+            message: `${eslesen.length} paket eşleştirildi ve sevk fişine aktarıldı` +
+                (eslesmeyen.length > 0 ? `. ${eslesmeyen.length} paket eşleşemedi: ${eslesemeyenAdlar.join(', ')}` : ''),
+            eslesen_sayisi: eslesen.length,
+            eslesmeyen_sayisi: eslesmeyen.length
+        });
+
+    } catch (error) {
+        console.error('Sevk ön kayıt eşleştirme hatası:', error);
+        return res.json({ success: false, message: 'Sunucu hatası: ' + error.message });
+    }
+});
+
 module.exports = router;
