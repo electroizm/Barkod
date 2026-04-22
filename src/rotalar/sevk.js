@@ -516,7 +516,10 @@ router.post('/qr-okut', async (req, res) => {
                 cacheyeOkumaEkle(fis_no, qr_kod, stokKod, paketSira, eslesenKalem.id);
                 return res.json({ success: false, message: 'Bu paket zaten okundu!', hata_tipi: 'DUPLICATE_QR' });
             }
-            return res.json({ success: false, message: 'Okuma kaydedilemedi: ' + insertError.message, hata_tipi: 'INSERT_ERROR' });
+            if (insertError.message && insertError.message.includes('column')) {
+                return res.json({ success: false, message: 'Kayıt işlemi başarısız: Veritabanı şeması güncellenmemiş. Lütfen yöneticinizle iletişime geçin.', hata_tipi: 'SCHEMA_ERROR' });
+            }
+            return res.json({ success: false, message: 'Okuma kaydedilemedi. Lütfen tekrar deneyin.', hata_tipi: 'INSERT_ERROR' });
         }
 
         // 8. Cache güncelle
