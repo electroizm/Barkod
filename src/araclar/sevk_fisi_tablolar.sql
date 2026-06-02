@@ -54,6 +54,10 @@ CREATE INDEX idx_sevk_fisi_depolar ON sevk_fisi(cikis_depo_no, giris_depo_no);
 -- RLS kapat
 ALTER TABLE sevk_fisi DISABLE ROW LEVEL SECURITY;
 
+-- Data API erişimi (30 Ekim 2026 sonrası grant zorunlu)
+GRANT SELECT, INSERT, UPDATE, DELETE ON sevk_fisi TO anon, authenticated, service_role;
+GRANT USAGE, SELECT ON SEQUENCE sevk_fisi_id_seq TO anon, authenticated, service_role;
+
 
 -- ────────────────────────────────────────────────────────────
 -- sevk_fisi_okumalari
@@ -88,3 +92,7 @@ CREATE INDEX idx_sevk_fisi_okumalari_kalem_id ON sevk_fisi_okumalari(kalem_id);
 
 -- RLS kapat
 ALTER TABLE sevk_fisi_okumalari DISABLE ROW LEVEL SECURITY;
+
+-- Data API erişimi (30 Ekim 2026 sonrası grant zorunlu)
+GRANT SELECT, INSERT, UPDATE, DELETE ON sevk_fisi_okumalari TO anon, authenticated, service_role;
+GRANT USAGE, SELECT ON SEQUENCE sevk_fisi_okumalari_id_seq TO anon, authenticated, service_role;
