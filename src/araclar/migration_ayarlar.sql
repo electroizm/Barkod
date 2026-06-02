@@ -11,6 +11,10 @@ CREATE TABLE IF NOT EXISTS ayarlar (
     UNIQUE (anahtar, kullanici_id)
 );
 
+-- Data API erişimi (30 Ekim 2026 sonrası grant zorunlu)
+GRANT SELECT, INSERT, UPDATE, DELETE ON ayarlar TO anon, authenticated, service_role;
+GRANT USAGE, SELECT ON SEQUENCE ayarlar_id_seq TO anon, authenticated, service_role;
+
 -- Varsayılan değerler (default kullanıcı için)
 INSERT INTO ayarlar (anahtar, deger, aciklama, kategori, gizli, kullanici_id) VALUES
 ('PRGsheet_ID', '14Et1NH_yBrwymluEkL0_Ic7BCWev-FrCO-SuDVzkRPA', 'Google Sheets ID', 'google', false, 'default'),

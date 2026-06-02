@@ -17,3 +17,7 @@ CREATE TABLE IF NOT EXISTS sevk_on_kayit (
 
 -- RLS kapat (on_kayit_okumalar ile aynı yaklaşım)
 ALTER TABLE sevk_on_kayit DISABLE ROW LEVEL SECURITY;
+
+-- Data API erişimi (30 Ekim 2026 sonrası grant zorunlu)
+GRANT SELECT, INSERT, UPDATE, DELETE ON sevk_on_kayit TO anon, authenticated, service_role;
+GRANT USAGE, SELECT ON SEQUENCE sevk_on_kayit_id_seq TO anon, authenticated, service_role;
