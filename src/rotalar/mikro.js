@@ -1670,44 +1670,96 @@ router.post('/sevk-on-kayit-eslestir', async (req, res) => {
         }
 
         // 4. sevk_fisi_okumalari'na ekle
-        const okumaKayitlari = eslesen.map((e, index) => ({
-            fis_no: parseInt(evrakno_sira),
-            kalem_id: e.kalem.id,
-            qr_kod: e.bekleyen.qr_kod || `SEVKONKAYIT_${evrakno_sira}_${e.kalem.id}_P${e.bekleyen.paket_sira}_${batchId}_${index}`,
-            stok_kod: e.kalem.stok_kod,
-            paket_sira: e.bekleyen.paket_sira,
-            paket_toplam: e.bekleyen.paket_sayisi,
-            depo: parseInt(e.bekleyen.depo),
-            kullanici: kullanici || e.bekleyen.kullanici || 'bilinmiyor',
-            created_at: new Date().toISOString()
-        }));
+        // qr_kod UNIQUE kısıtlaması var → zaten kayıtlı ve batch içi tekrar eden
+        // qr_kod'ları ele; aksi halde TEK bir duplicate tüm toplu insert'i bozar.
 
-        const { error: insertError } = await client
-            .from('sevk_fisi_okumalari')
-            .insert(okumaKayitlari);
-
-        if (insertError) {
-            console.error('Sevk ön kayıt eşleştirme insert hatası:', insertError);
-            return res.json({ success: false, message: 'Okuma kayıt hatası: ' + insertError.message });
+        // 4a. Bu fiş için hâlihazırda kayıtlı qr_kod'ları çek (idempotency)
+        const adayQrler = eslesen.map(e => e.bekleyen.qr_kod).filter(Boolean);
+        const mevcutQrSet = new Set();
+        if (adayQrler.length > 0) {
+            const { data: mevcutOkumalar, error: mevcutError } = await client
+                .from('sevk_fisi_okumalari')
+                .select('qr_kod')
+                .eq('fis_no', parseInt(evrakno_sira))
+                .in('qr_kod', adayQrler);
+            if (mevcutError) {
+                console.error('Sevk mevcut okuma sorgu hatası:', mevcutError);
+            } else if (mevcutOkumalar) {
+                mevcutOkumalar.forEach(o => mevcutQrSet.add(o.qr_kod));
+            }
         }
 
-        // 5. Eşleşen sevk_on_kayit kayıtlarını sil
-        const eslesenIdler = eslesen.map(e => e.bekleyen.id);
-        const { error: deleteError } = await client
-            .from('sevk_on_kayit')
-            .delete()
-            .in('id', eslesenIdler);
+        // 4b. Yeni eklenecekleri ve zaten var olanları ayır (batch içi tekrarı da ele)
+        const gorulenQrler = new Set();
+        const okumaKayitlari = [];
+        const eklenecekIdler = [];   // gerçekten insert edilen sevk_on_kayit id'leri
+        const zatenVarIdler = [];    // fişte zaten kayıtlı/çift → eşleşmiş say, sil
 
-        if (deleteError) {
-            console.error('Sevk_on_kayit silme hatası:', deleteError);
+        eslesen.forEach((e, index) => {
+            const qrKod = e.bekleyen.qr_kod
+                || `SEVKONKAYIT_${evrakno_sira}_${e.kalem.id}_P${e.bekleyen.paket_sira}_${batchId}_${index}`;
+
+            if (mevcutQrSet.has(qrKod) || gorulenQrler.has(qrKod)) {
+                zatenVarIdler.push(e.bekleyen.id);
+                return;
+            }
+            gorulenQrler.add(qrKod);
+
+            okumaKayitlari.push({
+                fis_no: parseInt(evrakno_sira),
+                kalem_id: e.kalem.id,
+                qr_kod: qrKod,
+                stok_kod: e.kalem.stok_kod,
+                paket_sira: e.bekleyen.paket_sira,
+                paket_toplam: e.bekleyen.paket_sayisi,
+                depo: parseInt(e.bekleyen.depo),
+                kullanici: kullanici || e.bekleyen.kullanici || 'bilinmiyor',
+                created_at: new Date().toISOString()
+            });
+            eklenecekIdler.push(e.bekleyen.id);
+        });
+
+        if (okumaKayitlari.length > 0) {
+            const { error: insertError } = await client
+                .from('sevk_fisi_okumalari')
+                .insert(okumaKayitlari);
+
+            if (insertError) {
+                console.error('Sevk ön kayıt eşleştirme insert hatası:', insertError);
+                if (insertError.code === '23505') {
+                    return res.json({ success: false, message: 'Bu paketler zaten eşleştirilmiş olabilir. Lütfen listeyi yenileyin.' });
+                }
+                return res.json({ success: false, message: 'Okuma kayıt hatası: ' + insertError.message });
+            }
+        }
+
+        // 5. Eşleşen sevk_on_kayit kayıtlarını sil (yeni eklenenler + zaten var olanlar)
+        const silinecekIdler = [...eklenecekIdler, ...zatenVarIdler];
+        if (silinecekIdler.length > 0) {
+            const { error: deleteError } = await client
+                .from('sevk_on_kayit')
+                .delete()
+                .in('id', silinecekIdler);
+
+            if (deleteError) {
+                console.error('Sevk_on_kayit silme hatası:', deleteError);
+            }
         }
 
         const eslesemeyenAdlar = [...new Set(eslesmeyen.map(e => e.malzeme_adi || e.stok_kod))];
+        let mesaj = `${okumaKayitlari.length} paket eşleştirildi ve sevk fişine aktarıldı`;
+        if (zatenVarIdler.length > 0) {
+            mesaj += `. ${zatenVarIdler.length} paket zaten eşleştirilmişti`;
+        }
+        if (eslesmeyen.length > 0) {
+            mesaj += `. ${eslesmeyen.length} paket eşleşemedi: ${eslesemeyenAdlar.join(', ')}`;
+        }
+
         return res.json({
             success: true,
-            message: `${eslesen.length} paket eşleştirildi ve sevk fişine aktarıldı` +
-                (eslesmeyen.length > 0 ? `. ${eslesmeyen.length} paket eşleşemedi: ${eslesemeyenAdlar.join(', ')}` : ''),
-            eslesen_sayisi: eslesen.length,
+            message: mesaj,
+            eslesen_sayisi: okumaKayitlari.length,
+            zaten_var_sayisi: zatenVarIdler.length,
             eslesmeyen_sayisi: eslesmeyen.length
         });
 

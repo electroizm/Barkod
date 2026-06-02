@@ -748,8 +748,15 @@ function FisOkutmaOlustur(y) {
                 break;
             case 'onKayitAc':
                 if (el.onKayitGrupAlani) {
-                    el.onKayitGrupAlani.style.display =
-                        el.onKayitGrupAlani.style.display === 'none' ? 'block' : 'none';
+                    var onKayitAcilacak = el.onKayitGrupAlani.style.display === 'none';
+                    // Mutual exclusion: açılırken açık ve kapatılan listeleri kapat
+                    if (onKayitAcilacak) {
+                        if (el.acikFisListesiInline) el.acikFisListesiInline.style.display = 'none';
+                        if (el.acikFisBtn) el.acikFisBtn.innerHTML = y.acikFisButonMetni;
+                        if (el.kapatilanFisListesiInline) el.kapatilanFisListesiInline.style.display = 'none';
+                        if (el.kapatilanFisBtn) el.kapatilanFisBtn.innerHTML = y.kapatilanFisButonMetni;
+                    }
+                    el.onKayitGrupAlani.style.display = onKayitAcilacak ? 'block' : 'none';
                 }
                 break;
             case 'onKayitGrupSec':
