@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS sevk_on_kayit (
     paket_sira   INTEGER DEFAULT 1,
     qr_kod       TEXT,
     kullanici    TEXT DEFAULT 'bilinmiyor',
-    depo         INTEGER,          -- 300=EXC, 200=SUBE
+    cikis_depo   INTEGER DEFAULT 100,  -- kaynak depo: 100=DEPO, 200=SUBE, 300=EXC
+    depo         INTEGER,          -- hedef depo: 300=EXC, 200=SUBE
     durum        TEXT DEFAULT 'bekliyor',
     created_at   TIMESTAMPTZ DEFAULT NOW()
 );

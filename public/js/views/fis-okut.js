@@ -69,13 +69,21 @@ function FisOkutmaOlustur(y) {
                     '<button type="button" class="acik-fis-btn" data-action="onKayitAc" style="margin-top:10px;">Sevk \u00d6n Kay\u0131t</button>' +
                     '<div id="onKayitGrupAlani" style="display:none;margin-top:10px;">' +
                         '<div class="fis-liste">' +
-                            '<div class="fis-item" data-action="onKayitGrupSec" data-depo="300">' +
+                            '<div class="fis-item" data-action="onKayitGrupSec" data-cikis="100" data-giris="300">' +
                                 '<div class="fis-item-baslik">DEPO \u2192 EXC</div>' +
                                 '<div class="fis-item-detay">100 - DEPO >> 300 - EXC</div>' +
                             '</div>' +
-                            '<div class="fis-item" data-action="onKayitGrupSec" data-depo="200">' +
+                            '<div class="fis-item" data-action="onKayitGrupSec" data-cikis="100" data-giris="200">' +
                                 '<div class="fis-item-baslik">DEPO \u2192 \u015eUBE</div>' +
                                 '<div class="fis-item-detay">100 - DEPO >> 200 - \u015eUBE</div>' +
+                            '</div>' +
+                            '<div class="fis-item" data-action="onKayitGrupSec" data-cikis="200" data-giris="300">' +
+                                '<div class="fis-item-baslik">\u015eUBE \u2192 EXC</div>' +
+                                '<div class="fis-item-detay">200 - \u015eUBE >> 300 - EXC</div>' +
+                            '</div>' +
+                            '<div class="fis-item" data-action="onKayitGrupSec" data-cikis="300" data-giris="200">' +
+                                '<div class="fis-item-baslik">EXC \u2192 \u015eUBE</div>' +
+                                '<div class="fis-item-detay">300 - EXC >> 200 - \u015eUBE</div>' +
                             '</div>' +
                         '</div>' +
                     '</div>'
@@ -760,7 +768,7 @@ function FisOkutmaOlustur(y) {
                 }
                 break;
             case 'onKayitGrupSec':
-                if (window.AppRouter) window.AppRouter.git('/sevk-on-kayit?depo=' + hedef.dataset.depo);
+                if (window.AppRouter) window.AppRouter.git('/sevk-on-kayit?cikis=' + hedef.dataset.cikis + '&giris=' + hedef.dataset.giris);
                 break;
             case 'fisSecimAcik':
                 el.acikFisListesiInline.style.display = 'none';
