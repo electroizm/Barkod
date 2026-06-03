@@ -16,11 +16,15 @@ window.Views['sevk-on-kayit'] = (function() {
     var mesajZamanlayici = null;
     var okunanQrler = new Set();
     var islemDevamEdiyor = false;
-    var aktifDepo = null;   // '300' veya '200'
+    var aktifCikis = null;  // kaynak depo: '100' | '200' | '300'
+    var aktifGiris = null;  // hedef depo:  '200' | '300'
 
+    // cikis = kaynak depo, giris = hedef depo (100=DEPO, 200=SUBE, 300=EXC)
     var GRUPLAR = [
-        { depo: '300', ad: 'DEPO \u2192 EXC',  dosyaAdi: 'DEPO_EXC.csv' },
-        { depo: '200', ad: 'DEPO \u2192 \u015eUBE', dosyaAdi: 'DEPO_SUBE.csv' }
+        { cikis: '100', giris: '300', ad: 'DEPO \u2192 EXC',   dosyaAdi: 'DEPO_EXC.csv' },
+        { cikis: '100', giris: '200', ad: 'DEPO \u2192 \u015eUBE',  dosyaAdi: 'DEPO_SUBE.csv' },
+        { cikis: '200', giris: '300', ad: '\u015eUBE \u2192 EXC',   dosyaAdi: 'SUBE_EXC.csv' },
+        { cikis: '300', giris: '200', ad: 'EXC \u2192 \u015eUBE',   dosyaAdi: 'EXC_SUBE.csv' }
     ];
 
     function escAttr(s) {
@@ -29,15 +33,18 @@ window.Views['sevk-on-kayit'] = (function() {
     function kullaniciAl() {
         return document.getElementById('kullaniciBilgi')?.textContent || 'bilinmiyor';
     }
-    function grupAdi(depo) {
-        var g = GRUPLAR.find(function(x) { return x.depo === depo; });
-        return g ? g.ad : depo;
+    function grupBul(cikis, giris) {
+        return GRUPLAR.find(function(x) { return x.cikis === cikis && x.giris === giris; });
+    }
+    function grupAdi(cikis, giris) {
+        var g = grupBul(cikis, giris);
+        return g ? g.ad : (cikis + ' \u2192 ' + giris);
     }
 
     // ─── GRUP SEÇİM EKRANI ───────────────────────────────────
     function secimEkraniHtml() {
         var grupBtnHtml = GRUPLAR.map(function(g) {
-            return '<button type="button" class="ara-btn" data-action="hedefSec" data-depo="' + g.depo + '">' +
+            return '<button type="button" class="ara-btn" data-action="hedefSec" data-cikis="' + g.cikis + '" data-giris="' + g.giris + '">' +
                 g.ad + '</button>';
         }).join('');
         return '<h1 class="baslik">Sevk \u00d6n Kay\u0131t</h1>' +
@@ -46,8 +53,8 @@ window.Views['sevk-on-kayit'] = (function() {
     }
 
     // ─── TARAMA EKRANI (on-kayit.js stili) ───────────────────
-    function taramaEkraniHtml(depo) {
-        return '<h1 class="baslik">' + grupAdi(depo) + '</h1>' +
+    function taramaEkraniHtml(cikis, giris) {
+        return '<h1 class="baslik">' + grupAdi(cikis, giris) + '</h1>' +
             '<div id="sonucMesaj" style="display:none;"></div>' +
 
             '<div class="tab-container">' +
@@ -115,7 +122,7 @@ window.Views['sevk-on-kayit'] = (function() {
     async function barkodOkut(qrKod) {
         if (!qrKod || !qrKod.trim()) return;
         qrKod = qrKod.replace(/[\x00-\x1F\x7F]/g, '').trim();
-        if (!qrKod || !aktifDepo) return;
+        if (!qrKod || !aktifGiris) return;
         if (islemDevamEdiyor) return;
 
         if (okunanQrler.has(qrKod)) {
@@ -152,7 +159,8 @@ window.Views['sevk-on-kayit'] = (function() {
                     paket_sira: bilgi.paket_sira,
                     qr_kod: bilgi.qr_kod_normalized || qrKod,
                     kullanici: kullaniciAl(),
-                    depo: aktifDepo
+                    depo: aktifGiris,
+                    cikis_depo: aktifCikis
                 })
             });
             var kayit = await kayitResponse.json();
@@ -204,7 +212,7 @@ window.Views['sevk-on-kayit'] = (function() {
     }
 
     async function manuelOkut(stokKod, malzemeAdi) {
-        if (!aktifDepo) return;
+        if (!aktifGiris) return;
         mesajGoster('Paket bilgisi alınıyor...', '');
         try {
             var paketSayisi = 1;
@@ -235,7 +243,8 @@ window.Views['sevk-on-kayit'] = (function() {
                     product_desc: productDesc,
                     paket_sayisi: paketSayisi,
                     kullanici: kullaniciAl(),
-                    depo: aktifDepo
+                    depo: aktifGiris,
+                    cikis_depo: aktifCikis
                 })
             });
             var data = await response.json();
@@ -265,7 +274,10 @@ window.Views['sevk-on-kayit'] = (function() {
             var response = await fetch('/api/mikro/sevk-on-kayit-bekleyenler');
             var data = await response.json();
             var tumOkumalar = (data.success ? data.okumalar : []) || [];
-            var filtrelenmis = tumOkumalar.filter(function(o) { return String(o.depo) === aktifDepo; });
+            var filtrelenmis = tumOkumalar.filter(function(o) {
+                var oCikis = (o.cikis_depo == null) ? '100' : String(o.cikis_depo);
+                return String(o.depo) === aktifGiris && oCikis === aktifCikis;
+            });
 
             if (filtrelenmis.length === 0) {
                 bekleyenListe.innerHTML = '<div class="bos-mesaj">Bekleyen okuma yok.</div>';
@@ -360,13 +372,16 @@ window.Views['sevk-on-kayit'] = (function() {
 
     // ─── CSV İndir ───────────────────────────────────────────
     async function csvIndir() {
-        var grup = GRUPLAR.find(function(g) { return g.depo === aktifDepo; });
+        var grup = grupBul(aktifCikis, aktifGiris);
         if (!grup) return;
         try {
             var response = await fetch('/api/mikro/sevk-on-kayit-bekleyenler');
             var data = await response.json();
             var okumalar = (data.success ? data.okumalar : []) || [];
-            var filtrelenmis = okumalar.filter(function(o) { return String(o.depo) === aktifDepo; });
+            var filtrelenmis = okumalar.filter(function(o) {
+                var oCikis = (o.cikis_depo == null) ? '100' : String(o.cikis_depo);
+                return String(o.depo) === aktifGiris && oCikis === aktifCikis;
+            });
             if (filtrelenmis.length === 0) {
                 mesajGoster('İndirilecek kayıt yok.', 'hata');
                 return;
@@ -399,10 +414,11 @@ window.Views['sevk-on-kayit'] = (function() {
     }
 
     // ─── Tarama Ekranını Başlat ───────────────────────────────
-    function taramaBaslat(depo) {
-        aktifDepo = depo;
+    function taramaBaslat(cikis, giris) {
+        aktifCikis = cikis;
+        aktifGiris = giris;
         if (!_konteyner) return;
-        _konteyner.innerHTML = taramaEkraniHtml(depo);
+        _konteyner.innerHTML = taramaEkraniHtml(cikis, giris);
 
         _konteyner.removeEventListener('click', _delegeHandler);
         _delegeHandler = tikIsle;
@@ -446,7 +462,7 @@ window.Views['sevk-on-kayit'] = (function() {
         if (!hedef) return;
         var aksiyon = hedef.dataset.action;
         switch (aksiyon) {
-            case 'hedefSec':    taramaBaslat(hedef.dataset.depo); break;
+            case 'hedefSec':    taramaBaslat(hedef.dataset.cikis, hedef.dataset.giris); break;
             case 'tabDegistir': tabDegistir(hedef.dataset.tab); break;
             case 'manuelSec':   manuelOkut(hedef.dataset.stokKod, hedef.dataset.malzemeAdi); break;
             case 'hepsiniSec':
@@ -473,11 +489,16 @@ window.Views['sevk-on-kayit'] = (function() {
             _konteyner = konteyner;
             okunanQrler = new Set();
             islemDevamEdiyor = false;
-            aktifDepo = null;
+            aktifCikis = null;
+            aktifGiris = null;
             barkodOkuyucu = null;
 
-            if (params && params.depo && (params.depo === '300' || params.depo === '200')) {
-                taramaBaslat(params.depo);
+            // Yeni format: ?cikis=200&giris=300 | Eski format (geriye uyumlu): ?depo=300 (kaynak=100)
+            var pCikis = params && params.cikis ? params.cikis : (params && params.depo ? '100' : null);
+            var pGiris = params && params.giris ? params.giris : (params && params.depo ? params.depo : null);
+
+            if (pCikis && pGiris && grupBul(pCikis, pGiris)) {
+                taramaBaslat(pCikis, pGiris);
             } else {
                 konteyner.innerHTML = secimEkraniHtml();
                 _delegeHandler = tikIsle;
@@ -500,6 +521,8 @@ window.Views['sevk-on-kayit'] = (function() {
             _evrakEnterHandler = null;
             okunanQrler = new Set();
             islemDevamEdiyor = false;
+            aktifCikis = null;
+            aktifGiris = null;
         }
     };
 })();

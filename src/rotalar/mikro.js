@@ -1492,7 +1492,7 @@ router.post('/on-kayit-eslestir', async (req, res) => {
  */
 router.post('/sevk-on-kayit-okuma-kaydet', async (req, res) => {
     try {
-        const { stok_kod, malzeme_adi, product_desc, paket_sayisi, paket_sira, qr_kod, kullanici, depo } = req.body;
+        const { stok_kod, malzeme_adi, product_desc, paket_sayisi, paket_sira, qr_kod, kullanici, depo, cikis_depo } = req.body;
         if (!stok_kod || !paket_sira) return res.json({ success: false, message: 'Stok kodu ve paket sırası gerekli' });
         if (!depo) return res.json({ success: false, message: 'Grup (depo) seçimi gerekli' });
 
@@ -1514,7 +1514,8 @@ router.post('/sevk-on-kayit-okuma-kaydet', async (req, res) => {
             .from('sevk_on_kayit')
             .insert({ stok_kod, malzeme_adi: malzeme_adi || stok_kod, product_desc: product_desc || null,
                 paket_sayisi: paket_sayisi || 1, paket_sira, qr_kod: qr_kod || null,
-                kullanici: kullanici || 'bilinmiyor', depo: parseInt(depo), durum: 'bekliyor' })
+                kullanici: kullanici || 'bilinmiyor', depo: parseInt(depo),
+                cikis_depo: cikis_depo ? parseInt(cikis_depo) : 100, durum: 'bekliyor' })
             .select();
 
         if (error) return res.json({ success: false, message: 'Kayıt hatası: ' + error.message });
@@ -1529,7 +1530,7 @@ router.post('/sevk-on-kayit-okuma-kaydet', async (req, res) => {
  */
 router.post('/sevk-on-kayit-manuel-okuma', async (req, res) => {
     try {
-        const { stok_kod, malzeme_adi, product_desc, paket_sayisi, kullanici, depo } = req.body;
+        const { stok_kod, malzeme_adi, product_desc, paket_sayisi, kullanici, depo, cikis_depo } = req.body;
         if (!stok_kod) return res.json({ success: false, message: 'Stok kodu gerekli' });
         if (!depo) return res.json({ success: false, message: 'Grup (depo) seçimi gerekli' });
 
@@ -1544,7 +1545,8 @@ router.post('/sevk-on-kayit-manuel-okuma', async (req, res) => {
                 stok_kod, malzeme_adi: malzeme_adi || stok_kod, product_desc: product_desc || null,
                 paket_sayisi: paketAdet, paket_sira: ps,
                 qr_kod: `MANUEL_SEVK_${stok_kod}_P${ps}_${batchId}`,
-                kullanici: kullanici || 'bilinmiyor', depo: parseInt(depo), durum: 'bekliyor'
+                kullanici: kullanici || 'bilinmiyor', depo: parseInt(depo),
+                cikis_depo: cikis_depo ? parseInt(cikis_depo) : 100, durum: 'bekliyor'
             });
         }
 
@@ -1646,7 +1648,8 @@ router.post('/sevk-on-kayit-eslestir', async (req, res) => {
 
         for (const bekleyen of bekleyenler) {
             const stokKod = (bekleyen.stok_kod || '').trim();
-            const bekleyenDepo = parseInt(bekleyen.depo);
+            const bekleyenGiris = parseInt(bekleyen.depo);                                  // hedef depo
+            const bekleyenCikis = bekleyen.cikis_depo != null ? parseInt(bekleyen.cikis_depo) : 100; // kaynak depo
 
             const kalem = kalemler.find(k => {
                 if (!k.stok_kod) return false;
@@ -1655,9 +1658,10 @@ router.post('/sevk-on-kayit-eslestir', async (req, res) => {
                     dbKod.startsWith(stokKod) ||
                     stokKod.startsWith(dbKod) ||
                     dbKod.substring(0, 10) === stokKod.substring(0, 10);
-                // bekleyenDepo = giris_depo_no (300=EXC, 200=ŞUBE)
-                const depoEslesme = !k.giris_depo_no || parseInt(k.giris_depo_no) === bekleyenDepo;
-                return stokEslesme && depoEslesme;
+                // Hem hedef (giris) hem kaynak (cikis) depo eşleşmeli — rotalar ayrışsın
+                const girisEslesme = !k.giris_depo_no || parseInt(k.giris_depo_no) === bekleyenGiris;
+                const cikisEslesme = !k.cikis_depo_no || parseInt(k.cikis_depo_no) === bekleyenCikis;
+                return stokEslesme && girisEslesme && cikisEslesme;
             });
 
             if (kalem) eslesen.push({ bekleyen, kalem });
