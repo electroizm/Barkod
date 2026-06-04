@@ -201,7 +201,10 @@ function uygunKalemBulMalzemeNo(oturumId, malzemeNo, paketSira) {
     // Tek satır varsa direkt döndür
     if (eslesenKalemler.length === 1) return eslesenKalemler[0];
 
-    // Birden fazla satır: kapasitesi olan ilk kalemi bul
+    // Birden fazla satır: kapasitesi olan ilk kalemi bul.
+    // Fallback için en az yüklü satırı da izle.
+    let enAzYuklu = null;
+    let enAzOkuma = Infinity;
     for (const kalem of eslesenKalemler) {
         const kalemMiktar = parseFloat((kalem.miktar || '1').replace(',', '.')) || 1;
         const kalemKey = `${kalem.id}:${paketSira}`;
@@ -209,10 +212,16 @@ function uygunKalemBulMalzemeNo(oturumId, malzemeNo, paketSira) {
         if (kalemOkuma < kalemMiktar) {
             return kalem;
         }
+        if (kalemOkuma < enAzOkuma) {
+            enAzOkuma = kalemOkuma;
+            enAzYuklu = kalem;
+        }
     }
 
-    // Hepsi doluysa ilkini döndür (limit kontrolü yakalayacak)
-    return eslesenKalemler[0];
+    // Hiçbir satırda kapasite yoksa (tutarsız/edge durum): row[0]'a yığmak yerine EN AZ
+    // yüklü satıra yönlendir ki dağıtım dengeye yaklaşsın, tek satır şişmesin.
+    // (Gerçek limit aşımı zaten paketOkumasiYapilabilirMi tarafından reddedilir.)
+    return enAzYuklu || eslesenKalemler[0];
 }
 
 /**
@@ -886,6 +895,15 @@ router.post('/qr-okut', async (req, res) => {
                     }
                 });
             }
+        }
+
+        // 6b. Standart üründe kalem seçimini limit kontrolünden (ve olası cache
+        // yenilemesinden) SONRA, en güncel cache üzerinde yeniden yap. Aksi halde
+        // seçim bayat cache'e göre yapılıp okuma kapasitesi dolu bir satıra yazılabilir
+        // ve dağıtım dengesizleşir (3+1). Kişiye özel üründe satır zaten tektir.
+        if (!qrBilgi.kisiyeOzel) {
+            const tazeKalem = uygunKalemBulMalzemeNo(oturum_id, malzemeNo, paketSira);
+            if (tazeKalem) eslesenKalem = tazeKalem;
         }
 
         // 7. Okumayı veritabanına kaydet

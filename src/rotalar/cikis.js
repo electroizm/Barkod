@@ -157,6 +157,9 @@ function uygunKalemBulStokKod(fisNo, stokKod, paketSira) {
     if (eslesenKalemler.length === 0) return null;
     if (eslesenKalemler.length === 1) return eslesenKalemler[0];
 
+    // Kapasitesi olan ilk kalemi bul; fallback için en az yüklü satırı da izle.
+    let enAzYuklu = null;
+    let enAzOkuma = Infinity;
     for (const kalem of eslesenKalemler) {
         const kalemMiktar = parseFloat(kalem.miktar) || 1;
         const kalemKey = `${kalem.id}:${paketSira}`;
@@ -164,9 +167,15 @@ function uygunKalemBulStokKod(fisNo, stokKod, paketSira) {
         if (kalemOkuma < kalemMiktar) {
             return kalem;
         }
+        if (kalemOkuma < enAzOkuma) {
+            enAzOkuma = kalemOkuma;
+            enAzYuklu = kalem;
+        }
     }
 
-    return eslesenKalemler[0];
+    // Hiçbir satırda kapasite yoksa: row[0]'a yığmak yerine EN AZ yüklü satıra yönlendir
+    // ki dağıtım dengeye yaklaşsın. (Gerçek limit aşımı paketOkumasiYapilabilirMi'de reddedilir.)
+    return enAzYuklu || eslesenKalemler[0];
 }
 
 function paketOkumasiYapilabilirMi(fisNo, stokKod, paketSira, maxMiktar) {
@@ -508,6 +517,14 @@ router.post('/qr-okut', async (req, res) => {
                     detay: { stok_kod: stokKod, paket_sira: paketSira, paket_toplam: paketToplam, miktar: toplamMiktarYeni, okunan: mevcutOkuma }
                 });
             }
+        }
+
+        // 6b. Standart üründe kalem seçimini limit kontrolünden (ve olası cache
+        // yenilemesinden) SONRA en güncel cache üzerinde yeniden yap; aksi halde seçim
+        // bayat cache'e göre yapılıp dağıtım dengesizleşebilir (3+1). Kişiye özelde satır tektir.
+        if (!qrBilgi.kisiyeOzel) {
+            const tazeKalem = uygunKalemBulStokKod(fis_no, stokKod, paketSira);
+            if (tazeKalem) eslesenKalem = tazeKalem;
         }
 
         // 7. Veritabanına kaydet
