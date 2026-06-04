@@ -269,15 +269,16 @@ router.get('/fis-durumu/:fisNo', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Çıkış fişi bulunamadı' });
         }
 
-        let toplamPaket = 0;
-        let okunanPaket = 0;
+        // Aynı stok_kod birden fazla satıra (fiş kalemine) bölünmüş olabilir; kutular
+        // fiziksel olarak birbirinin yerine geçtiği için tamamlanma satır bazında değil
+        // stok_kod grubu bazında hesaplanmalı (banner ile satır rengi tutarlı kalsın diye).
+        const stokGruplari = new Map(); // stok_kod -> { beklenen, okunan }
+        const kalemHam = [];
 
-        const kalemlerDetay = [];
         for (const kalem of kalemler) {
             const miktar = parseFloat(kalem.miktar) || 1;
             const paketSayisi = parseInt(kalem.paket_sayisi) || 1;
             const beklenenPaket = Math.ceil(miktar * paketSayisi);
-            toplamPaket += beklenenPaket;
 
             const { count, error: countError } = await client
                 .from('cikis_fisi_okumalari')
@@ -286,7 +287,24 @@ router.get('/fis-durumu/:fisNo', async (req, res) => {
                 .eq('kalem_id', kalem.id);
 
             const kalemOkunan = countError ? 0 : (count || 0);
-            okunanPaket += kalemOkunan;
+            kalemHam.push({ kalem, beklenenPaket, kalemOkunan });
+
+            const grup = stokGruplari.get(kalem.stok_kod) || { beklenen: 0, okunan: 0 };
+            grup.beklenen += beklenenPaket;
+            grup.okunan += kalemOkunan;
+            stokGruplari.set(kalem.stok_kod, grup);
+        }
+
+        let toplamPaket = 0;
+        const kalemlerDetay = [];
+
+        for (const { kalem, beklenenPaket, kalemOkunan } of kalemHam) {
+            const grup = stokGruplari.get(kalem.stok_kod);
+            let durum = 'bekliyor';
+            if (grup.okunan >= grup.beklenen) durum = 'tamamlandi';
+            else if (kalemOkunan > 0) durum = 'devam_ediyor';
+
+            toplamPaket += beklenenPaket;
 
             kalemlerDetay.push({
                 id: kalem.id,
@@ -295,8 +313,16 @@ router.get('/fis-durumu/:fisNo', async (req, res) => {
                 miktar: kalem.miktar,
                 beklenen_paket: beklenenPaket,
                 okunan_paket: kalemOkunan,
+                kalan_paket: Math.max(0, beklenenPaket - kalemOkunan),
+                durum: durum,
                 depo: kalem.depo
             });
+        }
+
+        // Oturum toplamı: her grubun okumasını kendi beklenenine kırparak topla
+        let okunanPaket = 0;
+        for (const grup of stokGruplari.values()) {
+            okunanPaket += Math.min(grup.okunan, grup.beklenen);
         }
 
         const kalanPaket = toplamPaket - okunanPaket;

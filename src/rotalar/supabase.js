@@ -1029,11 +1029,13 @@ router.get('/okuma-durumu/:oturumId', async (req, res) => {
             });
         }
 
-        // Her kalem için okuma durumunu hesapla
-        let toplamPaket = 0;
-        let toplamOkunan = 0;
-
-        const kalemDurumlari = [];
+        // 1. geçiş: her kalemin ham okuma sayısını çek ve malzeme_no bazında grupla.
+        // Aynı malzeme_no birden fazla satıra (fatura kalemine) bölünmüş olabilir;
+        // kutular fiziksel olarak birbirinin yerine geçebildiği için tamamlanma
+        // satır bazında DEĞİL, malzeme_no grubu bazında hesaplanmalı. (Limit kontrolü
+        // de zaten toplamMiktarBulMalzemeNo ile aynı agrega modeli kullanıyor.)
+        const malzemeGruplari = new Map(); // malzeme_no -> { beklenen, okunan }
+        const kalemHam = [];
 
         for (const kalem of kalemler) {
             const miktar = parseFloat((kalem.miktar || '0').replace(',', '.')) || 1;
@@ -1047,15 +1049,31 @@ router.get('/okuma-durumu/:oturumId', async (req, res) => {
                 .eq('nakliye_kalem_id', kalem.id);
 
             const okunan = okunanPaket || 0;
-            toplamPaket += beklenenPaket;
-            toplamOkunan += okunan;
+            kalemHam.push({ kalem, beklenenPaket, okunan });
 
+            const grup = malzemeGruplari.get(kalem.malzeme_no) || { beklenen: 0, okunan: 0 };
+            grup.beklenen += beklenenPaket;
+            grup.okunan += okunan;
+            malzemeGruplari.set(kalem.malzeme_no, grup);
+        }
+
+        // 2. geçiş: durum'u malzeme_no grubuna göre belirle.
+        let toplamPaket = 0;
+        const kalemDurumlari = [];
+
+        for (const { kalem, beklenenPaket, okunan } of kalemHam) {
+            const grup = malzemeGruplari.get(kalem.malzeme_no);
+
+            // Grup tamamen okunduysa, o gruba ait TÜM satırlar tamamlanmış sayılır
+            // (dağıtım dengesiz olsa bile fiziksel olarak hepsi okunmuştur).
             let durum = 'bekliyor';
-            if (okunan >= beklenenPaket) {
+            if (grup.okunan >= grup.beklenen) {
                 durum = 'tamamlandi';
             } else if (okunan > 0) {
                 durum = 'devam_ediyor';
             }
+
+            toplamPaket += beklenenPaket;
 
             kalemDurumlari.push({
                 id: kalem.id,
@@ -1064,9 +1082,16 @@ router.get('/okuma-durumu/:oturumId', async (req, res) => {
                 miktar: kalem.miktar,
                 beklenen_paket: beklenenPaket,
                 okunan_paket: okunan,
-                kalan_paket: beklenenPaket - okunan,
+                kalan_paket: Math.max(0, beklenenPaket - okunan),
                 durum: durum
             });
+        }
+
+        // Oturum toplamı: her grubun okumasını kendi beklenenine kırparak topla
+        // (bir satırdaki fazla okumanın, başka satırdaki eksiği maskelemesini engeller).
+        let toplamOkunan = 0;
+        for (const grup of malzemeGruplari.values()) {
+            toplamOkunan += Math.min(grup.okunan, grup.beklenen);
         }
 
         const kalanPaket = toplamPaket - toplamOkunan;

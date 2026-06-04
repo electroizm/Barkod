@@ -174,7 +174,17 @@ window.Views['nakliye-okut'] = (function() {
     }
 
     // === Malzeme Listesi (d\u00fcz liste, depo gruplamas\u0131 yok) ===
-    function malzemeDurumSinifi(okunan, toplam) {
+    function malzemeDurumSinifi(kalem) {
+        // Server grup-bazlı durum gönderir; varsa onu kullan. Aynı malzeme_no birden
+        // fazla satıra bölündüğünde dağıtım dengesiz olabilir; renk satır bazında değil
+        // malzeme_no grubu bazında belirlenmeli (banner ile tutarlı kalsın diye).
+        if (kalem && kalem.durum) {
+            if (kalem.durum === 'tamamlandi') return 'status-green';
+            if (kalem.durum === 'devam_ediyor') return 'status-yellow';
+            return 'status-gray';
+        }
+        var okunan = kalem ? kalem.okunan_paket : 0;
+        var toplam = kalem ? kalem.beklenen_paket : 0;
         if (okunan === 0) return 'status-gray';
         if (okunan >= toplam) return 'status-green';
         return 'status-yellow';
@@ -187,8 +197,8 @@ window.Views['nakliye-okut'] = (function() {
         }
 
         var siraliKalemler = [].concat(kalemler).sort(function(a, b) {
-            var durumA = malzemeDurumSinifi(a.okunan_paket, a.beklenen_paket);
-            var durumB = malzemeDurumSinifi(b.okunan_paket, b.beklenen_paket);
+            var durumA = malzemeDurumSinifi(a);
+            var durumB = malzemeDurumSinifi(b);
             var sira = { 'status-yellow': 0, 'status-gray': 1, 'status-green': 2 };
             var fark = sira[durumA] - sira[durumB];
             if (fark !== 0) return fark;
@@ -196,7 +206,7 @@ window.Views['nakliye-okut'] = (function() {
         });
 
         el.malzemeListesi.innerHTML = siraliKalemler.map(function(kalem, index) {
-            var durumSinifi = malzemeDurumSinifi(kalem.okunan_paket, kalem.beklenen_paket);
+            var durumSinifi = malzemeDurumSinifi(kalem);
             var miktarInt = 1;
             if (kalem.miktar) { miktarInt = Math.floor(parseFloat(String(kalem.miktar).replace(',', '.')) || 1); }
 
