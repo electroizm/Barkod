@@ -380,14 +380,24 @@ function FisOkutmaOlustur(y) {
     }
 
     // ═══ Malzeme Listesi ═══
-    function malzemeDurumSinifi(okunan, toplam) {
+    function malzemeDurumSinifi(kalem) {
+        // Server grup-bazlı durum gönderir; varsa onu kullan. Aynı stok_kod birden
+        // fazla satıra bölündüğünde dağıtım dengesiz olabilir; renk satır bazında değil
+        // stok_kod grubu bazında belirlenmeli (banner ile tutarlı kalsın diye).
+        if (kalem && kalem.durum) {
+            if (kalem.durum === 'tamamlandi') return 'status-green';
+            if (kalem.durum === 'devam_ediyor') return 'status-yellow';
+            return 'status-gray';
+        }
+        var okunan = kalem ? kalem.okunan_paket : 0;
+        var toplam = kalem ? kalem.beklenen_paket : 0;
         if (okunan === 0) return 'status-gray';
         if (okunan >= toplam) return 'status-green';
         return 'status-yellow';
     }
 
     function kalemHtmlOlustur(kalem, index) {
-        var durumSinifi = malzemeDurumSinifi(kalem.okunan_paket, kalem.beklenen_paket);
+        var durumSinifi = malzemeDurumSinifi(kalem);
         var miktarInt = 1;
         if (kalem.miktar) {
             var miktarStr = String(kalem.miktar).replace(',', '.');
@@ -436,8 +446,8 @@ function FisOkutmaOlustur(y) {
 
         var html = depoSirali.map(function(depoNo) {
             var depoKalemleri = depoGruplari[depoNo].sort(function(a, b) {
-                var durumA = malzemeDurumSinifi(a.okunan_paket, a.beklenen_paket);
-                var durumB = malzemeDurumSinifi(b.okunan_paket, b.beklenen_paket);
+                var durumA = malzemeDurumSinifi(a);
+                var durumB = malzemeDurumSinifi(b);
                 var sira = { 'status-yellow': 0, 'status-gray': 1, 'status-green': 2 };
                 var durumFark = sira[durumA] - sira[durumB];
                 if (durumFark !== 0) return durumFark;

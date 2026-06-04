@@ -157,6 +157,9 @@ function uygunKalemBulStokKod(fisNo, stokKod, paketSira) {
     if (eslesenKalemler.length === 0) return null;
     if (eslesenKalemler.length === 1) return eslesenKalemler[0];
 
+    // Kapasitesi olan ilk kalemi bul; fallback için en az yüklü satırı da izle.
+    let enAzYuklu = null;
+    let enAzOkuma = Infinity;
     for (const kalem of eslesenKalemler) {
         const kalemMiktar = parseFloat(kalem.miktar) || 1;
         const kalemKey = `${kalem.id}:${paketSira}`;
@@ -164,9 +167,15 @@ function uygunKalemBulStokKod(fisNo, stokKod, paketSira) {
         if (kalemOkuma < kalemMiktar) {
             return kalem;
         }
+        if (kalemOkuma < enAzOkuma) {
+            enAzOkuma = kalemOkuma;
+            enAzYuklu = kalem;
+        }
     }
 
-    return eslesenKalemler[0];
+    // Hiçbir satırda kapasite yoksa: row[0]'a yığmak yerine EN AZ yüklü satıra yönlendir
+    // ki dağıtım dengeye yaklaşsın. (Gerçek limit aşımı paketOkumasiYapilabilirMi'de reddedilir.)
+    return enAzYuklu || eslesenKalemler[0];
 }
 
 function paketOkumasiYapilabilirMi(fisNo, stokKod, paketSira, maxMiktar) {
@@ -271,15 +280,16 @@ router.get('/fis-durumu/:fisNo', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Sevk fişi bulunamadı' });
         }
 
-        let toplamPaket = 0;
-        let okunanPaket = 0;
+        // Aynı stok_kod birden fazla satıra (fiş kalemine) bölünmüş olabilir; kutular
+        // fiziksel olarak birbirinin yerine geçtiği için tamamlanma satır bazında değil
+        // stok_kod grubu bazında hesaplanmalı (banner ile satır rengi tutarlı kalsın diye).
+        const stokGruplari = new Map(); // stok_kod -> { beklenen, okunan }
+        const kalemHam = [];
 
-        const kalemlerDetay = [];
         for (const kalem of kalemler) {
             const miktar = parseFloat(kalem.miktar) || 1;
             const paketSayisi = parseInt(kalem.paket_sayisi) || 1;
             const beklenenPaket = Math.ceil(miktar * paketSayisi);
-            toplamPaket += beklenenPaket;
 
             const { count, error: countError } = await client
                 .from('sevk_fisi_okumalari')
@@ -288,7 +298,24 @@ router.get('/fis-durumu/:fisNo', async (req, res) => {
                 .eq('kalem_id', kalem.id);
 
             const kalemOkunan = countError ? 0 : (count || 0);
-            okunanPaket += kalemOkunan;
+            kalemHam.push({ kalem, beklenenPaket, kalemOkunan });
+
+            const grup = stokGruplari.get(kalem.stok_kod) || { beklenen: 0, okunan: 0 };
+            grup.beklenen += beklenenPaket;
+            grup.okunan += kalemOkunan;
+            stokGruplari.set(kalem.stok_kod, grup);
+        }
+
+        let toplamPaket = 0;
+        const kalemlerDetay = [];
+
+        for (const { kalem, beklenenPaket, kalemOkunan } of kalemHam) {
+            const grup = stokGruplari.get(kalem.stok_kod);
+            let durum = 'bekliyor';
+            if (grup.okunan >= grup.beklenen) durum = 'tamamlandi';
+            else if (kalemOkunan > 0) durum = 'devam_ediyor';
+
+            toplamPaket += beklenenPaket;
 
             kalemlerDetay.push({
                 id: kalem.id,
@@ -297,9 +324,17 @@ router.get('/fis-durumu/:fisNo', async (req, res) => {
                 miktar: kalem.miktar,
                 beklenen_paket: beklenenPaket,
                 okunan_paket: kalemOkunan,
+                kalan_paket: Math.max(0, beklenenPaket - kalemOkunan),
+                durum: durum,
                 cikis_depo: kalem.cikis_depo,
                 giris_depo: kalem.giris_depo
             });
+        }
+
+        // Oturum toplamı: her grubun okumasını kendi beklenenine kırparak topla
+        let okunanPaket = 0;
+        for (const grup of stokGruplari.values()) {
+            okunanPaket += Math.min(grup.okunan, grup.beklenen);
         }
 
         const kalanPaket = toplamPaket - okunanPaket;
@@ -487,6 +522,14 @@ router.post('/qr-okut', async (req, res) => {
                     detay: { stok_kod: stokKod, paket_sira: paketSira, paket_toplam: paketToplam, miktar: toplamMiktarYeni, okunan: mevcutOkuma }
                 });
             }
+        }
+
+        // 6b. Standart üründe kalem seçimini limit kontrolünden (ve olası cache
+        // yenilemesinden) SONRA en güncel cache üzerinde yeniden yap; aksi halde seçim
+        // bayat cache'e göre yapılıp dağıtım dengesizleşebilir (3+1). Kişiye özelde satır tektir.
+        if (!qrBilgi.kisiyeOzel) {
+            const tazeKalem = uygunKalemBulStokKod(fis_no, stokKod, paketSira);
+            if (tazeKalem) eslesenKalem = tazeKalem;
         }
 
         // 7. Veritabanına kaydet
